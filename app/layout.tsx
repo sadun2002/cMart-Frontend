@@ -3,6 +3,7 @@ import './globals.css';
 import { Toaster } from 'sonner';
 import { ThemeProvider } from '@/components/providers/theme-provider';
 import { FullscreenHandler } from '@/components/providers/fullscreen-handler';
+import { DesktopRouter } from '@/components/providers/desktop-router';
 
 export const metadata: Metadata = {
   title: {
@@ -27,15 +28,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+Sinhala:wght@300;400;500;600;700&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@300;400;500;600;700;800;900&family=Noto+Sans+Sinhala:wght@300;400;500;600;700;800;900&display=swap"
           rel="stylesheet"
         />
       </head>
       <body className="antialiased font-sans" suppressHydrationWarning>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          <FullscreenHandler />
-          {children}
-          <Toaster position="top-center" richColors />
+          <DesktopRouter>
+            <FullscreenHandler />
+            {children}
+            <Toaster position="top-center" richColors />
+          </DesktopRouter>
         </ThemeProvider>
       </body>
     </html>

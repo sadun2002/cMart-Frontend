@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { 
   Search, 
@@ -16,21 +16,22 @@ import {
 import { COMPANY_NAME } from '@/lib/constants';
 import { SiteHeader } from '@/components/layout/site-header';
 import { SiteFooter } from '@/components/layout/site-footer';
+import { MotionBlurBackground } from '@/components/ui/motion-blur-background';
 
 // Theme Data
 const THEMES = [
   { id: 1, name: 'Modern Fashion', category: 'Fashion', price: 'FREE', rating: 4.9, reviews: 120, stores: 245, color: 'from-indigo-500 to-purple-700', tags: ['Modern', 'Responsive'], featured: true },
   { id: 2, name: 'Classic Store', category: 'General', price: 'FREE', rating: 4.7, reviews: 90, stores: 156, color: 'from-emerald-500 to-teal-700', tags: ['Clean', 'Fast'], featured: false },
   { id: 3, name: 'Minimal Shop', category: 'General', price: 'FREE', rating: 4.8, reviews: 60, stores: 89, color: 'from-slate-600 to-gray-900', tags: ['Minimal', 'Elegant'], featured: false },
-  { id: 4, name: 'Elegant Beauty', category: 'Beauty', price: 'LKR 4,900', oldPrice: 'LKR 6,900', rating: 4.9, reviews: 85, stores: 124, color: 'from-rose-400 to-pink-700', tags: ['Luxury', 'Cosmetics'], featured: false },
-  { id: 5, name: 'Tech Store Pro', category: 'Electronics', price: 'LKR 3,900', oldPrice: 'LKR 5,900', rating: 4.8, reviews: 140, stores: 178, color: 'from-blue-600 to-indigo-800', tags: ['Tech', 'Dark Mode'], featured: false },
+  { id: 4, name: 'Elegant Beauty', category: 'Beauty', price: 'Rs. 4,900', oldPrice: 'Rs. 6,900', rating: 4.9, reviews: 85, stores: 124, color: 'from-rose-400 to-pink-700', tags: ['Luxury', 'Cosmetics'], featured: false },
+  { id: 5, name: 'Tech Store Pro', category: 'Electronics', price: 'Rs. 3,900', oldPrice: 'Rs. 5,900', rating: 4.8, reviews: 140, stores: 178, color: 'from-blue-600 to-indigo-800', tags: ['Tech', 'Dark Mode'], featured: false },
   { id: 6, name: 'Food Market', category: 'Food', price: 'FREE', rating: 4.6, reviews: 55, stores: 95, color: 'from-orange-400 to-red-600', tags: ['Fresh', 'Organic'], featured: false },
-  { id: 7, name: 'Grocery Plus', category: 'Food', price: 'LKR 3,500', oldPrice: 'LKR 4,500', rating: 4.7, reviews: 40, stores: 67, color: 'from-green-500 to-emerald-800', tags: ['Supermarket', 'Grid'], featured: false },
-  { id: 8, name: 'Handcraft', category: 'General', price: 'LKR 2,500', oldPrice: 'LKR 3,500', rating: 4.9, reviews: 75, stores: 112, color: 'from-amber-500 to-orange-700', tags: ['Artisan', 'Vintage'], featured: false },
-  { id: 9, name: 'Trendy Fashion', category: 'Fashion', price: 'LKR 2,900', oldPrice: 'LKR 4,900', rating: 4.8, reviews: 190, stores: 234, color: 'from-fuchsia-500 to-pink-700', tags: ['Apparel', 'Bold'], featured: false },
-  { id: 10, name: 'Jewelry Luxe', category: 'Beauty', price: 'LKR 4,500', oldPrice: 'LKR 6,500', rating: 4.9, reviews: 65, stores: 89, color: 'from-yellow-400 to-amber-700', tags: ['Premium', 'Gold'], featured: false },
-  { id: 11, name: 'Sports Hub', category: 'Electronics', price: 'LKR 3,300', oldPrice: 'LKR 4,300', rating: 4.7, reviews: 45, stores: 56, color: 'from-red-500 to-rose-800', tags: ['Active', 'Dynamic'], featured: false },
-  { id: 12, name: 'Bakery Fresh', category: 'Food', price: 'LKR 2,700', oldPrice: 'LKR 3,700', rating: 4.8, reviews: 50, stores: 78, color: 'from-amber-300 to-orange-600', tags: ['Sweet', 'Cozy'], featured: false },
+  { id: 7, name: 'Grocery Plus', category: 'Food', price: 'Rs. 3,500', oldPrice: 'Rs. 4,500', rating: 4.7, reviews: 40, stores: 67, color: 'from-green-500 to-emerald-800', tags: ['Supermarket', 'Grid'], featured: false },
+  { id: 8, name: 'Handcraft', category: 'General', price: 'Rs. 2,500', oldPrice: 'Rs. 3,500', rating: 4.9, reviews: 75, stores: 112, color: 'from-amber-500 to-orange-700', tags: ['Artisan', 'Vintage'], featured: false },
+  { id: 9, name: 'Trendy Fashion', category: 'Fashion', price: 'Rs. 2,900', oldPrice: 'Rs. 4,900', rating: 4.8, reviews: 190, stores: 234, color: 'from-fuchsia-500 to-pink-700', tags: ['Apparel', 'Bold'], featured: false },
+  { id: 10, name: 'Jewelry Luxe', category: 'Beauty', price: 'Rs. 4,500', oldPrice: 'Rs. 6,500', rating: 4.9, reviews: 65, stores: 89, color: 'from-yellow-400 to-amber-700', tags: ['Premium', 'Gold'], featured: false },
+  { id: 11, name: 'Sports Hub', category: 'Electronics', price: 'Rs. 3,300', oldPrice: 'Rs. 4,300', rating: 4.7, reviews: 45, stores: 56, color: 'from-red-500 to-rose-800', tags: ['Active', 'Dynamic'], featured: false },
+  { id: 12, name: 'Bakery Fresh', category: 'Food', price: 'Rs. 2,700', oldPrice: 'Rs. 3,700', rating: 4.8, reviews: 50, stores: 78, color: 'from-amber-300 to-orange-600', tags: ['Sweet', 'Cozy'], featured: false },
 ];
 
 const CATEGORIES = ['All', 'Fashion', 'Food', 'Electronics', 'Beauty', 'General'];
@@ -67,6 +68,24 @@ export default function PortfolioPage() {
   const [activeCategory, setActiveCategory] = useState('All');
   const [activePricing, setActivePricing] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isHeaderVisible, setIsHeaderVisible] = useState(true);
+  const lastScrollY = useRef(0);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    lastScrollY.current = window.scrollY;
+    const controlNavbar = () => {
+      const currentScrollY = window.scrollY;
+      if (currentScrollY > lastScrollY.current && currentScrollY > 100) {
+        setIsHeaderVisible(false);
+      } else {
+        setIsHeaderVisible(true);
+      }
+      lastScrollY.current = currentScrollY;
+    };
+    window.addEventListener("scroll", controlNavbar, { passive: true });
+    return () => window.removeEventListener("scroll", controlNavbar);
+  }, []);
 
   const filteredThemes = THEMES.filter(theme => {
     const matchesCategory = activeCategory === 'All' || theme.category === activeCategory;
@@ -82,11 +101,12 @@ export default function PortfolioPage() {
   const showFeatured = searchQuery === '' && activeCategory === 'All' && activePricing === 'All';
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-slate-950 font-sans text-gray-900 dark:text-white transition-colors selection:bg-blue-100 dark:selection:bg-blue-900 selection:text-blue-900 dark:selection:text-blue-50">
+    <div className="min-h-screen bg-white dark:bg-slate-950 font-sans text-gray-900 dark:text-white transition-colors relative selection:bg-blue-100 dark:selection:bg-blue-900 selection:text-blue-900 dark:selection:text-blue-50">
+      <MotionBlurBackground />
       <SiteHeader />
 
       {/* HERO SECTION */}
-      <section className="bg-white dark:bg-slate-950 border-b border-gray-100 dark:border-slate-800 pt-24 pb-16 px-6 relative overflow-hidden transition-colors">
+      <section className="border-b border-gray-100 dark:border-slate-800 pt-24 pb-16 px-6 relative z-10 bg-transparent overflow-hidden transition-colors">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-blue-50/80 via-transparent to-transparent dark:from-blue-900/10 dark:via-transparent dark:to-transparent" />
         <div className="max-w-4xl mx-auto text-center relative z-10">
           {/* Badge */}
@@ -138,7 +158,9 @@ export default function PortfolioPage() {
       </section>
 
       {/* STICKY FILTER BAR */}
-      <div className="sticky top-[73px] bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-gray-100 dark:border-slate-800 z-40 transition-colors">
+      <div 
+        className={`sticky bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-gray-100 dark:border-slate-800 z-40 transition-all duration-300 ${isHeaderVisible ? 'top-[73px]' : 'top-0'}`}
+      >
         <div className="max-w-7xl mx-auto px-6 py-3">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
             {/* Category Filters */}
@@ -180,7 +202,7 @@ export default function PortfolioPage() {
       </div>
 
       {/* MAIN CONTENT */}
-      <div className="max-w-7xl mx-auto px-6 py-12">
+      <div className="max-w-7xl mx-auto px-6 py-12 relative z-10 bg-transparent">
 
         {/* FEATURED THEME */}
         {showFeatured && (
@@ -345,7 +367,7 @@ export default function PortfolioPage() {
       </div>
 
       {/* CTA SECTION */}
-      <section className="py-20 bg-blue-600 text-white">
+      <section className="py-20 bg-blue-600 text-white relative z-10">
         <div className="max-w-4xl mx-auto px-6 text-center">
           <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 px-4 py-1.5 rounded-full text-sm font-bold mb-6">
             <Sparkles className="w-4 h-4" />

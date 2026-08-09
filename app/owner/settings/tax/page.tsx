@@ -4,7 +4,7 @@ import { DollarSign } from 'lucide-react';
 
 export default function TaxCurrencyPage() {
   return (
-    <div className="p-6 lg:p-8 max-w-4xl mx-auto space-y-8">
+    <div className="font-sans p-6 lg:p-8 max-w-4xl mx-auto space-y-8">
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-500 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200/40">
           <DollarSign className="w-5 h-5 text-white" />
@@ -20,7 +20,7 @@ export default function TaxCurrencyPage() {
           <div className="space-y-2">
             <label className="text-sm font-semibold text-gray-700 dark:text-slate-300">Currency</label>
             <select className="w-full h-11 px-4 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20">
-              <option value="LKR">LKR - Sri Lankan Rupee (Rs.)</option>
+              <option value="Rs.">Rs. - Sri Lankan Rupee (Rs.)</option>
               <option value="USD">USD - US Dollar ($)</option>
               <option value="EUR">EUR - Euro (€)</option>
             </select>

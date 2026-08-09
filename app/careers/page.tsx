@@ -101,7 +101,7 @@ const OPEN_POSITIONS = [
 
 export default function CareersPage() {
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-950 transition-colors selection:bg-blue-100 dark:selection:bg-blue-900 selection:text-blue-900 dark:selection:text-blue-50">
+    <div className="font-sans min-h-screen bg-white dark:bg-slate-950 transition-colors selection:bg-blue-100 dark:selection:bg-blue-900 selection:text-blue-900 dark:selection:text-blue-50">
       <SiteHeader />
 
       {/* Animated Background */}

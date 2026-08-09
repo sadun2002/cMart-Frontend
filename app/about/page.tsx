@@ -4,6 +4,7 @@ import type { Metadata } from 'next';
 import { COMPANY_NAME } from '@/lib/constants';
 import { SiteHeader } from '@/components/layout/site-header';
 import { SiteFooter } from '@/components/layout/site-footer';
+import { MotionBlurBackground } from '@/components/ui/motion-blur-background';
 
 export const metadata: Metadata = {
   title: 'About Us — cMart',
@@ -12,12 +13,13 @@ export const metadata: Metadata = {
 
 export default function AboutPage() {
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-950 font-sans text-gray-900 dark:text-white transition-colors">
+    <div className="min-h-screen bg-white dark:bg-slate-950 font-sans text-gray-900 dark:text-white transition-colors relative">
+      <MotionBlurBackground />
       {/* Navigation */}
       <SiteHeader />
 
       {/* HERO SECTION */}
-      <section className="relative pt-24 pb-16 bg-gradient-to-b from-gray-50/80 to-white dark:from-slate-900 dark:to-slate-950 overflow-hidden text-center transition-colors">
+      <section className="relative pt-24 pb-16 z-10 bg-transparent overflow-hidden text-center transition-colors">
         <div className="max-w-4xl mx-auto px-6 relative z-10">
           <h1 className="text-5xl lg:text-7xl font-black text-gray-900 dark:text-white leading-tight mb-8">
             Empowering <span className="text-blue-600 dark:text-blue-500">Small Businesses</span>
@@ -37,7 +39,7 @@ export default function AboutPage() {
       </section>
 
       {/* OUR STORY SECTION */}
-      <section className="py-24 bg-white dark:bg-slate-950 transition-colors">
+      <section className="py-24 relative z-10 bg-transparent transition-colors">
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <div className="space-y-6">
@@ -49,10 +51,10 @@ export default function AboutPage() {
               </h2>
               <div className="space-y-6 text-lg text-gray-600 dark:text-slate-400 leading-relaxed pt-4">
                 <p>
-                  cMart started in 2024 when our founder, struggling to manage their own small store, realized that powerful POS systems cost too much for small businesses.
+                  cMart started in 2024 as a core project under our parent company, <strong>Chatudisa</strong>. Our founder, struggling to manage their own small store, realized that powerful POS systems cost too much for small businesses.
                 </p>
                 <p>
-                  Today, we serve 500+ stores across Sri Lanka, helping them sell online and manage inventory with ease.
+                  Today, Chatudisa's cMart platform serves 500+ stores across Sri Lanka, helping them sell online and manage inventory with ease.
                 </p>
                 <p className="font-semibold text-gray-900 dark:text-slate-200 text-xl border-l-4 border-blue-600 dark:border-blue-500 pl-6 py-2 bg-gray-50 dark:bg-slate-900 rounded-r-xl">
                   Our mission is simple: Make professional e-commerce tools accessible to everyone.
@@ -71,30 +73,33 @@ export default function AboutPage() {
       </section>
 
       {/* BY THE NUMBERS */}
-      <section className="py-20 bg-blue-600 text-white transition-colors">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-12 text-center">
-            {[
-              { value: '500+', label: 'Happy Stores' },
-              { value: '50,000+', label: 'Orders Processed' },
-              { value: 'LKR 100M+', label: 'Revenue Generated' },
-              { value: '99.9%', label: 'Uptime' },
-            ].map((stat, i) => (
-              <div 
-                key={stat.label} 
-                className={`flex flex-col items-center ${i === 1 || i === 3 ? 'border-l' : i === 2 ? 'lg:border-l' : ''}`}
-                style={{ borderColor: 'rgba(255, 255, 255, 0.3)' }}
-              >
-                <div className="text-4xl md:text-5xl font-black mb-3 text-white">{stat.value}</div>
-                <div className="text-blue-200 font-medium text-lg">{stat.label}</div>
-              </div>
-            ))}
+      <section className="py-12 relative z-10 bg-transparent transition-colors">
+        <div className="max-w-6xl mx-auto px-6">
+          <div className="bg-gradient-to-r from-blue-700 to-blue-600 rounded-[2rem] p-12 shadow-2xl shadow-blue-900/20 text-white">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 md:gap-12 text-center">
+              {[
+                { value: '500+', label: 'Happy Stores' },
+                { value: '50,000+', label: 'Orders Processed' },
+                { value: 'Rs. 100M+', label: 'Revenue Generated' },
+                { value: '99.9%', label: 'Uptime' },
+              ].map((stat, i) => (
+                <div 
+                  key={stat.label} 
+                  className={`flex flex-col items-center justify-center ${i === 1 || i === 3 ? 'border-l border-white/20' : i === 2 ? 'lg:border-l border-white/20' : ''}`}
+                >
+                  <div className="text-3xl md:text-4xl font-black mb-2 text-white">{stat.value}</div>
+                  <div className="text-blue-100 font-medium tracking-wide uppercase text-xs md:text-sm">
+                    {stat.label}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </section>
 
       {/* OUR VALUES */}
-      <section className="py-24 bg-gray-50 dark:bg-slate-950 transition-colors">
+      <section className="py-24 relative z-10 bg-transparent transition-colors">
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-black text-gray-900 dark:text-white">What We Stand For</h2>
@@ -136,7 +141,7 @@ export default function AboutPage() {
       </section>
 
       {/* OUR TEAM */}
-      <section className="py-24 bg-white dark:bg-slate-950 transition-colors">
+      <section className="py-24 relative z-10 bg-transparent transition-colors">
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-black text-gray-900 dark:text-white">Meet the Team</h2>
@@ -168,7 +173,7 @@ export default function AboutPage() {
       </section>
 
       {/* TIMELINE / JOURNEY */}
-      <section className="py-24 bg-gray-50 dark:bg-slate-950 overflow-hidden transition-colors">
+      <section className="py-24 relative z-10 bg-transparent overflow-hidden transition-colors">
         <div className="max-w-4xl mx-auto px-6">
           <div className="text-center mb-20">
             <h2 className="text-4xl font-black text-gray-900 dark:text-white">Our Journey</h2>
@@ -181,9 +186,8 @@ export default function AboutPage() {
             <div className="space-y-12">
               {[
                 { year: '2023', title: 'The Idea', desc: 'Founder struggles with expensive POS solutions and decides to build a better alternative for local businesses.', pos: 'left' },
-                { year: '2024', title: 'Launch', desc: 'cMart launches with 10 stores in closed beta, iterating closely with early adopters.', pos: 'right' },
-                { year: '2024', title: 'Growth', desc: 'Crossed 100+ active stores and released our first collection of premium online store themes.', pos: 'left' },
-                { year: '2025', title: 'Today', desc: 'Supporting 500+ stores and successfully processing over 50,000+ orders nationwide.', pos: 'right' },
+                { year: '2024', title: 'Start up', desc: 'Chatudisa company is established, and we started developing the core system for cMart.', pos: 'right' },
+                { year: '2026', title: 'Launch', desc: 'cMart officially launches to the public, offering a complete ecosystem for modern retail.', pos: 'left' },
               ].map((step, i) => (
                 <div key={step.year + step.title} className={`relative flex flex-col md:flex-row items-center gap-8 ${step.pos === 'right' ? 'md:flex-row-reverse' : ''}`}>
                   {/* Timeline Dot */}
@@ -205,7 +209,7 @@ export default function AboutPage() {
       </section>
 
       {/* CTA */}
-      <section className="py-24 bg-transparent dark:bg-slate-950 text-center transition-colors">
+      <section className="py-24 relative z-10 bg-transparent text-center transition-colors">
         <div className="max-w-3xl mx-auto px-6">
           <h2 className="text-4xl font-black text-gray-900 dark:text-white mb-6">Want to Join Our Journey?</h2>
           <p className="text-xl text-gray-500 dark:text-slate-400 mb-10 leading-relaxed">

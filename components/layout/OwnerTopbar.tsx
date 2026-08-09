@@ -6,6 +6,9 @@ import { Search, Bell, ChevronDown, X } from 'lucide-react';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { useAuthStore } from '@/lib/auth-store';
 import Link from 'next/link';
+import { BranchSelector } from '@/components/ui/branch-selector';
+import { SyncStatus } from '@/components/ui/sync-status';
+import { NetworkStatus } from '@/components/ui/network-status';
 
 const pageTitles: Record<string, string> = {
   '/owner/dashboard': 'Dashboard',
@@ -18,21 +21,22 @@ const pageTitles: Record<string, string> = {
   '/owner/customers': 'Customers',
   '/owner/employees': 'Employees',
   '/owner/attendance': 'Attendance',
-  '/owner/reports/sales': 'Reports',
+  '/owner/reports': 'Reports',
   '/owner/online-orders': 'Online Orders',
   '/owner/online-store/dashboard': 'Online Store',
   '/owner/subscription/plan': 'Subscription',
+  '/owner/barcode-generator': 'Barcode Generator',
 };
 
 export default function OwnerTopbar({ collapsed, onToggle }: { collapsed?: boolean; onToggle?: () => void } = {}) {
   const pathname = usePathname();
-  const { user } = useAuthStore();
+  const { user, logout } = useAuthStore();
   const [searchOpen, setSearchOpen] = useState(false);
   
   // Auto-hide Topbar logic
   const [isVisible, setIsVisible] = useState(true);
   const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const isAutoHidePage = pathname === '/owner/pos' || pathname === '/owner/products' || pathname === '/owner/categories';
+  const isAutoHidePage = pathname.includes('/expenses') || pathname === '/owner/pos' || pathname === '/owner/products' || pathname === '/owner/categories' || pathname === '/owner/inventory' || pathname === '/owner/suppliers' || pathname === '/owner/sales' || pathname === '/owner/customers' || pathname === '/owner/employees' || pathname === '/owner/attendance' || pathname === '/owner/barcode-generator' || pathname === '/owner/employees/roles' || pathname === '/owner/employees/leaves' || pathname === '/owner/employees/payrolls' || pathname === '/owner/online-orders' || pathname === '/owner/online-store/customers' || pathname === '/owner/online-store/themes' || pathname === '/owner/online-store/pages' || pathname === '/owner/online-store/banners' || pathname === '/owner/online-store/domain' || pathname === '/owner/online-store/seo' || pathname === '/owner/online-store/settings' || pathname.startsWith('/owner/reports');
 
   useEffect(() => {
     if (!isAutoHidePage) {
@@ -79,7 +83,10 @@ export default function OwnerTopbar({ collapsed, onToggle }: { collapsed?: boole
         <div className="flex items-center justify-between px-6 lg:px-8 h-16 relative">
         {/* Left: Title + Breadcrumb */}
         <div className="min-w-0">
-          <h1 className="text-xl font-black text-gray-900 dark:text-white truncate">{title}</h1>
+          <div className="flex items-center">
+            <h1 className="text-xl font-black text-gray-900 dark:text-white truncate">{title}</h1>
+            <BranchSelector />
+          </div>
           <nav className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-slate-500 mt-0.5">
             <Link href="/owner/dashboard" className="hover:text-blue-600 transition-colors">Home</Link>
             {breadcrumbs.map((crumb) => (
@@ -94,7 +101,10 @@ export default function OwnerTopbar({ collapsed, onToggle }: { collapsed?: boole
         </div>
 
         {/* Right: Actions */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-4">
+          <SyncStatus />
+          <NetworkStatus />
+          
           {/* Search */}
           <button
             onClick={() => setSearchOpen(!searchOpen)}
@@ -105,10 +115,49 @@ export default function OwnerTopbar({ collapsed, onToggle }: { collapsed?: boole
           </button>
 
           {/* Notifications */}
-          <Link href="/owner/settings/notifications" className="relative p-2 text-gray-400 hover:text-blue-600 transition-colors rounded-full hover:bg-blue-50 dark:hover:bg-blue-900/20" aria-label="Notifications">
-            <Bell className="w-5 h-5" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white dark:ring-slate-900" />
-          </Link>
+          <div className="relative group ml-1">
+            <button className="relative p-2 text-gray-400 hover:text-blue-600 transition-colors rounded-full hover:bg-blue-50 dark:hover:bg-blue-900/20" aria-label="Notifications">
+              <Bell className="w-5 h-5" />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white dark:ring-slate-900" />
+            </button>
+            <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-gray-100 dark:border-slate-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 flex flex-col">
+              <div className="p-4 border-b border-gray-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50 flex justify-between items-center rounded-t-2xl shrink-0">
+                <h3 className="font-bold text-slate-900 dark:text-white">Notifications</h3>
+                <span className="text-[10px] font-black tracking-wider bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400 px-2 py-0.5 rounded-full uppercase">5 New</span>
+              </div>
+              <div className="max-h-[320px] overflow-y-auto no-scrollbar p-2 flex flex-col gap-1">
+                {[
+                  { id: 1, title: 'New Leave Request', desc: 'Kamal Perera requested Annual Leave.', time: '5 mins ago', color: 'blue' },
+                  { id: 2, title: 'Low Stock Alert', desc: 'Panadol 500mg is below reorder level.', time: '1 hour ago', color: 'amber' },
+                  { id: 3, title: 'Shift Started', desc: 'Morning shift has successfully clocked in.', time: '3 hours ago', color: 'emerald' },
+                  { id: 4, title: 'New Online Order', desc: 'Order #ORD-8994 awaits processing.', time: '5 hours ago', color: 'purple' },
+                  { id: 5, title: 'System Update', desc: 'POS system will undergo maintenance tonight.', time: '1 day ago', color: 'slate' },
+                ].map(notif => (
+                  <div key={notif.id} className="p-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-xl transition-colors cursor-pointer flex gap-3 items-start group/item">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
+                      notif.color === 'blue' ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400' :
+                      notif.color === 'amber' ? 'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400' :
+                      notif.color === 'emerald' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' :
+                      notif.color === 'purple' ? 'bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400' :
+                      'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                    }`}>
+                      <Bell className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-slate-900 dark:text-white leading-tight group-hover/item:text-blue-600 dark:group-hover/item:text-blue-400 transition-colors">{notif.title}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-1">{notif.desc}</p>
+                      <span className="text-[10px] font-medium text-slate-400 mt-1 block">{notif.time}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="p-2 border-t border-gray-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50 rounded-b-2xl shrink-0">
+                <Link href="/owner/settings/notifications" className="block w-full py-2.5 text-center text-sm font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-colors">
+                  View All Notifications
+                </Link>
+              </div>
+            </div>
+          </div>
 
           {/* Theme Toggle */}
           <ThemeToggle />
@@ -132,7 +181,7 @@ export default function OwnerTopbar({ collapsed, onToggle }: { collapsed?: boole
                 <Link href="/owner/settings/security" className="block px-3 py-2 text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700/50 rounded-lg transition-colors">Security Settings</Link>
               </div>
               <div className="p-1 border-t border-gray-100 dark:border-slate-700">
-                <button className="w-full text-left px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">Sign Out</button>
+                <button onClick={() => { logout(); window.location.href = '/login'; }} className="w-full text-left px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">Sign Out</button>
               </div>
             </div>
           </div>

@@ -114,6 +114,16 @@ export function clearAuthCookies() {
 // ─── API Endpoints (Phase 3) ───────────────────────────────
 
 export const storeOwnerAPI = {
+  // Branches
+  getBranches: () => api.get('/branches'),
+  createBranch: (data: any) => api.post('/branches', data),
+  updateBranch: (id: number, data: any) => api.patch(`/branches/${id}`, data),
+  deleteBranch: (id: number) => api.delete(`/branches/${id}`),
+
+  // Inventory
+  getBranchInventory: (branchId: number) => api.get(`/inventory/branch/${branchId}`),
+  stockAdjustment: (branchId: number, data: any) => api.post(`/inventory/branch/${branchId}/adjust`, data),
+
   // Categories
   getCategories: () => api.get('/categories'),
   getFlatCategories: () => api.get('/categories/flat'),
@@ -138,6 +148,8 @@ export const storeOwnerAPI = {
   // Customers
   getCustomers: (search?: string) => api.get(search ? `/customers?search=${search}` : '/customers'),
   createCustomer: (data: any) => api.post('/customers', data),
+  updateCustomer: (id: number, data: any) => api.patch(`/customers/${id}`, data),
+  deleteCustomer: (id: number) => api.delete(`/customers/${id}`),
 
   // Sales (POS)
   createSale: (data: any) => api.post('/sales', data),
@@ -146,6 +158,12 @@ export const storeOwnerAPI = {
   // Employees
   getEmployees: () => api.get('/employees'),
   createEmployee: (data: any) => api.post('/employees', data),
+
+  // Suppliers
+  getSuppliers: (search?: string) => api.get(search ? `/suppliers?search=${search}` : '/suppliers'),
+  createSupplier: (data: any) => api.post('/suppliers', data),
+  updateSupplier: (id: number, data: any) => api.patch(`/suppliers/${id}`, data),
+  deleteSupplier: (id: number) => api.delete(`/suppliers/${id}`),
 };
 
 export const employeeAPI = {
@@ -158,6 +176,25 @@ export const employeeAPI = {
   getProducts: () => api.get('/products'),
   createSale: (data: any) => api.post('/sales', data),
   getMySales: () => api.get('/sales/me'), 
+};
+
+// ─── Super Admin (Company) Endpoints ────────────────────────
+export const superAdminAPI = {
+  // Tenants (Stores)
+  getTenants: () => api.get('/admin/stores'),
+  suspendTenant: (id: number, reason?: string) => api.patch(`/admin/stores/${id}/status`, { suspend: true, reason }),
+  activateTenant: (id: number) => api.patch(`/admin/stores/${id}/status`, { suspend: false }),
+  approveTenant: (id: number) => api.patch(`/admin/stores/${id}/status`, { suspend: false }),
+  rejectTenant: (id: number, reason?: string) => api.patch(`/admin/stores/${id}/status`, { suspend: true, reason }),
+
+  // Themes
+  getThemes: () => api.get('/admin/themes'),
+  uploadTheme: (data: FormData) => api.post('/admin/themes', data, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  
+  // Platform Metrics
+  getDashboardMetrics: () => api.get('/admin/metrics'),
 };
 
 export default api;

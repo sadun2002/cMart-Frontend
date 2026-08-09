@@ -4,7 +4,7 @@ import { AlertTriangle, Trash2, XCircle, Archive } from 'lucide-react';
 
 export default function DangerZonePage() {
   return (
-    <div className="p-6 lg:p-8 max-w-4xl mx-auto space-y-8">
+    <div className="font-sans p-6 lg:p-8 max-w-4xl mx-auto space-y-8">
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-red-600 rounded-2xl flex items-center justify-center shadow-lg shadow-red-200/40">
           <AlertTriangle className="w-5 h-5 text-white" />

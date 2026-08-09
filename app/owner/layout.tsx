@@ -3,9 +3,21 @@
 import { useState, useEffect } from 'react';
 import OwnerSidebar from '@/components/layout/OwnerSidebar';
 import OwnerTopbar from '@/components/layout/OwnerTopbar';
+import { useAuthStore } from '@/lib/auth-store';
+import { useRouter } from 'next/navigation';
 
 export default function OwnerLayout({ children }: { children: React.ReactNode }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const { user, isLoading } = useAuthStore();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoading && user) {
+      if (user.role === 'STORE_OWNER' && user.tenant?.active === false) {
+        router.replace('/pending');
+      }
+    }
+  }, [user, isLoading, router]);
 
   useEffect(() => {
     const saved = localStorage.getItem('ownerSidebarCollapsed');
@@ -26,6 +38,10 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  if (user?.role === 'STORE_OWNER' && user?.tenant?.active === false) {
+    return null; // Don't render dashboard while redirecting
+  }
 
   return (
     <div className="flex h-screen bg-[#F4F7F6] dark:bg-slate-900 overflow-hidden">

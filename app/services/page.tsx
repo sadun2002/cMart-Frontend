@@ -13,6 +13,7 @@ import {
 import { COMPANY_NAME } from '@/lib/constants';
 import { SiteHeader } from '@/components/layout/site-header';
 import { SiteFooter } from '@/components/layout/site-footer';
+import { MotionBlurBackground } from '@/components/ui/motion-blur-background';
 
 const SERVICES = [
   {
@@ -97,13 +98,14 @@ const SERVICES = [
 
 export default function ServicesPage() {
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-slate-950 font-sans text-gray-900 dark:text-white transition-colors selection:bg-blue-100 dark:selection:bg-blue-900 selection:text-blue-900 dark:selection:text-blue-50">
+    <div className="min-h-screen bg-white dark:bg-slate-950 font-sans text-gray-900 dark:text-white transition-colors relative">
+      <MotionBlurBackground />
       {/* Navigation */}
       <SiteHeader />
 
       {/* HERO SECTION */}
-      <section className="bg-white dark:bg-slate-950 border-b border-gray-200 dark:border-slate-800 pt-24 pb-20 px-6 relative overflow-hidden transition-colors">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-blue-50/50 via-white to-white dark:from-blue-900/10 dark:via-slate-950 dark:to-slate-950" />
+      <section className="border-b border-gray-200 dark:border-slate-800 pt-24 pb-20 px-6 relative z-10 bg-transparent">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-blue-50/50 via-transparent to-transparent dark:from-blue-900/10 dark:via-transparent dark:to-transparent" />
         <div className="max-w-4xl mx-auto text-center relative z-10">
           <div className="inline-flex items-center gap-2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-4 py-2 rounded-full font-bold text-sm mb-6 border border-blue-100 dark:border-blue-800/30 shadow-sm">
             Platform Capabilities
@@ -126,7 +128,7 @@ export default function ServicesPage() {
       </section>
 
       {/* SERVICES GRID */}
-      <section className="py-24 px-6">
+      <section className="py-24 px-6 relative z-10 bg-transparent">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {SERVICES.map((service, index) => {

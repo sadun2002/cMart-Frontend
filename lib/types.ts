@@ -117,6 +117,16 @@ export interface Customer {
   email?: string;
   address?: string;
   city?: string;
+  province?: string;
+  customerGroup?: 'REGULAR' | 'WHOLESALE' | 'VIP';
+  dateOfBirth?: string;
+  gender?: 'MALE' | 'FEMALE' | 'OTHER';
+  openingBalance?: number;
+  creditLimit?: number;
+  paymentTerms?: 'CASH' | '7_DAYS' | '30_DAYS';
+  loyaltyEnabled?: boolean;
+  active?: boolean;
+  notes?: string;
   totalSpent: number;
   totalOrders: number;
   points?: number;

@@ -15,6 +15,7 @@ import {
 import { COMPANY_NAME, PLANS, formatLKR } from '@/lib/constants';
 import { SiteHeader } from '@/components/layout/site-header';
 import { SiteFooter } from '@/components/layout/site-footer';
+import { MotionBlurBackground } from '@/components/ui/motion-blur-background';
 import { useAuthStore } from '@/lib/auth-store';
 
 // FAQ Data
@@ -37,12 +38,13 @@ export default function PricingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-slate-950 font-sans text-gray-900 dark:text-white transition-colors selection:bg-blue-100 dark:selection:bg-blue-900 selection:text-blue-900 dark:selection:text-blue-50">
+    <div className="min-h-screen bg-white dark:bg-slate-950 font-sans text-gray-900 dark:text-white transition-colors relative">
+      <MotionBlurBackground />
       {/* Navigation (Matches Home Page) */}
       <SiteHeader />
 
-      {/* HERO & PRICING CARDS */}
-      <section className="pt-24 pb-20 px-6">
+      {/* HERO & PRICING PLANS */}
+      <section className="pt-24 pb-20 px-6 relative z-10 bg-transparent">
         <div className="max-w-7xl mx-auto text-center">
           <h1 className="text-5xl md:text-6xl font-black text-gray-900 dark:text-white mb-6 tracking-tight">
             Simple, Transparent Pricing
@@ -108,22 +110,33 @@ export default function PricingPage() {
               let href = '/register';
               let disabled = false;
 
-              if (user && user.tenant?.plan) {
-                const userPlanStr = user.tenant.plan.toUpperCase();
+              if (user) {
+                const userPlanStr = (user.tenant?.plan || 'FREE').toUpperCase();
                 let userRank = 0;
                 if (userPlanStr === 'PRO') userRank = 1;
                 else if (userPlanStr === 'ENTERPRISE') userRank = 2;
 
+                const billingParam = isYearly ? 'annual' : 'monthly';
+                
                 if (userRank === plan.rank) {
-                  cta = 'Current Plan (Activated)';
+                  cta = 'Current Plan';
                   href = '#';
                   disabled = true;
                 } else if (userRank < plan.rank) {
-                  cta = 'Upgrade';
-                  href = '/owner/dashboard?upgrade=true';
+                  cta = `Upgrade to ${plan.name}`;
+                  href = `/checkout?plan=${plan.key}&billing=${billingParam}`;
                 } else {
-                  cta = 'Downgrade';
-                  href = '/owner/dashboard?downgrade=true';
+                  cta = `Downgrade to ${plan.name}`;
+                  href = `/checkout?plan=${plan.key}&billing=${billingParam}`;
+                }
+              } else {
+                const billingParam = isYearly ? 'annual' : 'monthly';
+                if (plan.key === 'FREE') {
+                  cta = 'Start Free Trial';
+                  href = '/register';
+                } else {
+                  cta = `Upgrade to ${plan.name}`;
+                  href = `/register?redirect=${encodeURIComponent(`/checkout?plan=${plan.key}&billing=${billingParam}`)}`;
                 }
               }
 
@@ -172,7 +185,7 @@ export default function PricingPage() {
                       className={`block w-full text-center py-3 rounded-xl font-bold text-sm transition-colors cursor-default ${
                         plan.highlight
                           ? 'bg-white text-blue-600'
-                          : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                          : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
                       }`}
                     >
                       {cta}
@@ -197,8 +210,8 @@ export default function PricingPage() {
         </div>
       </section>
 
-      {/* FEATURE COMPARISON TABLE */}
-      <section className="py-24 bg-white dark:bg-slate-950 transition-colors">
+      {/* COMPARISON TABLE SECTION */}
+      <section className="py-24 relative z-10 bg-transparent transition-colors">
         <div className="max-w-5xl mx-auto px-6">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-black text-gray-900 dark:text-white">Compare All Features</h2>
@@ -259,7 +272,7 @@ export default function PricingPage() {
       </section>
 
       {/* FAQ SECTION */}
-      <section className="py-24 bg-gray-50 dark:bg-slate-900/50 transition-colors">
+      <section className="py-24 relative z-10 bg-transparent transition-colors">
         <div className="max-w-3xl mx-auto px-6">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-black text-gray-900 dark:text-white">Frequently Asked Questions</h2>
@@ -287,7 +300,7 @@ export default function PricingPage() {
       </section>
 
       {/* MONEY-BACK GUARANTEE */}
-      <section className="py-20 bg-white dark:bg-slate-950 transition-colors">
+      <section className="py-20 relative z-10 bg-transparent transition-colors">
         <div className="max-w-4xl mx-auto px-6 text-center">
           <div className="w-20 h-20 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center mx-auto mb-6">
             <ShieldCheck className="w-10 h-10" />

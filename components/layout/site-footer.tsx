@@ -39,8 +39,9 @@ export function SiteFooter() {
             <ul className="space-y-3.5 text-sm text-gray-500 dark:text-slate-400 font-medium">
               <li><Link href="/" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">POS</Link></li>
               <li><Link href="/" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Online Store</Link></li>
-              <li><Link href="/portfolio" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Themes</Link></li>
+              <li><Link href="/themes" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Themes</Link></li>
               <li><Link href="/pricing" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Pricing</Link></li>
+              <li><Link href="/download" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Downloads</Link></li>
             </ul>
           </div>
           <div>
@@ -63,7 +64,7 @@ export function SiteFooter() {
           </div>
         </div>
         <div className="pt-8 border-t border-gray-100 dark:border-slate-800/50 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-gray-500 dark:text-slate-500 transition-colors">
-          <p>© 2026 cMart. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} cMart. All rights reserved.</p>
         </div>
       </div>
     </footer>

@@ -4,7 +4,7 @@ import { Globe } from 'lucide-react';
 
 export default function LanguageRegionPage() {
   return (
-    <div className="p-6 lg:p-8 max-w-4xl mx-auto space-y-8">
+    <div className="font-sans p-6 lg:p-8 max-w-4xl mx-auto space-y-8">
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-500 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200/40">
           <Globe className="w-5 h-5 text-white" />

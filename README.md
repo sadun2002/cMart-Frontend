@@ -11,6 +11,22 @@ Welcome to the frontend repository for the **cMart Smart POS System**! This is a
 - **Categories & Subcategories**: Hierarchical organization of products for seamless navigation.
 - **Premium UI/UX**: Built with a sleek, glassmorphic design, smooth micro-animations, and full **Dark/Light Mode** support.
 
+## 🏗️ Future Architecture Plan (Offline POS & Sync)
+
+The application is transitioning into a **SaaS POS System** that operates offline-first using **Tauri** and **SQLite**, with a freemium business model.
+
+### Business Model & Tiers
+- **FREE Tier (100% Offline)**: The POS software runs locally on a single computer. All data is saved to a local SQLite database. There is **no cloud sync**. Features include product management, barcode generation, basic sales, and generating reports. Users can back up their database manually to a USB pendrive.
+- **STANDARD / PREMIUM Tiers**: Unlocks advanced features (e.g., employee attendance, online dashboard, customer features). Data is stored locally in SQLite but automatically synced to a cloud database (**Supabase**) when an internet connection is available.
+
+### Technical Implementation (Tauri + Next.js)
+1. **Single Codebase**: The existing Next.js frontend will be wrapped in **Tauri** to build lightweight, fast desktop applications for Windows/macOS.
+2. **Local Storage**: The desktop app will utilize Tauri's SQLite plugin to store all transactional data locally.
+3. **UUIDs for Primary Keys**: All database IDs must use **UUIDs** (instead of auto-incrementing integers) to prevent primary key conflicts during cloud synchronization.
+4. **Cloud Sync Worker**: A background service inside the Tauri app will detect internet connectivity and push local records to Supabase for premium users.
+5. **Feature Flags**: The UI will use a configuration state (e.g., `APP_TIER=FREE`). If a free user attempts to access a locked feature (marked with a 🔒 or ⭐), a "Go to Standard / Premium" upgrade modal will appear.
+6. **Pendrive Backup**: The system will provide a simple mechanism for Free users to export/copy their SQLite database file (`.sqlite` / `.db`) and local storage assets to an external drive.
+
 ## 🛠️ Technology Stack
 
 - **Framework**: [Next.js 14+ (App Router)](https://nextjs.org/)

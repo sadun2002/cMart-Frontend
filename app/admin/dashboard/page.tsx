@@ -1,111 +1,188 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import api from '@/lib/api';
-import { toast } from 'sonner';
+import { useState } from 'react';
+import { format } from 'date-fns';
+import { Shield, Plus, Package, Store } from 'lucide-react';
+import Link from 'next/link';
+import { ComponentPreview } from '@/app/owner/settings/customize/ComponentPreview';
+import { DashboardComponent } from '@/lib/dashboard-components';
 
-interface DashboardStats {
-  totalTenants: number;
-  activeTenants: number;
-  totalUsers: number;
-  totalRevenueLKR: number;
-}
+const ADMIN_KPIS = [
+  {
+    comp: { id: 'kpi-today-sales', label: 'Total MRR', description: '', category: 'kpi', icon: 'DollarSign', size: 'medium' } as DashboardComponent,
+    data: { value: 'LKR 1.45M', change: '+12.5%', up: true, color: 'text-indigo-600 dark:text-indigo-400', bg: 'bg-indigo-100 dark:bg-indigo-900/30' }
+  },
+  {
+    comp: { id: 'kpi-active-employees', label: 'Active Stores', description: '', category: 'kpi', icon: 'Store', size: 'medium' } as DashboardComponent,
+    data: { value: '142', change: '+18 today', up: true, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-100 dark:bg-emerald-900/30' }
+  },
+  {
+    comp: { id: 'kpi-total-sales-all', label: 'Total Subscriptions', description: '', category: 'kpi', icon: 'CreditCard', size: 'medium' } as DashboardComponent,
+    data: { value: '3,254', change: '+5.2%', up: true, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-100 dark:bg-blue-900/30' }
+  },
+  {
+    comp: { id: 'kpi-total-customers', label: 'Platform Users', description: '', category: 'kpi', icon: 'Users', size: 'medium' } as DashboardComponent,
+    data: { value: '18,590', change: '+124 today', up: true, color: 'text-purple-600 dark:text-purple-400', bg: 'bg-purple-100 dark:bg-purple-900/30' }
+  },
+  {
+    comp: { id: 'kpi-today-orders', label: 'Support Tickets', description: '', category: 'kpi', icon: 'MessageSquare', size: 'medium' } as DashboardComponent,
+    data: { value: '28 Open', change: '-5 today', up: true, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-100 dark:bg-amber-900/30' }
+  },
+  {
+    comp: { id: 'kpi-new-customers', label: 'New Signups', description: '', category: 'kpi', icon: 'UserPlus', size: 'medium' } as DashboardComponent,
+    data: { value: '45', change: '+12 this week', up: true, color: 'text-cyan-600 dark:text-cyan-400', bg: 'bg-cyan-100 dark:bg-cyan-900/30' }
+  },
+  {
+    comp: { id: 'kpi-inventory-value', label: 'Active Themes', description: '', category: 'kpi', icon: 'Palette', size: 'medium' } as DashboardComponent,
+    data: { value: '24', change: '+2 this month', up: true, color: 'text-pink-600 dark:text-pink-400', bg: 'bg-pink-100 dark:bg-pink-900/30' }
+  },
+  {
+    comp: { id: 'kpi-pending-online-orders', label: 'Pending Approvals', description: '', category: 'kpi', icon: 'Clock', size: 'medium' } as DashboardComponent,
+    data: { value: '12', change: '-3 today', up: false, color: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-100 dark:bg-rose-900/30' }
+  }
+];
 
-export default function AdminDashboardPage() {
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+const ADMIN_WIDGETS = [
+  {
+    comp: { id: 'chart-sales-30d-line', label: 'Platform Revenue Growth (30D)', description: '', category: 'charts', icon: 'TrendingUp', size: 'large' } as DashboardComponent,
+    data: [
+      { day: 'Week 1', sales: 450000 },
+      { day: 'Week 2', sales: 520000 },
+      { day: 'Week 3', sales: 680000 },
+      { day: 'Week 4', sales: 850000 },
+    ],
+    colSpan: 'lg:col-span-2'
+  },
+  {
+    comp: { id: 'list-top5-customers', label: 'Top Growing Stores', description: '', category: 'lists', icon: 'Store', size: 'medium' } as DashboardComponent,
+    data: [
+      { name: 'TechZone LK', value: 'ENTERPRISE', badge: 'Active' },
+      { name: 'FreshMart Galle', value: 'PRO', badge: 'Active' },
+      { name: 'Kandy Books', value: 'FREE', badge: 'Pending' },
+      { name: 'Fashion Hub', value: 'PRO', badge: 'Active' },
+      { name: 'Electro World', value: 'ENTERPRISE', badge: 'Active' }
+    ],
+    colSpan: 'lg:col-span-1'
+  },
+  {
+    comp: { id: 'chart-sales-bar-day', label: 'Store Signups (Last 7 Days)', description: '', category: 'charts', icon: 'BarChart2', size: 'large' } as DashboardComponent,
+    data: [
+      { day: 'Mon', sales: 5 },
+      { day: 'Tue', sales: 12 },
+      { day: 'Wed', sales: 8 },
+      { day: 'Thu', sales: 15 },
+      { day: 'Fri', sales: 22 },
+      { day: 'Sat', sales: 18 },
+      { day: 'Sun', sales: 7 },
+    ],
+    colSpan: 'lg:col-span-1'
+  },
+  {
+    comp: { id: 'chart-sales-by-category-pie', label: 'Subscription Distribution', description: '', category: 'charts', icon: 'PieChart', size: 'medium' } as DashboardComponent,
+    data: [
+      { name: 'Enterprise', value: 350 },
+      { name: 'Pro', value: 850 },
+      { name: 'Free', value: 2054 },
+    ],
+    colSpan: 'lg:col-span-1'
+  },
+  {
+    comp: { id: 'alert-system-notifications', label: 'System Alerts & Maintenance', description: '', category: 'alerts', icon: 'AlertTriangle', size: 'medium' } as DashboardComponent,
+    data: [
+      { item: 'Database Backup', detail: 'Scheduled for tonight 02:00 AM', badge: 'Maintenance', color: 'text-indigo-600 bg-indigo-100 dark:bg-indigo-950/30 dark:text-indigo-400' },
+      { item: 'Server Load High', detail: 'Node 3 is at 85% CPU capacity', badge: 'Warning', color: 'text-orange-600 bg-orange-100 dark:bg-orange-950/30 dark:text-orange-400' },
+    ],
+    colSpan: 'lg:col-span-1'
+  }
+];
 
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const response = await api.get('/admin/stats');
-        setStats(response.data);
-      } catch (error) {
-        toast.error('Failed to load dashboard statistics');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchStats();
-  }, []);
+export default function AdminDashboard() {
+  const [timeRange, setTimeRange] = useState('30d');
 
-  if (isLoading) {
-    return (
-      <div className="flex-1 p-8 space-y-6">
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard Overview</h1>
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 animate-pulse h-32" />
+  return (
+    <div className="font-sans p-6 lg:p-8 space-y-6 max-w-7xl mx-auto h-full overflow-y-auto custom-scrollbar">
+
+      {/* Welcome Banner */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-indigo-700 to-slate-900 rounded-3xl p-6 lg:p-8 shadow-xl shadow-indigo-200/50 dark:shadow-indigo-900/30">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-[80px] translate-x-1/2 -translate-y-1/2" />
+        <div className="absolute bottom-0 left-1/3 w-48 h-48 bg-white/5 rounded-full blur-[60px]" />
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+          <div className="space-y-2">
+            <h1 className="text-2xl lg:text-3xl font-black text-white">
+              cMart Platform Overview
+            </h1>
+            <p className="text-indigo-100 text-sm">
+              Super Admin Dashboard & Analytics
+            </p>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/15 text-white text-xs font-semibold rounded-full backdrop-blur-sm">
+              <Shield className="w-3 h-3" />
+              All Systems Operational
+            </span>
+          </div>
+          <div className="flex flex-col items-start lg:items-end gap-2">
+            <p className="text-indigo-200 text-xs font-medium uppercase tracking-wider">Quick Actions</p>
+            <div className="flex gap-3">
+              <Link href="/admin/stores" className="inline-flex items-center gap-2 bg-white text-indigo-700 font-bold px-5 py-2.5 rounded-xl text-sm shadow-lg shadow-black/10 hover:shadow-xl hover:scale-[1.02] transition-all">
+                <Store className="w-4 h-4" />
+                Manage Stores
+              </Link>
+              <Link href="/admin/stores/new" className="inline-flex items-center gap-2 bg-white/15 text-white font-semibold px-5 py-2.5 rounded-xl text-sm border border-white/20 hover:bg-white/25 transition-all">
+                <Plus className="w-4 h-4" />
+                Add Store
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+        {ADMIN_KPIS.map((kpi, idx) => (
+          <ComponentPreview 
+            key={idx} 
+            comp={kpi.comp as any} 
+            isEnabled={true} 
+            layout="grid" 
+            isDashboardView={true} 
+            overrideData={kpi.data} 
+          />
+        ))}
+      </div>
+
+      {/* Filter Section for Widgets */}
+      <div className="flex justify-end pt-2 pb-2">
+        <div className="flex items-center gap-1 bg-white dark:bg-slate-800 p-1 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
+          {['24h', '7d', '30d', '1y'].map(range => (
+            <button
+              key={range}
+              onClick={() => setTimeRange(range)}
+              className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${
+                timeRange === range 
+                  ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-md' 
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
+              }`}
+            >
+              {range}
+            </button>
           ))}
         </div>
       </div>
-    );
-  }
 
-  return (
-    <div className="flex-1 p-8 space-y-6 bg-gray-50 min-h-full">
-      <h1 className="text-3xl font-bold tracking-tight text-gray-900">Dashboard Overview</h1>
-      <p className="text-gray-500">Welcome to the Super Admin control center.</p>
-
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        {/* Total Tenants */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-          <div className="flex flex-row items-center justify-between pb-2">
-            <h3 className="tracking-tight text-sm font-medium text-gray-500">Total Stores</h3>
-            <svg className="w-4 h-4 text-brand-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-            </svg>
+      {/* Widgets Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {ADMIN_WIDGETS.map((widget, idx) => (
+          <div key={idx} className={widget.colSpan}>
+            <ComponentPreview 
+              comp={widget.comp as any} 
+              isEnabled={true} 
+              layout="grid" 
+              isDashboardView={true} 
+              overrideData={widget.data} 
+            />
           </div>
-          <div className="text-3xl font-bold text-gray-900">{stats?.totalTenants || 0}</div>
-          <p className="text-xs text-gray-500 mt-1">Registered across platform</p>
-        </div>
-
-        {/* Active Tenants */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-          <div className="flex flex-row items-center justify-between pb-2">
-            <h3 className="tracking-tight text-sm font-medium text-gray-500">Active Stores</h3>
-            <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <div className="text-3xl font-bold text-gray-900">{stats?.activeTenants || 0}</div>
-          <p className="text-xs text-gray-500 mt-1">Currently operating</p>
-        </div>
-
-        {/* Total Users */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-          <div className="flex flex-row items-center justify-between pb-2">
-            <h3 className="tracking-tight text-sm font-medium text-gray-500">Total Users</h3>
-            <svg className="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-            </svg>
-          </div>
-          <div className="text-3xl font-bold text-gray-900">{stats?.totalUsers || 0}</div>
-          <p className="text-xs text-gray-500 mt-1">Owners & Employees</p>
-        </div>
-
-        {/* Revenue */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-          <div className="flex flex-row items-center justify-between pb-2">
-            <h3 className="tracking-tight text-sm font-medium text-gray-500">Total Revenue</h3>
-            <svg className="w-4 h-4 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <div className="text-3xl font-bold text-gray-900">
-            Rs. {stats?.totalRevenueLKR?.toLocaleString() || '0.00'}
-          </div>
-          <p className="text-xs text-gray-500 mt-1">Platform subscriptions</p>
-        </div>
+        ))}
       </div>
-      
-      {/* Recent Activity placeholder */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mt-8">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Platform Activity (Coming Soon)</h3>
-        <div className="h-64 flex items-center justify-center bg-gray-50 rounded-lg border border-dashed border-gray-200">
-          <p className="text-gray-400">Activity charts will appear here.</p>
-        </div>
-      </div>
+
     </div>
   );
 }

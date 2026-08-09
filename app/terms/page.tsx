@@ -2,15 +2,17 @@
 
 import { SiteHeader } from '@/components/layout/site-header';
 import { SiteFooter } from '@/components/layout/site-footer';
+import { MotionBlurBackground } from '@/components/ui/motion-blur-background';
 import { FileText } from 'lucide-react';
 import Link from 'next/link';
 
 export default function TermsPage() {
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-slate-950 transition-colors selection:bg-blue-100 dark:selection:bg-blue-900 selection:text-blue-900 dark:selection:text-blue-50">
+    <div className="font-sans min-h-screen bg-white dark:bg-slate-950 transition-colors selection:bg-blue-100 dark:selection:bg-blue-900 selection:text-blue-900 dark:selection:text-blue-50 relative">
+      <MotionBlurBackground />
       <SiteHeader />
 
-      <main className="pt-32 pb-24 max-w-4xl mx-auto px-6">
+      <main className="pt-32 pb-24 max-w-4xl mx-auto px-6 relative z-10">
         {/* Header */}
         <div className="mb-12">
           <div className="w-16 h-16 rounded-2xl bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center mb-6">

@@ -13,7 +13,7 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'Noto Sans Sinhala', 'sans-serif'],
+        sans: ['var(--font-sans)'],
       },
       colors: {
         brand: {

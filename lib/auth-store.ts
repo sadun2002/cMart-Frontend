@@ -36,6 +36,7 @@ interface AuthState {
   logout: () => void;
   loadMe: () => Promise<void>;
   setTokens: (access: string, refresh: string) => void;
+  updatePlan: (plan: string) => void;
 }
 
 interface RegisterData {
@@ -45,6 +46,8 @@ interface RegisterData {
   businessName: string;
   subdomain: string;
   phone?: string;
+  businessType?: string;
+  plan?: string;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -74,6 +77,11 @@ export const useAuthStore = create<AuthState>()(
             isLoading: false,
           });
 
+          // Check if tenant is pending
+          if (payload.user.role === 'STORE_OWNER' && payload.user.tenant && payload.user.tenant.active === false) {
+            return { redirectTo: '/pending' };
+          }
+
           return { redirectTo: payload.redirectTo };
         } catch (err: any) {
           set({ isLoading: false });
@@ -100,7 +108,17 @@ export const useAuthStore = create<AuthState>()(
             isLoading: false,
           });
 
-          return { redirectTo: payload.redirectTo };
+          // Redirect to pending for new store registrations (assuming they start as inactive)
+          if (payload.user.role === 'STORE_OWNER' && payload.user.tenant && payload.user.tenant.active === false) {
+            return { redirectTo: '/pending' };
+          }
+
+          // Force pending for demo if backend doesn't handle it yet
+          if (payload.user.role === 'STORE_OWNER' && payload.user.tenant === undefined) {
+             return { redirectTo: '/pending' };
+          }
+
+          return { redirectTo: payload.redirectTo || '/pending' };
         } catch (err: any) {
           set({ isLoading: false });
           const message = err.response?.data?.message || 'Registration failed';
@@ -129,6 +147,24 @@ export const useAuthStore = create<AuthState>()(
         setCookie('accessToken', access, 15 / (24 * 60));
         setCookie('refreshToken', refresh, 7);
         set({ accessToken: access, refreshToken: refresh });
+      },
+
+      updatePlan: (plan: string) => {
+        set((state) => {
+          if (!state.user) return state;
+          
+          // Ensure tenant exists so the plan gets updated
+          const updatedTenant = state.user.tenant 
+            ? { ...state.user.tenant, plan } 
+            : { id: 0, businessName: 'My Store', subdomain: 'store', plan, active: true };
+
+          return {
+            user: {
+              ...state.user,
+              tenant: updatedTenant
+            }
+          };
+        });
       },
     }),
     {

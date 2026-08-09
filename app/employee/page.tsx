@@ -1,2 +1,2 @@
 import { redirect } from 'next/navigation';
-export default function EmployeePage() { redirect('/employee/dashboard'); }
+export default function OwnerPage() { redirect('/employee/dashboard'); }

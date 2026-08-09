@@ -10,6 +10,9 @@ export const COMPANY_SUPPORT_EMAIL = 'support@cmart.lk';
 export const PLATFORM_DOMAIN = process.env.NEXT_PUBLIC_PLATFORM_DOMAIN || 'cmart.lk';
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
 
+// The current tier of the application for the offline SaaS model
+export const CURRENT_TIER: 'FREE' | 'PRO' | 'ENTERPRISE' = (process.env.NEXT_PUBLIC_APP_TIER as any) || 'FREE';
+
 // Plan details
 export const PLANS = {
   FREE: {
@@ -89,7 +92,15 @@ export const LANGUAGES = [
 // Nav items per role
 export const ADMIN_NAV = [
   { href: '/admin/dashboard', label: 'Dashboard', icon: 'LayoutDashboard' },
-  { href: '/admin/stores', label: 'Stores', icon: 'Store' },
+  { 
+    href: '/admin/stores', 
+    label: 'Stores', 
+    icon: 'Store',
+    subItems: [
+      { href: '/admin/stores', label: 'Store Management' },
+      { href: '/admin/stores/pending', label: 'Approvals' }
+    ]
+  },
   { href: '/admin/subscriptions', label: 'Subscriptions', icon: 'CreditCard' },
   { href: '/admin/payments', label: 'Payments', icon: 'DollarSign' },
   { href: '/admin/themes', label: 'Themes', icon: 'Palette' },

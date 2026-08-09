@@ -15,6 +15,9 @@ const PUBLIC_ROUTES = ['/', '/about', '/services', '/pricing', '/portfolio', '/c
 const AUTH_ROUTES = ['/login', '/register'];
 
 // Role → allowed route prefixes
+// TODO: In the future, we need to restrict specific /employee/* sub-routes 
+// (e.g., products, sales) based on the individual employee's permissions. 
+// Currently, ANY user with the EMPLOYEE role has full access to ALL /employee/* pages for testing.
 const ROLE_ROUTES: Record<string, string[]> = {
   super_admin: ['/admin'],
   STORE_OWNER: ['/owner'],

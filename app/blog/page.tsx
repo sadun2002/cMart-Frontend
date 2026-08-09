@@ -77,7 +77,7 @@ const POSTS = [
 
 export default function BlogPage() {
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-950 transition-colors selection:bg-blue-100 dark:selection:bg-blue-900 selection:text-blue-900 dark:selection:text-blue-50">
+    <div className="font-sans min-h-screen bg-white dark:bg-slate-950 transition-colors selection:bg-blue-100 dark:selection:bg-blue-900 selection:text-blue-900 dark:selection:text-blue-50">
       <SiteHeader />
 
       {/* Animated Background */}
@@ -158,7 +158,7 @@ export default function BlogPage() {
                 key={category}
                 className={`px-5 py-2.5 rounded-full text-sm font-bold transition-all ${
                   index === 0 
-                    ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-sm' 
+                    ? 'bg-blue-600 text-white shadow-sm shadow-blue-200 dark:shadow-none' 
                     : 'bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 text-gray-600 dark:text-slate-400 hover:border-blue-300 dark:hover:border-blue-800 hover:text-blue-600 dark:hover:text-blue-400'
                 }`}
               >

@@ -1,228 +1,149 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import api from '@/lib/api';
-import { toast } from 'sonner';
-import { formatLKR, formatDate } from '@/lib/constants';
+import { useState } from 'react';
+import { 
+  Palette, Plus, Search, Filter, MoreVertical, Edit2, 
+  Trash2, UploadCloud, Eye, CheckCircle, Store
+} from 'lucide-react';
+import Image from 'next/image';
 
-interface Theme {
-  id: number;
-  name: string;
-  description: string;
-  price: string;
-  type: string;
-  isActive: boolean;
-  version: string;
-  createdAt: string;
-}
+const THEMES = [
+  { id: 1, name: 'Minimalist Store', slug: 'minimalist-store', type: 'FREE', price: 0, status: 'Active', installs: 450, version: '1.2.0', image: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&q=80&w=600&h=400' },
+  { id: 2, name: 'Electro Pro', slug: 'electro-pro', type: 'PREMIUM', price: 4500, status: 'Active', installs: 120, version: '2.0.1', image: 'https://images.unsplash.com/photo-1498049794561-7780e7231661?auto=format&fit=crop&q=80&w=600&h=400' },
+  { id: 3, name: 'Fashion Boutique', slug: 'fashion-boutique', type: 'PREMIUM', price: 6000, status: 'Active', installs: 85, version: '1.0.5', image: 'https://images.unsplash.com/photo-1445205170230-053b83016050?auto=format&fit=crop&q=80&w=600&h=400' },
+  { id: 4, name: 'Grocery Fresh', slug: 'grocery-fresh', type: 'FREE', price: 0, status: 'Draft', installs: 0, version: '1.0.0', image: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=600&h=400' },
+];
 
 export default function AdminThemesPage() {
-  const [themes, setThemes] = useState<Theme[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isUploading, setIsUploading] = useState(false);
-  
-  // Form state
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    price: 0,
-    type: 'FREE',
-    version: '1.0.0',
-    // Mock URLs for now
-    previewUrl: 'https://via.placeholder.com/600x400.png?text=Theme+Preview',
-    zipUrl: 'https://example.com/theme.zip',
-  });
-
-  const fetchThemes = async () => {
-    try {
-      const response = await api.get('/themes/all');
-      setThemes(response.data);
-    } catch (error) {
-      toast.error('Failed to load themes');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchThemes();
-  }, []);
-
-  const handleUpload = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsUploading(true);
-    
-    try {
-      await api.post('/themes', formData);
-      toast.success('Theme successfully added to the marketplace!');
-      setIsModalOpen(false);
-      fetchThemes();
-      setFormData({ ...formData, name: '', description: '', price: 0 }); // reset
-    } catch (error) {
-      toast.error('Failed to upload theme');
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  const toggleThemeStatus = async (id: number, currentStatus: boolean) => {
-    try {
-      await api.patch(`/themes/${id}/status`, { isActive: !currentStatus });
-      toast.success(`Theme ${!currentStatus ? 'activated' : 'deactivated'}`);
-      fetchThemes();
-    } catch (error) {
-      toast.error('Failed to update theme status');
-    }
-  };
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isUploadOpen, setIsUploadOpen] = useState(false);
 
   return (
-    <div className="flex-1 p-8 space-y-6 bg-gray-50 min-h-full">
-      <div className="flex justify-between items-center">
+    <div className="font-sans p-6 lg:p-8 max-w-[1600px] mx-auto h-full overflow-y-auto custom-scrollbar flex flex-col">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900">Theme Library</h1>
-          <p className="text-gray-500">Upload and manage themes for tenant stores.</p>
+          <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Theme Gallery</h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Manage e-commerce themes available to your tenants</p>
         </div>
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="px-4 py-2 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors shadow-sm"
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="relative flex-1 sm:w-64">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input 
+              type="text" 
+              placeholder="Search themes..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-shadow text-slate-900 dark:text-white"
+            />
+          </div>
+          <button 
+            onClick={() => setIsUploadOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold shadow-md shadow-indigo-500/20 transition-all hover:-translate-y-0.5 shrink-0"
+          >
+            <UploadCloud className="w-4 h-4" />
+            <span className="hidden sm:inline">Upload Theme</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Themes Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {THEMES.map((theme) => (
+          <div key={theme.id} className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl border border-white/20 dark:border-slate-700/50 rounded-3xl overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] group hover:-translate-y-1 transition-all duration-300 flex flex-col">
+            <div className="relative h-48 w-full bg-slate-100 dark:bg-slate-900 overflow-hidden">
+              {/* Next.js Image requires domains in next.config.js, so using standard img for demo */}
+              <img src={theme.image} alt={theme.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-between p-4">
+                <button className="flex items-center gap-1.5 px-3 py-1.5 bg-white/20 hover:bg-white/30 backdrop-blur-md rounded-lg text-white text-xs font-bold transition-colors">
+                  <Eye className="w-3.5 h-3.5" /> Preview
+                </button>
+                <div className="flex gap-2">
+                  <button className="p-1.5 bg-white/20 hover:bg-white/30 backdrop-blur-md rounded-lg text-white transition-colors">
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                  <button className="p-1.5 bg-rose-500/80 hover:bg-rose-500 backdrop-blur-md rounded-lg text-white transition-colors">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+              <div className="absolute top-4 right-4 flex flex-col gap-2 items-end">
+                <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black tracking-wider shadow-sm backdrop-blur-md ${
+                  theme.type === 'PREMIUM' ? 'bg-amber-500 text-white' : 'bg-emerald-500 text-white'
+                }`}>
+                  {theme.type}
+                </span>
+                {theme.status === 'Draft' && (
+                  <span className="px-2.5 py-1 rounded-lg text-[10px] font-black tracking-wider shadow-sm backdrop-blur-md bg-slate-900/80 text-white">
+                    DRAFT
+                  </span>
+                )}
+              </div>
+            </div>
+            
+            <div className="p-5 flex-1 flex flex-col">
+              <div className="flex justify-between items-start mb-2">
+                <div>
+                  <h3 className="text-lg font-black text-slate-900 dark:text-white leading-tight">{theme.name}</h3>
+                  <p className="text-xs font-medium text-slate-500 mt-0.5">v{theme.version}</p>
+                </div>
+                {theme.type === 'PREMIUM' && (
+                  <span className="text-sm font-black text-indigo-600 dark:text-indigo-400">
+                    LKR {theme.price.toLocaleString()}
+                  </span>
+                )}
+              </div>
+              
+              <div className="mt-auto pt-4 border-t border-slate-100 dark:border-slate-700/50 flex justify-between items-center">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500 dark:text-slate-400">
+                  <Store className="w-3.5 h-3.5" />
+                  {theme.installs.toLocaleString()} Installs
+                </div>
+                {theme.status === 'Active' ? (
+                  <div className="flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                    <CheckCircle className="w-3.5 h-3.5" /> Published
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        ))}
+
+        {/* Add New Theme Card */}
+        <button 
+          onClick={() => setIsUploadOpen(true)}
+          className="bg-slate-50/50 dark:bg-slate-800/30 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-3xl overflow-hidden hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:border-indigo-500/50 dark:hover:border-indigo-500/50 transition-all duration-300 flex flex-col items-center justify-center min-h-[320px] group"
         >
-          + Upload New Theme
+          <div className="w-16 h-16 rounded-2xl bg-white dark:bg-slate-800 shadow-sm flex items-center justify-center mb-4 group-hover:scale-110 group-hover:shadow-md transition-all">
+            <Plus className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
+          </div>
+          <h3 className="text-lg font-black text-slate-900 dark:text-white">Upload New Theme</h3>
+          <p className="text-sm font-medium text-slate-500 mt-1 max-w-[200px] text-center">Add a new theme ZIP file to the platform gallery</p>
         </button>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-        {isLoading ? (
-          <div className="col-span-full text-center py-12 text-gray-500">Loading themes...</div>
-        ) : themes.length === 0 ? (
-          <div className="col-span-full text-center py-12 bg-white rounded-xl border border-dashed border-gray-300">
-            <h3 className="text-lg font-medium text-gray-900">No themes uploaded yet</h3>
-            <p className="text-gray-500 mt-1">Click the button above to add your first store theme.</p>
-          </div>
-        ) : (
-          themes.map((theme) => (
-            <div key={theme.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-              <div className="aspect-video bg-gray-100 border-b border-gray-100 flex items-center justify-center relative">
-                <span className="text-gray-400 font-medium">Preview Image</span>
-                {!theme.isActive && (
-                  <div className="absolute top-2 right-2 px-2 py-1 bg-red-100 text-red-700 text-xs font-bold rounded">
-                    INACTIVE
-                  </div>
-                )}
-              </div>
-              <div className="p-5">
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-bold text-lg text-gray-900 truncate">{theme.name}</h3>
-                  <span className={`px-2 py-1 text-xs font-bold rounded ${
-                    theme.type === 'FREE' ? 'bg-green-100 text-green-800' : 'bg-purple-100 text-purple-800'
-                  }`}>
-                    {theme.type}
-                  </span>
-                </div>
-                <p className="text-gray-500 text-sm line-clamp-2 mb-4 h-10">{theme.description}</p>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="font-semibold text-gray-900">
-                    {theme.type === 'FREE' ? 'Free' : formatLKR(Number(theme.price))}
-                  </span>
-                  <span className="text-gray-400">v{theme.version}</span>
-                </div>
-                <div className="mt-4 pt-4 border-t border-gray-100 flex gap-2">
-                  <button 
-                    onClick={() => toggleThemeStatus(theme.id, theme.isActive)}
-                    className="flex-1 px-3 py-2 text-sm font-medium border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    {theme.isActive ? 'Deactivate' : 'Activate'}
-                  </button>
-                  <button className="px-3 py-2 text-sm font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors">
-                    Delete
-                  </button>
-                </div>
-              </div>
+      {/* Upload Modal Overlay Placeholder */}
+      {isUploadOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 w-full max-w-md shadow-2xl border border-slate-200 dark:border-slate-800 animate-in zoom-in-95">
+            <h3 className="text-xl font-black text-slate-900 dark:text-white mb-4">Upload Theme</h3>
+            <p className="text-sm text-slate-500 mb-6">Upload a bundled React/Next.js theme zip file. Ensure it follows the cMart theme structure.</p>
+            <div className="border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl p-8 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+              <UploadCloud className="w-10 h-10 text-indigo-500 mb-3" />
+              <p className="text-sm font-bold text-slate-700 dark:text-slate-300">Click or drag ZIP file here</p>
+              <p className="text-xs text-slate-500 mt-1">Maximum file size: 50MB</p>
             </div>
-          ))
-        )}
-      </div>
-
-      {/* Upload Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
-              <h3 className="font-bold text-lg text-gray-900">Upload New Theme</h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+            <div className="flex justify-end gap-3 mt-6">
+              <button 
+                onClick={() => setIsUploadOpen(false)}
+                className="px-4 py-2 rounded-xl text-sm font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              >
+                Cancel
+              </button>
+              <button className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold shadow-md shadow-indigo-500/20 transition-all">
+                Upload & Process
+              </button>
             </div>
-            
-            <form onSubmit={handleUpload} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Theme Name</label>
-                <input 
-                  type="text" required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none"
-                  value={formData.name}
-                  onChange={(e) => setFormData({...formData, name: e.target.value})}
-                  placeholder="e.g. Minimalist Dark"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                <textarea 
-                  required rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none resize-none"
-                  value={formData.description}
-                  onChange={(e) => setFormData({...formData, description: e.target.value})}
-                  placeholder="Describe the theme..."
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
-                  <select 
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none"
-                    value={formData.type}
-                    onChange={(e) => setFormData({...formData, type: e.target.value})}
-                  >
-                    <option value="FREE">Free</option>
-                    <option value="PREMIUM">Premium</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Price (LKR)</label>
-                  <input 
-                    type="number" min="0" required disabled={formData.type === 'FREE'}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none disabled:bg-gray-100 disabled:text-gray-400"
-                    value={formData.type === 'FREE' ? 0 : formData.price}
-                    onChange={(e) => setFormData({...formData, price: Number(e.target.value)})}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Theme ZIP File</label>
-                <input 
-                  type="file" accept=".zip"
-                  className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100"
-                />
-                <p className="text-xs text-gray-500 mt-1">Upload the HTML/CSS/JS bundle</p>
-              </div>
-
-              <div className="pt-4 flex justify-end gap-3">
-                <button 
-                  type="button" 
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 text-gray-700 font-medium hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="submit" disabled={isUploading}
-                  className="px-4 py-2 bg-brand-600 text-white font-medium rounded-lg hover:bg-brand-700 transition-colors disabled:opacity-50"
-                >
-                  {isUploading ? 'Uploading...' : 'Publish Theme'}
-                </button>
-              </div>
-            </form>
           </div>
         </div>
       )}

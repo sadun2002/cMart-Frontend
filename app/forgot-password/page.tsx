@@ -53,7 +53,7 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen flex bg-white dark:bg-slate-950 transition-colors duration-300">
+    <div className="font-sans min-h-screen flex bg-white dark:bg-slate-950 transition-colors duration-300">
       {/* ── LEFT PANEL — Branding ── */}
       <div className="hidden lg:flex lg:w-[52%] flex-col justify-between p-12 text-white relative overflow-hidden"
         style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #2563eb 55%, #3b82f6 100%)' }}

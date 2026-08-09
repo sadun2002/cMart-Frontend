@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/lib/auth-store';
@@ -29,6 +29,11 @@ export default function LoginPage() {
   const router = useRouter();
   const { login, isLoading } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(false);
+
+  useEffect(() => {
+    setIsDesktop(typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__ !== undefined);
+  }, []);
 
   const {
     register,
@@ -44,7 +49,11 @@ export default function LoginPage() {
     try {
       const { redirectTo } = await login(data.email, data.password);
       toast.success('Welcome back!');
-      router.push(redirectTo);
+      
+      const searchParams = new URLSearchParams(window.location.search);
+      const redirectUrl = searchParams.get('redirect');
+      
+      router.push(redirectUrl || redirectTo);
     } catch (err: any) {
       const msg = err.response?.data?.message || err.message || 'Login failed';
       const errorMessage = Array.isArray(msg) ? msg[0] : msg;
@@ -54,7 +63,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex bg-white dark:bg-slate-950 transition-colors duration-300">
+    <div className="font-sans min-h-screen flex bg-white dark:bg-slate-950 transition-colors duration-300">
       {/* ── LEFT PANEL — Branding ── */}
       <div className="hidden lg:flex lg:w-[52%] flex-col justify-between p-12 text-white relative overflow-hidden"
         style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #2563eb 55%, #3b82f6 100%)' }}
@@ -247,12 +256,14 @@ export default function LoginPage() {
             </div>
 
             {/* Register link */}
-            <div className="mt-6 text-center text-sm text-gray-500 dark:text-slate-400">
-              Don&apos;t have a store yet?{' '}
-              <Link href="/register" className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-bold transition-colors">
-                Start free trial &rarr;
-              </Link>
-            </div>
+            {!isDesktop && (
+              <div className="mt-6 text-center text-sm text-gray-500 dark:text-slate-400">
+                Don't have an account?{' '}
+                <Link href="/register" className="font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors">
+                  Create a free store
+                </Link>
+              </div>
+            )}
           </div>
 
           {/* Back to home */}

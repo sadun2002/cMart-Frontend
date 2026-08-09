@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { SiteHeader } from '@/components/layout/site-header';
 import { SiteFooter } from '@/components/layout/site-footer';
+import { MotionBlurBackground } from '@/components/ui/motion-blur-background';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 const CATEGORIES = [
@@ -75,34 +76,23 @@ const POPULAR_ARTICLES = [
 
 export default function HelpCenterPage() {
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-slate-950 transition-colors selection:bg-blue-100 dark:selection:bg-blue-900 selection:text-blue-900 dark:selection:text-blue-50">
+    <div className="font-sans min-h-screen bg-transparent transition-colors selection:bg-blue-100 dark:selection:bg-blue-900 selection:text-blue-900 dark:selection:text-blue-50">
+      <MotionBlurBackground />
       <SiteHeader />
 
-      <main className="pt-32 pb-24">
+      <main className="pt-32 pb-24 relative z-10">
         {/* Hero Section */}
-        <section className="relative bg-blue-600 pt-20 pb-24 px-6 mb-12 md:mb-16 overflow-hidden">
-          {/* Background Patterns */}
-          <div className="absolute inset-0 opacity-10">
-            <svg className="h-full w-full" xmlns="http://www.w3.org/2000/svg">
-              <defs>
-                <pattern id="grid-pattern" width="40" height="40" patternUnits="userSpaceOnUse">
-                  <path d="M0 40V0H40" fill="none" stroke="currentColor" strokeWidth="1" />
-                </pattern>
-              </defs>
-              <rect width="100%" height="100%" fill="url(#grid-pattern)" />
-            </svg>
-          </div>
-          
+        <section className="relative pt-20 pb-24 px-6 mb-12 md:mb-16 overflow-hidden">
           <div className="relative z-10 max-w-4xl mx-auto text-center">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
             >
-              <h1 className="text-4xl md:text-6xl font-black text-white mb-6">
+              <h1 className="text-4xl md:text-6xl font-black text-gray-900 dark:text-white mb-6">
                 How can we help?
               </h1>
-              <p className="text-xl text-blue-100 mb-10">
+              <p className="text-xl text-gray-600 dark:text-slate-400 mb-10">
                 Search our knowledge base or browse categories below to find answers quickly.
               </p>
               
@@ -200,15 +190,15 @@ export default function HelpCenterPage() {
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.5, delay: 0.3 }}
-                className="bg-gradient-to-br from-gray-900 to-slate-800 rounded-3xl p-8 text-white shadow-xl flex-1 flex flex-col justify-center"
+                className="bg-gradient-to-br from-blue-700 to-blue-600 rounded-3xl p-8 text-white shadow-xl flex-1 flex flex-col justify-center"
               >
                 <h3 className="text-2xl font-bold mb-3">Still need help?</h3>
-                <p className="text-gray-300 mb-8 leading-relaxed">
+                <p className="text-blue-100 mb-8 leading-relaxed">
                   Our support team is available 24/7 to help you with any issues you might face.
                 </p>
                 <Link 
                   href="/contact"
-                  className="flex items-center justify-center w-full px-6 py-4 bg-white hover:bg-gray-50 text-gray-900 font-bold rounded-xl transition-colors"
+                  className="flex items-center justify-center w-full px-6 py-4 bg-white hover:bg-blue-50 text-blue-600 font-bold rounded-xl transition-colors shadow-sm"
                 >
                   <MessageCircle className="w-5 h-5 mr-2" /> Contact Support
                 </Link>

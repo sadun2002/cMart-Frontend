@@ -1,10 +1,14 @@
 'use client';
+import { Suspense } from 'react';
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Search, Trash2, Package, Tag, Filter, X, Barcode, Edit, List, LayoutGrid } from 'lucide-react';
+import { Plus, Search, Trash2, Package, Tag, Filter, X, Barcode, Edit, List, LayoutGrid, Maximize, Minimize, Copy } from 'lucide-react';
+import { KpiCard } from '@/components/ui/kpi-card';
+import { FilterPanel } from '@/components/ui/filter-panel';
+import { CustomSelect } from '@/components/ui/custom-select';
 import { storeOwnerAPI } from '@/lib/api';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -28,6 +32,56 @@ function dataURLtoFile(dataurl: string, filename: string) {
   }
 }
 
+function ProductHistoryView({ product, onBack }: { product: any, onBack: () => void }) {
+  const history = [
+    { date: new Date().toISOString(), action: 'PRICE_UPDATE', desc: 'Price changed from Rs. 1500 to Rs. 1650', by: 'Admin' },
+    { date: new Date(Date.now() - 86400000).toISOString(), action: 'STOCK_ADD', desc: 'Added 50 units to stock', by: 'Warehouse Mgr' },
+    { date: product.createdAt, action: 'CREATED', desc: 'Product created', by: 'Admin' },
+  ];
+
+  return (
+    <div className="flex flex-col h-full w-full">
+      <div className="flex items-center gap-4 p-6 border-b border-slate-100 dark:border-slate-800 shrink-0 bg-white dark:bg-slate-900">
+        <button onClick={onBack} className="p-2 bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white rounded-xl transition-colors">
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+        </button>
+        <div>
+          <h2 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+            {product.name} - Product History
+          </h2>
+          <p className="text-sm font-medium text-slate-500">View creation and update logs for this product.</p>
+        </div>
+      </div>
+      <div className="flex-1 overflow-x-auto bg-white dark:bg-slate-900">
+        <div className="min-w-max h-full flex flex-col">
+          <div className="grid grid-cols-[200px_150px_450px_200px] gap-4 p-5 border-b border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/50 text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0">
+            <div>Date</div>
+            <div>Action</div>
+            <div>Description</div>
+            <div>Performed By</div>
+          </div>
+          <div className="flex-1 overflow-y-auto no-scrollbar">
+            {history.map((h, i) => (
+              <div key={i} className="grid grid-cols-[200px_150px_450px_200px] gap-4 p-5 border-b border-slate-100 dark:border-slate-800/60 items-center hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                <div className="text-sm font-bold text-slate-700 dark:text-slate-300">{new Date(h.date).toLocaleDateString()} {new Date(h.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                <div>
+                  <span className={`inline-flex px-2 py-1 rounded-md text-[10px] uppercase font-bold ${
+                    h.action === 'CREATED' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' : 
+                    h.action === 'PRICE_UPDATE' ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400' :
+                    'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400'
+                  }`}>{h.action.replace('_', ' ')}</span>
+                </div>
+                <div className="text-sm font-medium text-slate-700 dark:text-slate-300 truncate">{h.desc}</div>
+                <div className="text-sm font-medium text-slate-500">{h.by}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function StoreProductsPageContent() {
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
@@ -44,10 +98,15 @@ function StoreProductsPageContent() {
   // Filters
   const [stockFilter, setStockFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [dateFilterType, setDateFilterType] = useState<'all' | 'newly-added' | 'updated'>('all');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
   
   // View & Sort
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
-  const [sortMode, setSortMode] = useState<'default' | 'price-asc' | 'price-desc'>('default');
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [viewingProduct, setViewingProduct] = useState<any>(null);
+  const [sortMode, setSortMode] = useState<'default' | 'price-asc' | 'price-desc' | 'instock' | 'outofstock'>('default');
 
   // Form State
   const [formData, setFormData] = useState({ 
@@ -120,9 +179,17 @@ function StoreProductsPageContent() {
 
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.price || !formData.stockQuantity) {
+    if (!formData.name || !formData.barcode || formData.categoryId === 'null') {
       toast.error('Please fill in all required fields');
       return;
+    }
+
+    if (formData.categoryId !== 'null') {
+      const cat = categories.find(c => c.id.toString() === formData.categoryId);
+      if (cat && cat.children && cat.children.length > 0 && formData.subcategoryId === 'null') {
+         toast.error('Please select a subcategory');
+         return;
+      }
     }
 
     try {
@@ -131,9 +198,12 @@ function StoreProductsPageContent() {
       const payload = new FormData();
       payload.append('name', formData.name);
       if (formData.barcode) payload.append('barcode', formData.barcode);
-      payload.append('price', formData.price);
-      if (formData.cost) payload.append('cost', formData.cost);
-      payload.append('stockQuantity', formData.stockQuantity);
+      
+      // Send dummy values for backend compatibility until backend is updated for multi-branch
+      payload.append('price', formData.price || '0');
+      if (formData.cost) payload.append('cost', formData.cost || '0');
+      payload.append('stockQuantity', formData.stockQuantity || '0');
+      
       payload.append('showOnWebsite', formData.showOnWebsite.toString());
       
       const finalCategoryId = formData.subcategoryId !== 'null' ? formData.subcategoryId : formData.categoryId !== 'null' ? formData.categoryId : null;
@@ -295,9 +365,28 @@ function StoreProductsPageContent() {
         }
       }
     }
+
+    let matchesDate = true;
+    if (dateFilterType !== 'all') {
+      const targetDate = dateFilterType === 'newly-added' ? new Date(p.createdAt) : new Date(p.updatedAt || p.createdAt);
+      
+      if (fromDate) {
+        const from = new Date(fromDate);
+        from.setHours(0, 0, 0, 0);
+        if (targetDate < from) matchesDate = false;
+      }
+      
+      if (toDate) {
+        const to = new Date(toDate);
+        to.setHours(23, 59, 59, 999);
+        if (targetDate > to) matchesDate = false;
+      }
+    }
     
-    return matchesSearch && matchesStock && matchesCategory;
+    return matchesSearch && matchesStock && matchesCategory && matchesDate;
   }).sort((a, b) => {
+    if (sortMode === 'instock') return (b.stock > 0 ? 1 : 0) - (a.stock > 0 ? 1 : 0) || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    if (sortMode === 'outofstock') return (b.stock <= 0 ? 1 : 0) - (a.stock <= 0 ? 1 : 0) || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     if (sortMode === 'price-asc') return Number(a.price) - Number(b.price);
     if (sortMode === 'price-desc') return Number(b.price) - Number(a.price);
     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(); // default newest first
@@ -327,7 +416,7 @@ function StoreProductsPageContent() {
 
       {/* ──────────────── SEARCH & FILTER BAR ──────────────── */}
       <div className="flex flex-col sm:flex-row gap-4 mb-6">
-        <div className="relative w-full sm:w-64 flex-shrink-0 group">
+        <div className="relative w-full sm:w-80 flex-shrink-0 group">
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors">
             <Search className="h-5 w-5" />
           </div>
@@ -340,23 +429,7 @@ function StoreProductsPageContent() {
           />
         </div>
 
-        {/* KPI Cards */}
-        <div className="flex-1 flex items-center gap-4 overflow-x-auto no-scrollbar p-2 -m-2">
-          <div className="flex items-center gap-3 px-4 h-12 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm whitespace-nowrap hover:-translate-y-1 hover:shadow-md transition-all cursor-default text-slate-600 dark:text-slate-300 font-bold">
-            <span className="text-sm font-medium">All Products:</span>
-            <span className="text-blue-600">{products.length}</span>
-          </div>
-          <div className="flex items-center gap-3 px-4 h-12 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm whitespace-nowrap hover:-translate-y-1 hover:shadow-md transition-all cursor-default text-slate-600 dark:text-slate-300 font-bold">
-            <span className="text-sm font-medium">In Stock:</span>
-            <span className="text-emerald-600">{products.filter(p => p.stock > 0).length}</span>
-          </div>
-          <div className="flex items-center gap-3 px-4 h-12 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm whitespace-nowrap hover:-translate-y-1 hover:shadow-md transition-all cursor-default text-slate-600 dark:text-slate-300 font-bold">
-            <span className="text-sm font-medium">Out of Stock:</span>
-            <span className="text-red-600">{products.filter(p => p.stock <= 0).length}</span>
-          </div>
-        </div>
-
-        <div className="flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm h-12 p-1 overflow-hidden flex-shrink-0">
+        <div className="flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm h-12 p-1 overflow-hidden flex-shrink-0 ml-auto">
           <button 
             onClick={() => setIsFilterOpen(true)}
             className="flex items-center justify-center px-4 h-full rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition-all gap-2 font-bold relative"
@@ -364,7 +437,7 @@ function StoreProductsPageContent() {
           >
             <Filter className="w-5 h-5" />
             <span className="hidden sm:inline">Filters</span>
-            {(stockFilter !== 'all' || categoryFilter !== 'all' || sortMode !== 'default') && <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-blue-600"></span>}
+            {(stockFilter !== 'all' || categoryFilter !== 'all' || sortMode !== 'default' || dateFilterType !== 'all') && <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-blue-600"></span>}
           </button>
           
           <div className="w-px h-full bg-slate-200 dark:bg-slate-800 mx-1"></div>
@@ -384,22 +457,41 @@ function StoreProductsPageContent() {
           >
             <LayoutGrid className="w-5 h-5" />
           </button>
+          <div className="w-px h-full bg-slate-200 dark:bg-slate-800 mx-1"></div>
+          <button 
+            onClick={() => setIsFullscreen(true)}
+            title="Full Screen"
+            className={`flex items-center justify-center w-12 h-full rounded-xl transition-all text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800`}
+          >
+            <Maximize className="w-5 h-5" />
+          </button>
         </div>
       </div>
 
       {/* ──────────────── DATA TABLE (CARD LIST) ──────────────── */}
-      <div className="flex-1 bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col">
-        {viewMode === 'list' ? (
-          <>
-            {/* Table Header */}
-            <div className="grid grid-cols-12 gap-4 p-5 border-b border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/50 text-xs font-bold text-slate-500 uppercase tracking-wider">
-              <div className="col-span-3">Product Name</div>
-              <div className="col-span-2">Category</div>
-              <div className="col-span-2">Barcode / SKU</div>
-              <div className="col-span-2 text-right">Price</div>
-              <div className="col-span-2 text-right">Stock Level</div>
-              <div className="col-span-1 text-center">Action</div>
-            </div>
+      <div className={`flex-1 bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col min-h-[400px] ${isFullscreen ? 'fixed inset-y-0 right-0 left-[68px] z-[100] m-0 rounded-none border-none' : ''}`}>
+        {isFullscreen && (
+          <button 
+            onClick={() => setIsFullscreen(false)} 
+            className="absolute top-4 right-4 z-[110] p-3 bg-slate-900/50 text-white rounded-full hover:bg-slate-900/80 transition-colors backdrop-blur-md shadow-lg"
+          >
+            <Minimize className="w-5 h-5" />
+          </button>
+        )}
+        {viewingProduct ? (
+          <ProductHistoryView product={viewingProduct} onBack={() => setViewingProduct(null)} />
+        ) : viewMode === 'list' ? (
+          <div className="flex-1 overflow-x-auto">
+            <div className="min-w-max h-full flex flex-col">
+              {/* Table Header */}
+              <div className="grid grid-cols-[300px_200px_200px_150px_150px_100px] gap-4 h-16 px-5 items-center border-b border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/50 text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0">
+                <div>Product Name</div>
+                <div>Category</div>
+                <div>Identifiers</div>
+                <div className="text-center">Visibility</div>
+                <div>History</div>
+                <div className="text-center">Action</div>
+              </div>
 
             {/* Table Body */}
             <div className="flex-1 overflow-y-auto no-scrollbar">
@@ -414,11 +506,12 @@ function StoreProductsPageContent() {
                   <p className="font-medium text-lg text-slate-500">No products found.</p>
                 </div>
               ) : (
-                filteredProducts.map((p) => {
+                <>
+                {filteredProducts.map((p) => {
                   const catInfo = getCategoryName(p.categoryId);
                   return (
-                  <div key={p.id} className="grid grid-cols-12 gap-4 p-5 border-b border-slate-100 dark:border-slate-800/60 items-center hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group">
-                    <div className="col-span-3 flex items-center gap-4">
+                  <div key={p.id} onClick={() => setViewingProduct(p)} className="cursor-pointer grid grid-cols-[300px_200px_200px_150px_150px_100px] gap-4 p-5 border-b border-slate-100 dark:border-slate-800/60 items-center hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group">
+                    <div className="flex items-center gap-4 min-w-0">
                       <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0 text-slate-400 overflow-hidden">
                         {p.images?.[0]?.url ? (
                           <img src={p.images[0].url} alt={p.name} className="w-full h-full object-cover" />
@@ -428,57 +521,77 @@ function StoreProductsPageContent() {
                       </div>
                       <div className="min-w-0">
                         <h3 className="font-bold text-slate-900 dark:text-white text-base truncate">{p.name}</h3>
-                        <p className="text-sm text-slate-500">
-                          {p.updatedAt && p.updatedAt !== p.createdAt 
-                            ? `Updated ${new Date(p.updatedAt).toLocaleDateString()}` 
-                            : `Added ${new Date(p.createdAt).toLocaleDateString()}`}
-                        </p>
                       </div>
                     </div>
 
-                    <div className="col-span-2 min-w-0">
+                    <div className="min-w-0 flex flex-col justify-center">
                       {catInfo ? (
-                        <div className="flex flex-col">
+                        <>
                           <span className="font-bold text-slate-700 dark:text-slate-300 truncate">{catInfo.main}</span>
                           {catInfo.sub && <span className="text-xs text-slate-500 truncate">{catInfo.sub}</span>}
-                        </div>
+                        </>
                       ) : <span className="text-slate-400 italic text-sm">None</span>}
                     </div>
                     
-                    <div className="col-span-2 flex items-center gap-2 text-slate-600 dark:text-slate-300 font-medium truncate">
-                      <Barcode className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                      <span className="truncate">{p.barcode || <span className="text-slate-400 italic font-normal">N/A</span>}</span>
+                    <div className="flex flex-col gap-1 min-w-0 justify-center">
+                      <div className="flex items-center gap-2 text-slate-900 dark:text-white font-bold text-sm truncate group/barcode">
+                        <span className="truncate">{p.barcode || <span className="text-slate-400 italic font-normal text-xs">N/A</span>}</span>
+                        {p.barcode && (
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(p.barcode); toast.success('Barcode copied!'); }}
+                            className="p-1 opacity-0 group-hover/barcode:opacity-100 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-all"
+                            title="Copy Barcode"
+                          >
+                            <Copy className="w-3 h-3 text-slate-400 hover:text-blue-500" />
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-xs truncate group/id">
+                        <span className="truncate">ID: {p.id}</span>
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(p.id.toString()); toast.success('ID copied!'); }}
+                          className="p-1 opacity-0 group-hover/id:opacity-100 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-all"
+                          title="Copy ID"
+                        >
+                          <Copy className="w-3 h-3 text-slate-400 hover:text-blue-500" />
+                        </button>
+                      </div>
                     </div>
 
-                    <div className="col-span-2 text-right truncate">
-                      <p className="font-bold text-slate-900 dark:text-white text-base truncate">LKR {Number(p.price).toFixed(2)}</p>
-                      {p.cost && <p className="text-xs font-semibold text-emerald-600 truncate">Cost: LKR {Number(p.cost).toFixed(2)}</p>}
-                    </div>
-
-                    <div className="col-span-2 flex justify-end">
-                      <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold ${
-                        p.stock <= 0 ? 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400' :
-                        p.stock < 10 ? 'bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400' :
-                        'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400'
+                    <div className="flex justify-center items-center">
+                      <span className={`inline-flex px-2 py-1 rounded-md text-[10px] uppercase font-bold ${
+                        p.showOnWebsite ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
                       }`}>
-                        <span className="w-2 h-2 rounded-full bg-current" />
-                        {p.stock <= 0 ? 'Out of stock' : 'In stock'} ({formatStock(p.stock)})
+                        {p.showOnWebsite ? 'Published' : 'Hidden'}
                       </span>
                     </div>
 
-                    <div className="col-span-1 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => openEditPanel(p)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                    <div className="flex flex-col justify-center min-w-0">
+                      <p className="text-sm font-bold text-slate-700 dark:text-slate-300 truncate">
+                        {p.updatedAt && p.updatedAt !== p.createdAt ? 'Updated' : 'Added'}
+                      </p>
+                      <p className="text-xs text-slate-500 truncate">
+                        {p.updatedAt && p.updatedAt !== p.createdAt 
+                          ? new Date(p.updatedAt).toLocaleDateString() 
+                          : new Date(p.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={(e) => { e.stopPropagation(); openEditPanel(p); }} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
                         <Edit className="w-5 h-5" />
                       </button>
-                      <button onClick={() => handleDelete(p.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                      <button onClick={(e) => { e.stopPropagation(); handleDelete(p.id); }} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                         <Trash2 className="w-5 h-5" />
                       </button>
                     </div>
                   </div>
-                )})
+                )})}
+                </>
               )}
             </div>
-          </>
+          </div>
+        </div>
         ) : (
           <div className="flex-1 overflow-y-auto no-scrollbar p-6 bg-slate-50/30 dark:bg-slate-900/20">
             {loading ? (
@@ -492,7 +605,7 @@ function StoreProductsPageContent() {
                 <p className="font-medium text-lg text-slate-500">No products found.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-4 xl:gap-6">
                 {filteredProducts.map(p => {
                   const catInfo = getCategoryName(p.categoryId);
                   return (
@@ -522,15 +635,15 @@ function StoreProductsPageContent() {
                            )}
                          </div>
                       </div>
-                      <div className="p-5 flex-1 flex flex-col">
+                      <div className="p-4 flex-1 flex flex-col">
                         <div className="flex-1">
-                          <p className="text-xs font-bold text-slate-500 mb-1">{catInfo ? (catInfo.sub || catInfo.main) : 'No Category'}</p>
-                          <h3 className="font-black text-slate-900 dark:text-white text-lg leading-tight mb-2 line-clamp-2" title={p.name}>{p.name}</h3>
-                          {p.barcode && <p className="text-[11px] font-bold text-slate-400 flex items-center gap-1"><Barcode className="w-3 h-3" />{p.barcode}</p>}
+                          <p className="text-[10px] font-bold text-slate-500 mb-0.5">{catInfo ? (catInfo.sub || catInfo.main) : 'No Category'}</p>
+                          <h3 className="font-black text-slate-900 dark:text-white text-sm leading-tight mb-1 line-clamp-1" title={p.name}>{p.name}</h3>
+                          {p.barcode && <p className="text-[10px] font-bold text-slate-400 flex items-center gap-1"><Barcode className="w-3 h-3" />{p.barcode}</p>}
                         </div>
-                        <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-col justify-end">
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Selling Price</p>
-                          <p className="font-black text-blue-600 dark:text-blue-400 text-xl">LKR {Number(p.price).toFixed(2)}</p>
+                        <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-col justify-end">
+                          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Selling Price</p>
+                          <p className="font-black text-blue-600 dark:text-blue-400 text-lg">Rs. {Number(p.price).toFixed(2)}</p>
                         </div>
                       </div>
                     </div>
@@ -544,126 +657,91 @@ function StoreProductsPageContent() {
 
       {/* ──────────────── FILTERS SLIDE OUT PANEL ──────────────── */}
       <AnimatePresence>
-        {isFilterOpen && (
-          <>
-            <motion.div 
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => setIsFilterOpen(false)}
-              className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm"
-            />
-            <motion.div 
-              initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', bounce: 0, duration: 0.4 }}
-              className="fixed inset-y-0 right-0 z-50 w-full max-w-sm bg-white dark:bg-slate-900 shadow-2xl border-l border-slate-200 dark:border-slate-800 flex flex-col"
-            >
-              <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-slate-800">
-                <h2 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-                  <Filter className="w-5 h-5" />
-                  Filter Products
-                </h2>
-                <button onClick={() => setIsFilterOpen(false)} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors">
-                  <X className="w-5 h-5" />
-                </button>
+      <FilterPanel
+        isOpen={isFilterOpen}
+        onClose={() => setIsFilterOpen(false)}
+        title="Filter Products"
+        onClear={() => { setStockFilter('all'); setCategoryFilter('all'); setDateFilterType('all'); setFromDate(''); setToDate(''); setIsFilterOpen(false); }}
+        onApply={() => setIsFilterOpen(false)}
+      >
+        <div className="space-y-3">
+          <label className="text-sm font-bold text-slate-900 dark:text-white">Stock Status</label>
+          <CustomSelect
+            value={stockFilter}
+            onChange={setStockFilter}
+            options={[
+              { value: 'all', label: 'All Products' },
+              { value: 'instock', label: 'In Stock (>0)' },
+              { value: 'lowstock', label: 'Low Stock (<10)' },
+              { value: 'outofstock', label: 'Out of Stock (0)' },
+            ]}
+          />
+        </div>
+
+        <div className="space-y-3">
+          <label className="text-sm font-bold text-slate-900 dark:text-white">Sort By Price</label>
+          <CustomSelect
+            value={sortMode}
+            onChange={(val) => setSortMode(val as any)}
+            options={[
+              { value: 'default', label: 'Default' },
+              { value: 'price-asc', label: 'Low to High' },
+              { value: 'price-desc', label: 'High to Low' },
+            ]}
+          />
+        </div>
+
+        <div className="space-y-3">
+          <label className="text-sm font-bold text-slate-900 dark:text-white">Date Filter</label>
+          <CustomSelect
+            value={dateFilterType}
+            onChange={(val) => setDateFilterType(val as any)}
+            options={[
+              { value: 'all', label: 'All Time' },
+              { value: 'newly-added', label: 'Added Date' },
+              { value: 'updated', label: 'Updated Date' },
+            ]}
+          />
+          
+          {dateFilterType !== 'all' && (
+            <div className="grid grid-cols-2 gap-3 mt-3">
+              <div>
+                <label className="text-xs font-bold text-slate-500 block mb-1">From</label>
+                <input 
+                  type="date"
+                  value={fromDate}
+                  onChange={(e) => setFromDate(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-300 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                />
               </div>
-
-              <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                <div className="space-y-3">
-                  <label className="text-sm font-bold text-slate-900 dark:text-white">Stock Status</label>
-                  <div className="space-y-2">
-                    {[
-                      { id: 'all', label: 'All Products' },
-                      { id: 'instock', label: 'In Stock (>0)' },
-                      { id: 'lowstock', label: 'Low Stock (<10)' },
-                      { id: 'outofstock', label: 'Out of Stock (0)' },
-                    ].map(opt => (
-                      <label key={opt.id} className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                        <input 
-                          type="radio" 
-                          name="stockFilter"
-                          value={opt.id}
-                          checked={stockFilter === opt.id}
-                          onChange={(e) => setStockFilter(e.target.value)}
-                          className="w-4 h-4 text-blue-600 border-slate-300 focus:ring-blue-500"
-                        />
-                        <span className="text-sm font-bold text-slate-700 dark:text-slate-300">{opt.label}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <label className="text-sm font-bold text-slate-900 dark:text-white">Sort By Price</label>
-                  <div className="space-y-2">
-                    {[
-                      { id: 'default', label: 'Default' },
-                      { id: 'price-asc', label: 'Low to High' },
-                      { id: 'price-desc', label: 'High to Low' },
-                    ].map(opt => (
-                      <label key={opt.id} className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                        <input 
-                          type="radio" 
-                          name="sortMode"
-                          value={opt.id}
-                          checked={sortMode === opt.id}
-                          onChange={(e) => setSortMode(e.target.value as any)}
-                          className="w-4 h-4 text-blue-600 border-slate-300 focus:ring-blue-500"
-                        />
-                        <span className="text-sm font-bold text-slate-700 dark:text-slate-300">{opt.label}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <label className="text-sm font-bold text-slate-900 dark:text-white">Category</label>
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                      <input 
-                        type="radio" name="categoryFilter" value="all" checked={categoryFilter === 'all'} onChange={(e) => setCategoryFilter(e.target.value)}
-                        className="w-4 h-4 text-blue-600 border-slate-300 focus:ring-blue-500"
-                      />
-                      <span className="text-sm font-bold text-slate-700 dark:text-slate-300">All Categories</span>
-                    </label>
-                    {categories.map(c => (
-                      <div key={c.id} className="space-y-1">
-                        <label className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                          <input 
-                            type="radio" name="categoryFilter" value={c.id.toString()} checked={categoryFilter === c.id.toString()} onChange={(e) => setCategoryFilter(e.target.value)}
-                            className="w-4 h-4 text-blue-600 border-slate-300 focus:ring-blue-500"
-                          />
-                          <span className="text-sm font-bold text-slate-700 dark:text-slate-300">{c.name}</span>
-                        </label>
-                        {c.children && c.children.length > 0 && c.children.map((sc: any) => (
-                          <label key={sc.id} className="flex items-center gap-3 p-3 ml-6 rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                            <input 
-                              type="radio" name="categoryFilter" value={sc.id.toString()} checked={categoryFilter === sc.id.toString()} onChange={(e) => setCategoryFilter(e.target.value)}
-                              className="w-4 h-4 text-blue-600 border-slate-300 focus:ring-blue-500"
-                            />
-                            <span className="text-sm font-bold text-slate-700 dark:text-slate-300">{sc.name}</span>
-                          </label>
-                        ))}
-                      </div>
-                    ))}
-                  </div>
-                </div>
+              <div>
+                <label className="text-xs font-bold text-slate-500 block mb-1">To</label>
+                <input 
+                  type="date"
+                  value={toDate}
+                  onChange={(e) => setToDate(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-300 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                />
               </div>
+            </div>
+          )}
+        </div>
 
-              <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex gap-3">
-                <button 
-                  onClick={() => { setStockFilter('all'); setCategoryFilter('all'); setIsFilterOpen(false); }}
-                  className="flex-1 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold py-3 rounded-xl transition-colors"
-                >
-                  Clear
-                </button>
-                <button 
-                  onClick={() => setIsFilterOpen(false)}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-lg shadow-blue-600/20 transition-all"
-                >
-                  Apply Filters
-                </button>
-              </div>
-            </motion.div>
-          </>
-        )}
+        <div className="space-y-3">
+          <label className="text-sm font-bold text-slate-900 dark:text-white">Category</label>
+          <CustomSelect
+            value={categoryFilter}
+            onChange={setCategoryFilter}
+            options={[
+              { value: 'all', label: 'All Categories' },
+              ...categories.flatMap(c => [
+                { value: c.id.toString(), label: c.name },
+                ...(c.children || []).map((sc: any) => ({ value: sc.id.toString(), label: `-- ${sc.name}` }))
+              ])
+            ]}
+          />
+        </div>
+      </FilterPanel>
       </AnimatePresence>
 
       {/* ──────────────── SLIDE OUT PANEL FOR ADD/EDIT ──────────────── */}
@@ -689,7 +767,7 @@ function StoreProductsPageContent() {
               </div>
 
               <div className="flex-1 overflow-y-auto p-6">
-                <form id="productForm" onSubmit={handleSaveProduct} className="space-y-6">
+                <form id="productForm" onSubmit={handleSaveProduct} className="font-sans space-y-6">
                   
                   {/* Image Upload */}
                   <div className="space-y-3">
@@ -821,36 +899,7 @@ function StoreProductsPageContent() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Price (LKR) *</label>
-                      <input 
-                        required type="number" step="0.01" min="0"
-                        value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} 
-                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-black dark:text-white"
-                        placeholder="0.00" 
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Cost (LKR)</label>
-                      <input 
-                        type="number" step="0.01" min="0"
-                        value={formData.cost} onChange={e => setFormData({...formData, cost: e.target.value})} 
-                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-black dark:text-white"
-                        placeholder="0.00" 
-                      />
-                    </div>
-                  </div>
 
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Initial Stock *</label>
-                    <input 
-                      required type="number" min="0"
-                      value={formData.stockQuantity} onChange={e => setFormData({...formData, stockQuantity: e.target.value})} 
-                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-black dark:text-white"
-                      placeholder="100" 
-                    />
-                  </div>
 
                   <div className={`flex items-center gap-3 p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl ${((editingProduct?.images?.filter((i: any) => !deletedImageIds.includes(i.id)).length || 0) + imageFiles.length) === 0 ? 'opacity-50 grayscale' : ''}`}>
                     <input 
@@ -913,3 +962,4 @@ export default function StoreProductsPage() {
     </Suspense>
   );
 }
+

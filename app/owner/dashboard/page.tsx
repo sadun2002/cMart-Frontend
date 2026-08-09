@@ -189,7 +189,7 @@ export default function StoreOwnerDashboard() {
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (
-    <div className="p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
+    <div className="font-sans p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
 
       {/* ══════════════════════════════════════════════════════════════
           FIXED ZONE — Welcome Banner + KPIs (not draggable)
@@ -215,10 +215,10 @@ export default function StoreOwnerDashboard() {
           <div className="flex flex-col items-start lg:items-end gap-2">
             <p className="text-blue-200 text-xs font-medium uppercase tracking-wider">Quick Actions</p>
             <div className="flex gap-3">
-              <button className="inline-flex items-center gap-2 bg-white text-blue-700 font-bold px-5 py-2.5 rounded-xl text-sm shadow-lg shadow-black/10 hover:shadow-xl hover:scale-[1.02] transition-all">
+              <Link href="/owner/pos" className="inline-flex items-center gap-2 bg-white text-blue-700 font-bold px-5 py-2.5 rounded-xl text-sm shadow-lg shadow-black/10 hover:shadow-xl hover:scale-[1.02] transition-all">
                 <Plus className="w-4 h-4" />
                 New Sale
-              </button>
+              </Link>
               <Link href="/owner/products?action=add" className="inline-flex items-center gap-2 bg-white/15 text-white font-semibold px-5 py-2.5 rounded-xl text-sm border border-white/20 hover:bg-white/25 transition-all">
                 <Package className="w-4 h-4" />
                 Add Product

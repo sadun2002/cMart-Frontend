@@ -1,248 +1,319 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Clock, CheckCircle2, XCircle, TrendingUp, Receipt, LogIn, LogOut, ShoppingCart, Calendar, Timer } from 'lucide-react';
-import { employeeAPI } from '@/lib/api';
-import { toast } from 'sonner';
-import { formatLKR, formatDateTime } from '@/lib/constants';
+import { useEffect, useState, useRef, useCallback } from 'react';
+import Link from 'next/link';
+import { Plus, Package, Shield, GripVertical, LayoutDashboard } from 'lucide-react';
+import { format } from 'date-fns';
+import { dashboardComponents } from '@/lib/dashboard-components';
+import { ComponentPreview } from '../settings/customize/ComponentPreview';
 
-export default function EmployeeDashboard() {
-  const [attendance, setAttendance] = useState<any[]>([]);
-  const [sales, setSales] = useState<any[]>([]);
+const STORAGE_KEY = 'cMart_dashboard_prefs';
+const ORDER_KEY = 'cMart_dashboard_widget_order';
+
+// ── Draggable Widget Wrapper ─────────────────────────────────────────────────
+interface DraggableWidgetProps {
+  id: string;
+  index: number;
+  children: React.ReactNode;
+  onDragStart: (index: number) => void;
+  onDragEnter: (index: number) => void;
+  onDragEnd: () => void;
+  isDragging: boolean;
+  isOver: boolean;
+}
+
+function DraggableWidget({
+  id,
+  index,
+  children,
+  onDragStart,
+  onDragEnter,
+  onDragEnd,
+  isDragging,
+  isOver,
+}: DraggableWidgetProps) {
+  const [isHovered, setIsHovered] = useState(false);
+
+  return (
+    <div
+      id={`widget-${id}`}
+      draggable
+      onDragStart={() => onDragStart(index)}
+      onDragEnter={() => onDragEnter(index)}
+      onDragEnd={onDragEnd}
+      onDragOver={e => e.preventDefault()}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      className="relative group"
+      style={{
+        opacity: isDragging ? 0.3 : 1,
+        transition: 'opacity 0.2s ease, transform 0.2s ease',
+        transform: isOver && !isDragging ? 'scale(1.02)' : 'scale(1)',
+        outline: isOver && !isDragging ? '2px dashed #3B82F6' : 'none',
+        outlineOffset: '4px',
+        borderRadius: '1rem',
+        cursor: isDragging ? 'grabbing' : 'default',
+      }}
+    >
+      {/* Drag Handle — visible on hover */}
+      <div
+        className="absolute top-3 right-3 z-20 flex items-center gap-1 px-2 py-1 rounded-lg bg-white/90 dark:bg-slate-800/90 border border-gray-200 dark:border-slate-700 shadow-md backdrop-blur-sm cursor-grab active:cursor-grabbing"
+        style={{
+          opacity: isHovered || isDragging ? 1 : 0,
+          transition: 'opacity 0.2s ease',
+          pointerEvents: isHovered ? 'auto' : 'none',
+        }}
+        title="Drag to reorder"
+      >
+        <GripVertical className="w-3.5 h-3.5 text-gray-500 dark:text-slate-400" />
+        <span className="text-[10px] font-semibold text-gray-500 dark:text-slate-400 hidden sm:block">Drag</span>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+// ── Main Dashboard ───────────────────────────────────────────────────────────
+export default function StoreOwnerDashboard() {
+  const [currentTime, setCurrentTime] = useState(new Date());
   const [loading, setLoading] = useState(true);
-  const [time, setTime] = useState(new Date());
+  const [enabledIds, setEnabledIds] = useState<string[]>([]);
+  // Ordered list of non-KPI widget IDs (persisted separately)
+  const [widgetOrder, setWidgetOrder] = useState<string[]>([]);
 
+  const dragIndex = useRef<number>(-1);
+  const overIndex = useRef<number>(-1);
+  const [draggingIdx, setDraggingIdx] = useState<number>(-1);
+  const [overIdx, setOverIdx] = useState<number>(-1);
+
+  // ── Clock tick ──────────────────────────────────────────────────────────
   useEffect(() => {
-    const timer = setInterval(() => setTime(new Date()), 1000);
+    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
     return () => clearInterval(timer);
   }, []);
 
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      const [attRes, salesRes] = await Promise.all([
-        employeeAPI.getMyAttendance(),
-        employeeAPI.getMySales(),
-      ]);
-      setAttendance(attRes.data);
-      setSales(salesRes.data);
-    } catch (err) {
-      toast.error('Failed to load dashboard data');
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // ── Load prefs ──────────────────────────────────────────────────────────
   useEffect(() => {
-    fetchData();
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        const prefs = JSON.parse(stored);
+        if (prefs.enabledComponents) {
+          setEnabledIds(prefs.enabledComponents);
+        }
+      } else {
+        setEnabledIds(dashboardComponents.filter(c => c.default).map(c => c.id));
+      }
+    } catch {}
+    setLoading(false);
   }, []);
 
-  const handleCheckIn = async () => {
+  // ── Sync widget order whenever enabledIds changes ────────────────────────
+  useEffect(() => {
+    if (enabledIds.length === 0) return;
+
+    // non-KPI ids from enabled list
+    const nonKpiIds = enabledIds.filter(id => {
+      const comp = dashboardComponents.find(c => c.id === id);
+      return comp && comp.category !== 'kpi';
+    });
+
+    // Load saved order
     try {
-      await employeeAPI.checkIn();
-      toast.success('Punched In successfully!');
-      fetchData();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to punch in');
+      const savedOrder: string[] = JSON.parse(localStorage.getItem(ORDER_KEY) || '[]');
+      // Merge: keep saved order for IDs still present, append new ones at end
+      const merged = [
+        ...savedOrder.filter(id => nonKpiIds.includes(id)),
+        ...nonKpiIds.filter(id => !savedOrder.includes(id)),
+      ];
+      setWidgetOrder(merged);
+    } catch {
+      setWidgetOrder(nonKpiIds);
     }
-  };
+  }, [enabledIds]);
 
-  const handleCheckOut = async () => {
+  // ── Save order to localStorage ───────────────────────────────────────────
+  const saveOrder = useCallback((order: string[]) => {
     try {
-      await employeeAPI.checkOut();
-      toast.success('Punched Out successfully!');
-      fetchData();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to punch out');
+      localStorage.setItem(ORDER_KEY, JSON.stringify(order));
+    } catch {}
+  }, []);
+
+  // ── Drag handlers ────────────────────────────────────────────────────────
+  const handleDragStart = useCallback((idx: number) => {
+    dragIndex.current = idx;
+    setDraggingIdx(idx);
+  }, []);
+
+  const handleDragEnter = useCallback((idx: number) => {
+    overIndex.current = idx;
+    setOverIdx(idx);
+  }, []);
+
+  const handleDragEnd = useCallback(() => {
+    const from = dragIndex.current;
+    const to = overIndex.current;
+    if (from !== -1 && to !== -1 && from !== to) {
+      setWidgetOrder(prev => {
+        const next = [...prev];
+        const [moved] = next.splice(from, 1);
+        next.splice(to, 0, moved);
+        saveOrder(next);
+        return next;
+      });
     }
-  };
+    dragIndex.current = -1;
+    overIndex.current = -1;
+    setDraggingIdx(-1);
+    setOverIdx(-1);
+  }, [saveOrder]);
 
-  const todayStr = time.toDateString();
-  const todayAttendance = attendance.find(a => new Date(a.date).toDateString() === todayStr);
-  
-  const isCheckedIn = todayAttendance?.checkIn && !todayAttendance?.checkOut;
-  const isCheckedOut = todayAttendance?.checkOut;
-
-  const todaysSales = sales.filter(s => new Date(s.createdAt).toDateString() === todayStr);
-  const totalSalesAmount = todaysSales.reduce((acc, curr) => acc + curr.amountLKR, 0);
-
+  // ── Loading ──────────────────────────────────────────────────────────────
   if (loading) return (
     <div className="p-8 flex items-center justify-center min-h-screen">
       <div className="flex flex-col items-center gap-3">
         <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-        <p className="text-sm text-gray-500 dark:text-slate-400 animate-pulse">Loading shift data...</p>
+        <p className="text-sm text-gray-500 dark:text-slate-400 animate-pulse">Loading dashboard...</p>
       </div>
     </div>
   );
 
-  return (
-    <div className="p-6 lg:p-8 space-y-8 max-w-6xl mx-auto">
-      {/* Background decoration */}
-      <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute top-20 right-0 w-72 h-72 bg-blue-500/10 rounded-full blur-[100px]" />
-        <div className="absolute bottom-20 left-0 w-64 h-64 bg-emerald-400/10 rounded-full blur-[100px]" />
-      </div>
+  // ── Resolve components ───────────────────────────────────────────────────
+  const allEnabled = enabledIds.map(id => dashboardComponents.find(c => c.id === id)).filter(Boolean) as typeof dashboardComponents;
+  const kpis = allEnabled.filter(c => c.category === 'kpi');
 
-      {/* Header */}
-      <div className="relative z-10">
-        <div className="flex items-center gap-3 mb-1">
-          <div className="w-10 h-10 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200 dark:shadow-blue-900/20">
-            <Clock className="w-5 h-5 text-white" />
+  // Non-KPI widgets sorted by user-defined drag order
+  const orderedWidgets = widgetOrder
+    .map(id => allEnabled.find(c => c.id === id))
+    .filter(Boolean) as typeof dashboardComponents;
+
+  // ── Render ───────────────────────────────────────────────────────────────
+  return (
+    <div className="font-sans p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
+
+      {/* ══════════════════════════════════════════════════════════════
+          FIXED ZONE — Welcome Banner + KPIs (not draggable)
+      ══════════════════════════════════════════════════════════════ */}
+
+      {/* Welcome Banner */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 rounded-3xl p-6 lg:p-8 shadow-xl shadow-blue-200/50 dark:shadow-blue-900/30">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-[80px] translate-x-1/2 -translate-y-1/2" />
+        <div className="absolute bottom-0 left-1/3 w-48 h-48 bg-white/5 rounded-full blur-[60px]" />
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+          <div className="space-y-2">
+            <h1 className="text-2xl lg:text-3xl font-black text-white">
+              Welcome back, John! 👋
+            </h1>
+            <p className="text-blue-100 text-sm">
+              {format(currentTime, 'EEEE, MMMM d, yyyy')}
+            </p>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/15 text-white text-xs font-semibold rounded-full backdrop-blur-sm">
+              <Shield className="w-3 h-3" />
+              Pro Plan · Renews {format(new Date(currentTime.getFullYear(), currentTime.getMonth() + 1, 15), 'MMM d, yyyy')}
+            </span>
           </div>
-          <div>
-            <h1 className="text-2xl font-black text-gray-900 dark:text-white">My Shift Dashboard</h1>
-            <p className="text-sm text-gray-500 dark:text-slate-400">Track attendance and performance</p>
+          <div className="flex flex-col items-start lg:items-end gap-2">
+            <p className="text-blue-200 text-xs font-medium uppercase tracking-wider">Quick Actions</p>
+            <div className="flex gap-3">
+              <Link href="/employee/pos" className="inline-flex items-center gap-2 bg-white text-blue-700 font-bold px-5 py-2.5 rounded-xl text-sm shadow-lg shadow-black/10 hover:shadow-xl hover:scale-[1.02] transition-all">
+                <Plus className="w-4 h-4" />
+                New Sale
+              </Link>
+              <Link href="/employee/products?action=add" className="inline-flex items-center gap-2 bg-white/15 text-white font-semibold px-5 py-2.5 rounded-xl text-sm border border-white/20 hover:bg-white/25 transition-all">
+                <Package className="w-4 h-4" />
+                Add Product
+              </Link>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2 relative z-10">
-        {/* ── Time Clock Card ── */}
-        <Card className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 shadow-xl shadow-gray-200/40 dark:shadow-none">
-          <CardHeader className="border-b border-gray-100 dark:border-slate-800 pb-4">
-            <CardTitle className="flex items-center gap-2 text-gray-900 dark:text-white">
-              <Timer className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-              Time Clock
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-6 text-center space-y-6">
-            <div className="space-y-2">
-              <div className="text-5xl font-black text-gray-900 dark:text-white font-mono tracking-wider tabular-nums">
-                {time.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-              </div>
-              <div className="text-gray-500 dark:text-slate-400 font-medium">
-                {time.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-              </div>
+      {/* KPI Cards — always top, never draggable */}
+      {kpis.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6">
+          {kpis.map(comp => <ComponentPreview key={comp.id} comp={{ ...comp, size: (comp.size === 'full' || !comp.size) ? 'medium' : comp.size }} isEnabled={true} layout="grid" isDashboardView={true} />)}
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════
+          DRAGGABLE ZONE — All other widgets (charts, lists, tables …)
+      ══════════════════════════════════════════════════════════════ */}
+      {orderedWidgets.length > 0 && (
+        <div>
+          {/* Zone label and Reset */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/40">
+              <GripVertical className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400" />
+              <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">Drag widgets to reorder</span>
             </div>
+            
+            <button
+              onClick={() => {
+                localStorage.removeItem(ORDER_KEY);
+                const defaultOrder = enabledIds.filter(id => {
+                  const comp = dashboardComponents.find(c => c.id === id);
+                  return comp && comp.category !== 'kpi';
+                });
+                setWidgetOrder(defaultOrder);
+              }}
+              className="text-xs font-semibold text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 px-3 py-1.5 rounded-lg shadow-sm transition-all flex items-center gap-2"
+            >
+              Reset Default Layout
+            </button>
+          </div>
 
-            <div className="flex justify-center">
-              <span className={`inline-flex items-center gap-1.5 px-5 py-1.5 rounded-full text-sm font-bold shadow-inner ${
-                isCheckedIn
-                  ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                  : isCheckedOut
-                    ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400'
-                    : 'bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400'
-              }`}>
-                {isCheckedIn ? <CheckCircle2 className="w-4 h-4" /> : isCheckedOut ? <XCircle className="w-4 h-4" /> : <Clock className="w-4 h-4" />}
-                {isCheckedIn ? 'ON SHIFT' : isCheckedOut ? 'SHIFT ENDED' : 'OFF SHIFT'}
-              </span>
-            </div>
+          {/* Widget grid — uses masonry-style 3-column layout */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 grid-flow-row-dense">
+            {orderedWidgets.map((comp, idx) => {
+              // Tables span full width; charts span 2 cols; everything else 1 col
+              const isTable = comp.category === 'tables';
+              const isChart = comp.category === 'charts' || comp.category === 'comparison' || comp.category === 'time';
+              const colClass = isTable
+                ? 'lg:col-span-3'
+                : isChart
+                ? 'lg:col-span-2'
+                : 'lg:col-span-1';
 
-            <div className="flex gap-4 max-w-xs mx-auto">
-              <Button
-                size="lg"
-                className="flex-1 font-bold bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-200 dark:shadow-green-900/20 rounded-xl h-11"
-                disabled={isCheckedIn || isCheckedOut}
-                onClick={handleCheckIn}
-              >
-                <LogIn className="w-4 h-4" />
-                PUNCH IN
-              </Button>
-              <Button
-                size="lg"
-                className="flex-1 font-bold bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-200 dark:shadow-red-900/20 rounded-xl h-11"
-                disabled={!isCheckedIn}
-                onClick={handleCheckOut}
-              >
-                <LogOut className="w-4 h-4" />
-                PUNCH OUT
-              </Button>
-            </div>
-
-            {todayAttendance && (
-              <div className="pt-4 border-t border-gray-100 dark:border-slate-800 text-sm text-gray-500 dark:text-slate-400 flex justify-between px-4">
-                <span className="flex items-center gap-1.5">
-                  <LogIn className="w-3.5 h-3.5 text-green-500" />
-                  In: {todayAttendance.checkIn ? new Date(todayAttendance.checkIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <LogOut className="w-3.5 h-3.5 text-red-500" />
-                  Out: {todayAttendance.checkOut ? new Date(todayAttendance.checkOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
-                </span>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* ── Performance Card ── */}
-        <Card className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 shadow-xl shadow-gray-200/40 dark:shadow-none">
-          <CardHeader className="border-b border-gray-100 dark:border-slate-800 pb-4">
-            <CardTitle className="flex items-center gap-2 text-gray-900 dark:text-white">
-              <TrendingUp className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-              Today&apos;s Performance
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-6 space-y-6">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-gradient-to-br from-blue-50 to-white dark:from-blue-900/20 dark:to-slate-900 p-5 rounded-2xl border border-blue-100 dark:border-blue-800/30">
-                <p className="text-sm font-medium text-gray-500 dark:text-slate-400 mb-1">Total Sales</p>
-                <p className="text-3xl font-black text-blue-600 dark:text-blue-400">{formatLKR(totalSalesAmount)}</p>
-              </div>
-              <div className="bg-gradient-to-br from-emerald-50 to-white dark:from-emerald-900/20 dark:to-slate-900 p-5 rounded-2xl border border-emerald-100 dark:border-emerald-800/30">
-                <p className="text-sm font-medium text-gray-500 dark:text-slate-400 mb-1">Transactions</p>
-                <p className="text-3xl font-black text-emerald-600 dark:text-emerald-400">{todaysSales.length}</p>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                <Receipt className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                Recent Transactions
-              </h3>
-              <div className="space-y-2">
-                {todaysSales.length === 0 ? (
-                  <div className="text-center py-8">
-                    <ShoppingCart className="w-8 h-8 text-gray-300 dark:text-slate-600 mx-auto mb-2" />
-                    <p className="text-sm text-gray-400 dark:text-slate-500">No sales processed today.</p>
-                  </div>
-                ) : (
-                  todaysSales.slice(0, 3).map((sale) => (
-                    <div key={sale.id} className="flex justify-between items-center p-3.5 bg-gray-50 dark:bg-slate-800/50 rounded-xl border border-gray-100 dark:border-slate-700 hover:border-blue-200 dark:hover:border-blue-700/50 transition-all hover:shadow-md">
-                      <div>
-                        <div className="font-semibold text-sm text-gray-900 dark:text-white">Order #{sale.id}</div>
-                        <div className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">{formatDateTime(sale.createdAt)}</div>
-                      </div>
-                      <div className="font-bold text-blue-600 dark:text-blue-400">{formatLKR(sale.amountLKR)}</div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Quick Stats Row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 relative z-10">
-        {[
-          { label: 'Total Attendance', value: attendance.length.toString(), icon: Calendar, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50 dark:bg-blue-900/20' },
-          { label: 'This Week Sales', value: formatLKR(sales.filter(s => {
-            const d = new Date(s.createdAt);
-            const now = new Date();
-            const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-            return d >= weekAgo;
-          }).reduce((acc, curr) => acc + curr.amountLKR, 0)), icon: TrendingUp, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
-          { label: 'Current Shift', value: isCheckedIn ? 'Active' : isCheckedOut ? 'Ended' : 'Not started', icon: Clock, color: isCheckedIn ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-slate-400', bg: isCheckedIn ? 'bg-green-50 dark:bg-green-900/20' : 'bg-gray-50 dark:bg-slate-800' },
-          { label: 'Days Active', value: new Set(attendance.map(a => new Date(a.date).toDateString())).size.toString(), icon: Calendar, color: 'text-purple-600 dark:text-purple-400', bg: 'bg-purple-50 dark:bg-purple-900/20' },
-        ].map((stat) => {
-          const Icon = stat.icon;
-          return (
-            <div key={stat.label} className="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-gray-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-all">
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-xl ${stat.bg} flex items-center justify-center`}>
-                  <Icon className={`w-5 h-5 ${stat.color}`} />
+              return (
+                <div key={comp.id} className={colClass}>
+                  <DraggableWidget
+                    id={comp.id}
+                    index={idx}
+                    onDragStart={handleDragStart}
+                    onDragEnter={handleDragEnter}
+                    onDragEnd={handleDragEnd}
+                    isDragging={draggingIdx === idx}
+                    isOver={overIdx === idx && draggingIdx !== idx}
+                  >
+                    <ComponentPreview
+                      comp={{ ...comp, size: (comp.size === 'full' || !comp.size) ? 'medium' : comp.size }}
+                      isEnabled={true}
+                      layout="grid"
+                      isDashboardView={true}
+                    />
+                  </DraggableWidget>
                 </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-medium text-gray-500 dark:text-slate-400 truncate">{stat.label}</p>
-                  <p className="text-lg font-bold text-gray-900 dark:text-white truncate">{stat.value}</p>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {allEnabled.length === 0 && (
+        <div className="text-center py-20">
+          <div className="w-16 h-16 bg-gray-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <LayoutDashboard className="w-8 h-8 text-gray-400 dark:text-slate-500" />
+          </div>
+          <p className="text-gray-500 dark:text-slate-400 font-medium">No components enabled on your dashboard.</p>
+          <a
+            href="/employee/settings/customize"
+            className="inline-flex items-center gap-2 mt-3 text-sm font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+          >
+            Customize Dashboard →
+          </a>
+        </div>
+      )}
     </div>
   );
 }

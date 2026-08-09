@@ -57,7 +57,7 @@ export default function AdminPaymentsPage() {
           <div className="p-8 text-center text-gray-500">No payments recorded yet.</div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
+            <table className="font-sans w-full text-sm text-left">
               <thead className="text-xs text-gray-500 uppercase bg-gray-50 border-b">
                 <tr>
                   <th className="px-6 py-4 font-medium">Store</th>

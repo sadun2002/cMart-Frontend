@@ -1,19 +1,47 @@
-import { EMPLOYEE_NAV } from '@/lib/constants';
-import DashboardSidebar from '@/components/layout/DashboardSidebar';
+'use client';
+
+import { useState, useEffect } from 'react';
+import EmployeeSidebar from '@/components/layout/EmployeeSidebar';
+import EmployeeTopbar from '@/components/layout/EmployeeTopbar';
 
 export default function EmployeeLayout({ children }: { children: React.ReactNode }) {
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('ownerSidebarCollapsed');
+    if (saved === 'true') setSidebarCollapsed(true);
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('ownerSidebarCollapsed', String(sidebarCollapsed));
+  }, [sidebarCollapsed]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key === 'b') {
+        e.preventDefault();
+        setSidebarCollapsed((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   return (
-    <div className="flex h-screen bg-[#F4F7F6] dark:bg-slate-900 overflow-hidden relative">
-      {/* cMart theme background decorations */}
-      <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-500/5 rounded-full blur-[120px]" />
-        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-emerald-400/5 rounded-full blur-[100px]" />
-        <div className="absolute top-1/2 left-1/3 w-[300px] h-[300px] bg-blue-600/5 rounded-full blur-[80px]" />
+    <div className="flex h-screen bg-[#F4F7F6] dark:bg-slate-900 overflow-hidden">
+      <EmployeeSidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed((prev) => !prev)} />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <EmployeeTopbar />
+        <main className="flex-1 overflow-auto relative z-10 flex flex-col min-h-0">
+          <div className="fixed inset-0 pointer-events-none z-0">
+            <div className="absolute top-20 right-0 w-72 h-72 bg-blue-500/5 rounded-full blur-[100px]" />
+            <div className="absolute bottom-20 left-0 w-64 h-64 bg-emerald-400/5 rounded-full blur-[100px]" />
+          </div>
+          <div className="relative z-10 flex-1 flex flex-col min-h-0">
+            {children}
+          </div>
+        </main>
       </div>
-      <DashboardSidebar navItems={EMPLOYEE_NAV} role="employee" />
-      <main className="flex-1 overflow-auto relative z-10">
-        {children}
-      </main>
     </div>
   );
 }

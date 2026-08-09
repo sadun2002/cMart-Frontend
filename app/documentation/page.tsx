@@ -56,7 +56,7 @@ export default function DocumentationPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-950 transition-colors selection:bg-blue-100 dark:selection:bg-blue-900 selection:text-blue-900 dark:selection:text-blue-50">
+    <div className="font-sans min-h-screen bg-white dark:bg-slate-950 transition-colors selection:bg-blue-100 dark:selection:bg-blue-900 selection:text-blue-900 dark:selection:text-blue-50">
       <SiteHeader />
 
       <div className="max-w-[1400px] mx-auto px-6 pt-24 pb-24 flex flex-col md:flex-row gap-8 relative">

@@ -8,7 +8,7 @@ export function ThemeProvider({
   ...props
 }: React.ComponentProps<typeof NextThemesProvider>) {
   return (
-    <NextThemesProvider {...props} nonce="">
+    <NextThemesProvider {...props}>
       {children}
     </NextThemesProvider>
   );

@@ -10,6 +10,8 @@ import {
   PieChart, Pie, Cell,
   ResponsiveContainer, CartesianGrid, XAxis, YAxis, Tooltip 
 } from 'recharts';
+import { KpiCard } from '@/components/ui/kpi-card';
+import { getSetting } from '@/lib/db';
 
 interface ComponentPreviewProps {
   comp: {
@@ -23,6 +25,7 @@ interface ComponentPreviewProps {
   isEnabled: boolean;
   layout: 'grid' | 'list';
   isDashboardView?: boolean;
+  overrideData?: any;
 }
 
 /* ───────────────────────── Mock Data ───────────────────────── */
@@ -84,28 +87,28 @@ const PIE_COLORS = ['#3B82F6', '#10B981', '#8B5CF6', '#F59E0B', '#EC4899'];
 
 const LIST_ITEMS: Record<string, { name: string; value: string; badge?: string }[]> = {
   'list-top5-products':     [
-    { name: 'T-Shirt Cotton', value: 'LKR 15,000.00', badge: 'Rank #1' },
-    { name: 'Jeans Slim Fit', value: 'LKR 12,000.00', badge: 'Rank #2' },
-    { name: 'Sneakers White', value: 'LKR 10,000.00', badge: 'Rank #3' },
-    { name: 'Cap Black', value: 'LKR 5,000.00', badge: 'Rank #4' },
-    { name: 'Belt Brown', value: 'LKR 3,000.00', badge: 'Rank #5' }
+    { name: 'T-Shirt Cotton', value: 'Rs. 15,000.00', badge: 'Rank #1' },
+    { name: 'Jeans Slim Fit', value: 'Rs. 12,000.00', badge: 'Rank #2' },
+    { name: 'Sneakers White', value: 'Rs. 10,000.00', badge: 'Rank #3' },
+    { name: 'Cap Black', value: 'Rs. 5,000.00', badge: 'Rank #4' },
+    { name: 'Belt Brown', value: 'Rs. 3,000.00', badge: 'Rank #5' }
   ],
   'list-top10-products':    [
-    { name: 'T-Shirt Cotton', value: 'LKR 15,000.00' },
-    { name: 'Jeans Slim Fit', value: 'LKR 12,000.00' },
-    { name: 'Sneakers White', value: 'LKR 10,000.00' },
-    { name: 'Cap Black', value: 'LKR 5,000.00' },
-    { name: 'Belt Brown', value: 'LKR 3,000.00' }
+    { name: 'T-Shirt Cotton', value: 'Rs. 15,000.00' },
+    { name: 'Jeans Slim Fit', value: 'Rs. 12,000.00' },
+    { name: 'Sneakers White', value: 'Rs. 10,000.00' },
+    { name: 'Cap Black', value: 'Rs. 5,000.00' },
+    { name: 'Belt Brown', value: 'Rs. 3,000.00' }
   ],
   'list-worst5-products':   [
-    { name: 'Scarf Silk', value: 'LKR 200.00', badge: 'Low demand' },
-    { name: 'Tie Clip', value: 'LKR 350.00', badge: 'No sales' },
-    { name: 'Cufflinks Gold', value: 'LKR 500.00', badge: 'Overstocked' }
+    { name: 'Scarf Silk', value: 'Rs. 200.00', badge: 'Low demand' },
+    { name: 'Tie Clip', value: 'Rs. 350.00', badge: 'No sales' },
+    { name: 'Cufflinks Gold', value: 'Rs. 500.00', badge: 'Overstocked' }
   ],
   'list-top5-customers':    [
-    { name: 'Sarah K.', value: 'LKR 48,250.00', badge: '5 orders' },
-    { name: 'John D.', value: 'LKR 35,400.00', badge: '4 orders' },
-    { name: 'Mike R.', value: 'LKR 28,900.00', badge: '3 orders' }
+    { name: 'Sarah K.', value: 'Rs. 48,250.00', badge: '5 orders' },
+    { name: 'John D.', value: 'Rs. 35,400.00', badge: '4 orders' },
+    { name: 'Mike R.', value: 'Rs. 28,900.00', badge: '3 orders' }
   ],
   'list-top5-employees':    [
     { name: 'Anu S.', value: '82 orders completed', badge: 'POS' },
@@ -113,9 +116,9 @@ const LIST_ITEMS: Record<string, { name: string; value: string; badge?: string }
     { name: 'Daya W.', value: '54 orders completed', badge: 'Online' }
   ],
   'list-top5-categories':   [
-    { name: 'Clothing', value: 'LKR 120,450.00' },
-    { name: 'Footwear', value: 'LKR 85,200.00' },
-    { name: 'Accessories', value: 'LKR 45,600.00' }
+    { name: 'Clothing', value: 'Rs. 120,450.00' },
+    { name: 'Footwear', value: 'Rs. 85,200.00' },
+    { name: 'Accessories', value: 'Rs. 45,600.00' }
   ],
   'list-recent-stock-movements': [
     { name: 'T-Shirt Cotton (M)', value: '+50 stock added', badge: 'Restock' },
@@ -128,12 +131,12 @@ const LIST_ITEMS: Record<string, { name: string; value: string; badge?: string }
     { name: 'Backpack Blue', value: '+28% views increase' }
   ],
   'list-featured-products': [
-    { name: 'Premium Cotton Shirt', value: 'LKR 4,500.00', badge: 'Active' },
-    { name: 'Leather Messenger Bag', value: 'LKR 12,000.00', badge: 'Active' }
+    { name: 'Premium Cotton Shirt', value: 'Rs. 4,500.00', badge: 'Active' },
+    { name: 'Leather Messenger Bag', value: 'Rs. 12,000.00', badge: 'Active' }
   ],
   'list-recently-added-products': [
-    { name: 'Linen Polo Shirt', value: 'LKR 3,800.00', badge: 'New' },
-    { name: 'Leather Sandals', value: 'LKR 4,200.00', badge: 'New' }
+    { name: 'Linen Polo Shirt', value: 'Rs. 3,800.00', badge: 'New' },
+    { name: 'Leather Sandals', value: 'Rs. 4,200.00', badge: 'New' }
   ],
 };
 
@@ -162,9 +165,24 @@ const ALERT_ITEMS: Record<string, { item: string; detail: string; badge: string;
 
 /* ───────────────────────── Component ───────────────────────── */
 
-export function ComponentPreview({ comp, isEnabled, layout, isDashboardView }: ComponentPreviewProps) {
+export function ComponentPreview({ comp, isEnabled, layout, isDashboardView = false, overrideData }: ComponentPreviewProps) {
   const CompIcon = getIcon(comp.icon);
+  const [salesGoal, setSalesGoal] = useState<number>(500000);
   const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    if (comp.category === 'progress' && comp.id === 'progress-monthly-sales-goal') {
+      const fetchGoal = async () => {
+        try {
+          const val = await getSetting('monthly_sales_goal', '500000');
+          setSalesGoal(Number(val) || 500000);
+        } catch (e) {
+          console.error(e);
+        }
+      };
+      fetchGoal();
+    }
+  }, [comp]);
 
   useEffect(() => {
     setMounted(true);
@@ -194,24 +212,16 @@ export function ComponentPreview({ comp, isEnabled, layout, isDashboardView }: C
 
         /* ═══════════════════ KPI CARDS ═══════════════════ */
         case 'kpi': {
-          const data = KPI_DATA[comp.id] || { value: '—', change: '0%', up: true, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-100 dark:bg-blue-900/30' };
+          const data = overrideData || KPI_DATA[comp.id] || { value: '—', change: '0%', up: true, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-100 dark:bg-blue-900/30' };
           return (
-            <div className={`group bg-white dark:bg-slate-900 rounded-xl p-3 border border-gray-100 dark:border-slate-800 shadow-sm hover:shadow-xl transition-all duration-300 w-full text-left h-[100px] flex items-center justify-between gap-3 ${dim}`}>
-              <div className="min-w-0 flex-1 flex flex-col justify-between h-full py-1">
-                <p className="text-[12px] font-extrabold text-gray-700 dark:text-gray-200 truncate mb-1">{comp.label}</p>
-                <p className="text-lg font-bold text-gray-900 dark:text-white leading-none truncate">{data.value}</p>
-                <div className="flex items-center gap-1 mt-1">
-                  <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-full ${
-                    data.up ? 'text-green-700 bg-green-50 dark:bg-green-950/30 dark:text-green-400' : 'text-orange-700 bg-orange-50 dark:bg-orange-950/30 dark:text-orange-400'
-                  }`}>
-                    {data.change}
-                  </span>
-                  <span className="text-[8px] text-gray-400 dark:text-slate-500">vs last period</span>
-                </div>
-              </div>
-              <div className={`w-10 h-10 rounded-xl ${data.bg} flex items-center justify-center flex-shrink-0`}>
-                <CompIcon className={`w-4 h-4 ${data.color}`} />
-              </div>
+            <div className={`w-full ${dim}`}>
+              <KpiCard 
+                title={comp.label} 
+                value={data.value} 
+                icon={CompIcon as any} 
+                iconColorClass={data.color} 
+                iconBgClass={data.bg} 
+              />
             </div>
           );
         }
@@ -239,7 +249,7 @@ export function ComponentPreview({ comp, isEnabled, layout, isDashboardView }: C
                 {isPie || isDonut ? (
                   <PieChart>
                     <Pie
-                      data={isDonut ? DONUT_DATA : PIE_DATA}
+                      data={overrideData || (isDonut ? DONUT_DATA : PIE_DATA)}
                       cx="50%"
                       cy="50%"
                       innerRadius={isDonut ? 35 : 0}
@@ -247,7 +257,7 @@ export function ComponentPreview({ comp, isEnabled, layout, isDashboardView }: C
                       paddingAngle={2}
                       dataKey="value"
                     >
-                      {(isDonut ? DONUT_DATA : PIE_DATA).map((entry, index) => (
+                      {(overrideData || (isDonut ? DONUT_DATA : PIE_DATA)).map((entry: any, index: number) => (
                         <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
                       ))}
                     </Pie>
@@ -272,7 +282,7 @@ export function ComponentPreview({ comp, isEnabled, layout, isDashboardView }: C
                     <Tooltip />
                   </PieChart>
                 ) : comp.id.includes('bar') || comp.id.includes('stacked') ? (
-                  <BarChart data={CHART_DATA_7D} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                  <BarChart data={overrideData || CHART_DATA_7D} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" strokeOpacity={0.4} />
                     <XAxis dataKey="day" tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
@@ -280,7 +290,7 @@ export function ComponentPreview({ comp, isEnabled, layout, isDashboardView }: C
                     <Bar dataKey="sales" fill="#3B82F6" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 ) : comp.id.includes('line') ? (
-                  <LineChart data={CHART_DATA_7D} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                  <LineChart data={overrideData || CHART_DATA_7D} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" strokeOpacity={0.4} />
                     <XAxis dataKey="day" tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
@@ -288,12 +298,18 @@ export function ComponentPreview({ comp, isEnabled, layout, isDashboardView }: C
                     <Line type="monotone" dataKey="sales" stroke="#3B82F6" strokeWidth={2} dot={{ r: 3 }} />
                   </LineChart>
                 ) : (
-                  <AreaChart data={CHART_DATA_7D} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                  <AreaChart data={overrideData || CHART_DATA_7D} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" strokeOpacity={0.4} />
                     <XAxis dataKey="day" tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
                     <Tooltip formatter={(v) => `Rs.${v}`} />
-                    <Area type="monotone" dataKey="sales" stroke="#3B82F6" fill="#3B82F6" fillOpacity={0.1} />
+                    <Area type="monotone" dataKey="sales" stroke="#3B82F6" fillOpacity={1} fill="url(#colorSales)" />
                   </AreaChart>
                 )}
               </ResponsiveContainer>
@@ -304,15 +320,16 @@ export function ComponentPreview({ comp, isEnabled, layout, isDashboardView }: C
 
           <div className="flex items-center justify-between text-xs text-gray-500 dark:text-slate-400 mt-4 pt-3 border-t border-gray-50 dark:border-slate-800 flex-shrink-0 font-medium pr-12">
             <span>Overall Total</span>
-            <span className="font-bold text-gray-900 dark:text-white">LKR 402,230.00</span>
+            <span className="font-bold text-gray-900 dark:text-white">Rs. 402,230.00</span>
           </div>
         </div>
       );
     }
 
     /* ═══════════════════ LISTS ═══════════════════ */
-    case 'lists': {
-      const items = LIST_ITEMS[comp.id] || [];
+    case 'lists':
+    case 'inventory': {
+      const items = overrideData || LIST_ITEMS[comp.id] || [];
       const rankColors = [
         'bg-amber-500 text-white',
         'bg-slate-400 text-white',
@@ -326,7 +343,7 @@ export function ComponentPreview({ comp, isEnabled, layout, isDashboardView }: C
               {comp.label}
             </h2>
             <div className="space-y-4">
-              {items.map((item, i) => (
+              {items.map((item: any, i: number) => (
                 <div key={i} className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3 min-w-0">
                     <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${rankColors[i] || 'bg-gray-100 dark:bg-slate-800 text-gray-500'}`}>
@@ -351,7 +368,7 @@ export function ComponentPreview({ comp, isEnabled, layout, isDashboardView }: C
 
     /* ═══════════════════ ALERTS ═══════════════════ */
     case 'alerts': {
-      const alerts = ALERT_ITEMS[comp.id] || [];
+      const alerts = overrideData || ALERT_ITEMS[comp.id] || [];
       return (
         <div className={`bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 shadow-sm p-6 w-full text-left flex flex-col h-[380px] justify-between ${dim}`}>
           <div>
@@ -363,7 +380,7 @@ export function ComponentPreview({ comp, isEnabled, layout, isDashboardView }: C
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400">{alerts.length} items</span>
             </div>
             <div className="space-y-4">
-              {alerts.slice(0, 3).map((a, i) => (
+              {alerts.slice(0, 3).map((a: any, i: number) => (
                 <div key={i} className="flex items-center justify-between gap-4 p-3 border border-gray-100 dark:border-slate-800/80 rounded-xl bg-gray-50/50 dark:bg-slate-950/20">
                   <div className="min-w-0">
                     <div className="text-sm font-bold text-gray-900 dark:text-white truncate">{a.item}</div>
@@ -414,7 +431,12 @@ export function ComponentPreview({ comp, isEnabled, layout, isDashboardView }: C
 
     /* ═══════════════════ PROGRESS BAR ═══════════════════ */
     case 'progress': {
-      const pct = 68;
+      // Mock progress of 340000 for demonstration purposes
+      const currentSales = 340000;
+      const target = comp.id === 'progress-monthly-sales-goal' ? salesGoal : 890450;
+      const pct = Math.min(100, Math.round((currentSales / target) * 100)) || 0;
+      const remaining = Math.max(0, target - currentSales);
+      
       return (
         <div className={`bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 shadow-sm p-6 w-full text-left flex flex-col h-[380px] justify-between ${dim}`}>
           <div>
@@ -425,12 +447,14 @@ export function ComponentPreview({ comp, isEnabled, layout, isDashboardView }: C
             <div className="space-y-4 mt-6">
               <div className="flex items-center justify-between text-sm">
                 <span className="font-bold text-gray-800 dark:text-slate-200">{pct}% Completed</span>
-                <span className="text-gray-400 dark:text-slate-500">Target: Rs. 890,450.00</span>
+                <span className="text-gray-400 dark:text-slate-500">Target: Rs. {target.toLocaleString()}</span>
               </div>
               <div className="h-4 bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden p-0.5 border border-gray-200/50 dark:border-slate-700">
                 <div className="h-full bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full transition-all" style={{ width: `${pct}%` }} />
               </div>
-              <p className="text-xs text-gray-500 dark:text-slate-400 leading-relaxed">Your store is currently performing above average for this time period. You need LKR 284,944.00 more to hit the goal.</p>
+              <p className="text-xs text-gray-500 dark:text-slate-400 leading-relaxed">
+                Your store is currently performing well. You need Rs. {remaining.toLocaleString()} more to hit the goal.
+              </p>
             </div>
           </div>
         </div>

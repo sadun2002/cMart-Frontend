@@ -17,7 +17,18 @@
 }
 
 /* ─── CSS Variables (Light Mode) ───────────────────────────── */
+@theme {
+  --font-sans: 'Roboto Slab', 'Noto Sans Sinhala', sans-serif;
+}
+
+@layer base {
+  *, ::before, ::after {
+    font-family: var(--font-sans) !important;
+  }
+}
+
 :root {
+  --font-sans: 'Roboto Slab', 'Noto Sans Sinhala', sans-serif;
   /* Brand Colors — cMart Blue */
   --brand-50:  #eff6ff;
   --brand-100: #dbeafe;

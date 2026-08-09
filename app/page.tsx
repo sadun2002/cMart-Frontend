@@ -6,6 +6,9 @@ import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { SiteHeader } from '@/components/layout/site-header';
 import { SiteFooter } from '@/components/layout/site-footer';
 import { PricingSection } from '@/components/sections/pricing-section';
+import { MotionBlurBackground } from '@/components/ui/motion-blur-background';
+import { AuthCtaButton } from '@/components/ui/auth-cta-button';
+import { TypewriterTitle } from '@/components/ui/typewriter-title';
 
 export const metadata: Metadata = {
   title: `${COMPANY_NAME} — ${COMPANY_TAGLINE}`,
@@ -14,20 +17,9 @@ export const metadata: Metadata = {
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 relative overflow-x-hidden transition-colors duration-300">
+    <div className="min-h-screen bg-white dark:bg-slate-950 font-sans text-slate-900 dark:text-slate-100 relative overflow-x-hidden transition-colors duration-300">
       {/* GLOBAL BACKGROUND ANIMATION */}
-      <div className="fixed inset-0 z-0 pointer-events-none">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-white to-white dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 opacity-90 transition-colors duration-300" />
-        <div className="absolute top-10 right-0 -translate-y-16 translate-x-16">
-          <div className="w-96 h-96 bg-blue-500/40 rounded-full blur-[100px] animate-blob mix-blend-multiply" />
-        </div>
-        <div className="absolute bottom-1/4 left-0 translate-y-16 -translate-x-16">
-          <div className="w-80 h-80 bg-blue-600/30 rounded-full blur-[100px] animate-blob animation-delay-2000 mix-blend-multiply" />
-        </div>
-        <div className="absolute top-1/2 left-1/4 -translate-y-1/2">
-          <div className="w-72 h-72 bg-emerald-400/20 rounded-full blur-[100px] animate-blob animation-delay-4000 mix-blend-multiply" />
-        </div>
-      </div>
+      <MotionBlurBackground />
 
       {/* Navigation */}
       <SiteHeader />
@@ -39,23 +31,15 @@ export default function HomePage() {
             <div className="inline-flex items-center gap-2 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-3 py-1 rounded-full text-xs font-medium mb-6">
               Built for Sri Lankan Businesses
             </div>
-            <h1 className="text-5xl lg:text-6xl font-black text-gray-900 dark:text-white leading-tight mb-6 transition-colors">
-              The Smart Way to
-              <span className="text-blue-600"> Run Your Store</span>
-            </h1>
+            <TypewriterTitle />
             <p className="text-xl text-gray-600 dark:text-slate-300 leading-relaxed mb-8 max-w-2xl transition-colors">
               Complete POS system + e-commerce platform for Sri Lankan businesses.
               Manage sales, inventory, employees, and your online store — all in one place.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
-              <Link
-                href="/contact"
-                className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-8 py-3.5 rounded-xl font-bold text-base transition-colors shadow-lg shadow-blue-200 dark:shadow-blue-900/20"
-              >
-                Let's meet -- with coffee <Coffee className="w-5 h-5 ml-1" />
-              </Link>
-              <Link
-                href="/pricing"
+              <AuthCtaButton className="inline-flex items-center justify-center px-8 py-4 text-base font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-600/30 transition-all duration-300 gap-2" />
+              
+              <Link   href="/pricing"
                 className="inline-flex items-center justify-center gap-2 border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-700 dark:text-slate-200 px-8 py-3.5 rounded-xl font-semibold text-base transition-colors"
               >
                 View Pricing
@@ -119,12 +103,7 @@ export default function HomePage() {
           <p className="text-blue-200 mb-8 text-lg">
             Join hundreds of Sri Lankan businesses already using {COMPANY_NAME} to manage their stores.
           </p>
-          <Link
-            href="/register"
-            className="inline-flex items-center gap-2 bg-white text-blue-600 hover:bg-blue-50 px-8 py-3.5 rounded-xl font-bold text-base transition-colors shadow-lg"
-          >
-            Start Your Free Store Today →
-          </Link>
+          <AuthCtaButton className="inline-flex items-center gap-2 bg-white text-blue-600 hover:bg-blue-50 px-8 py-3.5 rounded-xl font-bold text-base transition-colors shadow-lg" />
         </div>
       </section>
 
@@ -145,8 +124,15 @@ export default function HomePage() {
           {/* Marquee tracks */}
           <div className="flex overflow-x-hidden">
             {/* Track 1 */}
-            <div className="animate-marquee marquee-track flex gap-6 px-6 whitespace-nowrap min-w-full">
-              {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div className="animate-marquee marquee-track flex gap-6 px-6 whitespace-nowrap min-w-full shrink-0">
+              {[
+                { name: "Saman Silva", role: "Retail Store Owner", review: `Since switching to ${COMPANY_NAME}, managing my inventory and online orders has never been easier. Highly recommended!`, initial: "S" },
+                { name: "Nimal Perera", role: "Supermarket Manager", review: "The POS system is lightning fast and the inventory alerts save us from stockouts every single day. A must-have.", initial: "N" },
+                { name: "Kumari Fernando", role: "Boutique Owner", review: "Setting up my e-commerce site took literally one click. My online sales have doubled since I started using this platform.", initial: "K" },
+                { name: "Ruwan Jayasinghe", role: "Electronics Shop", review: "The integrated PayHere support made it so easy to accept online payments. Customer support is also excellent.", initial: "R" },
+                { name: "Chamari Alwis", role: "Clothing Store", review: "I can track my employees' sales performance and attendance all in one dashboard. It's incredibly convenient.", initial: "C" },
+                { name: "Kasun Bandara", role: "Pharmacy Owner", review: "Barcode scanning and receipt printing work flawlessly. It's a complete ecosystem that every business needs.", initial: "K" }
+              ].map((t, i) => (
                 <div key={i} className="inline-flex flex-col bg-white dark:bg-slate-900/50 border border-gray-100 dark:border-slate-800 p-8 rounded-3xl shadow-xl shadow-gray-200/40 dark:shadow-none w-80 shrink-0 whitespace-normal transition-all hover:-translate-y-1">
                   <div className="flex items-center gap-1 mb-4">
                     {[...Array(5)].map((_, j) => (
@@ -154,15 +140,15 @@ export default function HomePage() {
                     ))}
                   </div>
                   <p className="text-gray-600 dark:text-slate-300 mb-6 italic leading-relaxed transition-colors">
-                    "Since switching to {COMPANY_NAME}, managing my inventory and online orders has never been easier. Highly recommended for any growing business!"
+                    "{t.review}"
                   </p>
                   <div className="flex items-center gap-3 mt-auto">
                     <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center font-bold text-blue-600">
-                      S
+                      {t.initial}
                     </div>
                     <div>
-                      <h4 className="font-bold text-gray-900 dark:text-white text-sm transition-colors">Saman Silva</h4>
-                      <p className="text-xs text-gray-500 dark:text-slate-400 transition-colors">Retail Store Owner</p>
+                      <h4 className="font-bold text-gray-900 dark:text-white text-sm transition-colors">{t.name}</h4>
+                      <p className="text-xs text-gray-500 dark:text-slate-400 transition-colors">{t.role}</p>
                     </div>
                   </div>
                 </div>
@@ -170,8 +156,15 @@ export default function HomePage() {
             </div>
             
             {/* Track 2 (duplicate for seamless loop) */}
-            <div className="animate-marquee marquee-track flex gap-6 px-6 whitespace-nowrap min-w-full" aria-hidden="true">
-              {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div className="animate-marquee marquee-track flex gap-6 px-6 whitespace-nowrap min-w-full shrink-0" aria-hidden="true">
+              {[
+                { name: "Saman Silva", role: "Retail Store Owner", review: `Since switching to ${COMPANY_NAME}, managing my inventory and online orders has never been easier. Highly recommended!`, initial: "S" },
+                { name: "Nimal Perera", role: "Supermarket Manager", review: "The POS system is lightning fast and the inventory alerts save us from stockouts every single day. A must-have.", initial: "N" },
+                { name: "Kumari Fernando", role: "Boutique Owner", review: "Setting up my e-commerce site took literally one click. My online sales have doubled since I started using this platform.", initial: "K" },
+                { name: "Ruwan Jayasinghe", role: "Electronics Shop", review: "The integrated PayHere support made it so easy to accept online payments. Customer support is also excellent.", initial: "R" },
+                { name: "Chamari Alwis", role: "Clothing Store", review: "I can track my employees' sales performance and attendance all in one dashboard. It's incredibly convenient.", initial: "C" },
+                { name: "Kasun Bandara", role: "Pharmacy Owner", review: "Barcode scanning and receipt printing work flawlessly. It's a complete ecosystem that every business needs.", initial: "K" }
+              ].map((t, i) => (
                 <div key={`dup-${i}`} className="inline-flex flex-col bg-white dark:bg-slate-900/50 border border-gray-100 dark:border-slate-800 p-8 rounded-3xl shadow-xl shadow-gray-200/40 dark:shadow-none w-80 shrink-0 whitespace-normal transition-all hover:-translate-y-1">
                   <div className="flex items-center gap-1 mb-4">
                     {[...Array(5)].map((_, j) => (
@@ -179,15 +172,15 @@ export default function HomePage() {
                     ))}
                   </div>
                   <p className="text-gray-600 dark:text-slate-300 mb-6 italic leading-relaxed transition-colors">
-                    "Since switching to {COMPANY_NAME}, managing my inventory and online orders has never been easier. Highly recommended for any growing business!"
+                    "{t.review}"
                   </p>
                   <div className="flex items-center gap-3 mt-auto">
                     <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center font-bold text-blue-600">
-                      S
+                      {t.initial}
                     </div>
                     <div>
-                      <h4 className="font-bold text-gray-900 dark:text-white text-sm transition-colors">Saman Silva</h4>
-                      <p className="text-xs text-gray-500 dark:text-slate-400 transition-colors">Retail Store Owner</p>
+                      <h4 className="font-bold text-gray-900 dark:text-white text-sm transition-colors">{t.name}</h4>
+                      <p className="text-xs text-gray-500 dark:text-slate-400 transition-colors">{t.role}</p>
                     </div>
                   </div>
                 </div>

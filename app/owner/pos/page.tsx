@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatLKR } from '@/lib/constants';
 import type { CartItem, Customer } from '@/lib/types';
@@ -9,7 +10,7 @@ import { toast } from 'sonner';
 import {
   Search, Plus, Minus, CreditCard, Banknote,
   ShoppingCart, Package, User, Trash2, X, ChevronRight,
-  Smartphone, Shirt, Pill, Apple, Wrench, Grid, QrCode, Tag
+  Smartphone, Shirt, Pill, Apple, Wrench, Grid, QrCode, Tag, Printer
 } from 'lucide-react';
 
 type PaymentMethod = 'CASH' | 'CARD' | 'PAYHERE_QR';
@@ -37,6 +38,7 @@ const getCategoryDetails = (catName: string) => {
 };
 
 export default function POSPage() {
+  const router = useRouter();
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -212,6 +214,77 @@ export default function POSPage() {
     setLoading(false);
   };
 
+  const printReceipt = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    
+    const customerName = customer ? customer.name : 'Guest';
+    const dateStr = new Date().toLocaleString('en-GB');
+    
+    let itemsHtml = '';
+    cart.forEach(item => {
+      itemsHtml += `
+        <tr>
+          <td style="padding: 5px 0;">${item.productName}<br><small>${item.quantity} x ${formatLKR(item.price)}</small></td>
+          <td style="padding: 5px 0; text-align: right;">${formatLKR(item.subtotal)}</td>
+        </tr>
+      `;
+    });
+
+    const html = `
+      <html>
+        <head>
+          <title>Receipt</title>
+          <style>
+            body { font-family: monospace; padding: 20px; max-width: 300px; margin: 0 auto; color: #000; }
+            h2 { text-align: center; margin: 0 0 10px 0; }
+            p { margin: 5px 0; font-size: 14px; }
+            .divider { border-top: 1px dashed #000; margin: 10px 0; }
+            table { w-full; width: 100%; border-collapse: collapse; font-size: 14px; }
+            .text-right { text-align: right; }
+            .text-center { text-align: center; }
+            .bold { font-weight: bold; }
+          </style>
+        </head>
+        <body>
+          <h2>cMart</h2>
+          <p class="text-center">Receipt</p>
+          <div class="divider"></div>
+          <p>Date: ${dateStr}</p>
+          <p>Customer: ${customerName}</p>
+          <p>Pay Method: ${paymentModal.method}</p>
+          <div class="divider"></div>
+          <table>
+            ${itemsHtml}
+          </table>
+          <div class="divider"></div>
+          <table>
+            <tr><td>Subtotal:</td><td class="text-right">${formatLKR(subtotal)}</td></tr>
+            ${discount > 0 ? `<tr><td>Discount:</td><td class="text-right">-${formatLKR(discountAmount)}</td></tr>` : ''}
+            <tr><td class="bold">Total:</td><td class="text-right bold">${formatLKR(total)}</td></tr>
+          </table>
+          ${paymentModal.method === 'CASH' ? `
+          <div class="divider"></div>
+          <table>
+            <tr><td>Tendered:</td><td class="text-right">${formatLKR(parseFloat(paymentModal.cashAmount || '0'))}</td></tr>
+            <tr><td>Change:</td><td class="text-right">${formatLKR(change)}</td></tr>
+          </table>
+          ` : ''}
+          <div class="divider"></div>
+          <p class="text-center">Thank you for your business!</p>
+          <script>
+            window.onload = () => {
+              window.print();
+              setTimeout(() => window.close(), 500);
+            };
+          </script>
+        </body>
+      </html>
+    `;
+    printWindow.document.write(html);
+    printWindow.document.close();
+  };
+
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center bg-gray-50 dark:bg-slate-900/50">
@@ -318,7 +391,7 @@ export default function POSPage() {
           </div>
           
           {filteredProducts.length === 0 && (
-            <div className="h-full flex flex-col items-center justify-center text-center opacity-50">
+            <div className="font-sans h-full flex flex-col items-center justify-center text-center opacity-50">
               <Package className="w-16 h-16 text-gray-400 mb-4" />
               <h2 className="text-xl font-bold text-gray-900 dark:text-white">No products found</h2>
               <p className="text-sm text-gray-500 dark:text-slate-400 mt-2">Try scanning a different barcode or change the category.</p>
@@ -417,7 +490,7 @@ export default function POSPage() {
           <div className="flex gap-2">
             <button 
               onClick={() => {
-                const val = prompt('Enter discount amount (LKR):');
+                const val = prompt('Enter discount amount (Rs.):');
                 if (val && !isNaN(Number(val))) {
                   setDiscountType('fixed');
                   setDiscount(Number(val));
@@ -542,7 +615,7 @@ export default function POSPage() {
                       ))}
                     </div>
 
-                    <button onClick={() => setIsCreatingCustomer(true)} className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-gray-200 dark:border-slate-700 rounded-xl text-gray-600 dark:text-slate-400 font-bold hover:border-blue-500 hover:text-blue-600 dark:hover:border-blue-500 dark:hover:text-blue-400 transition-colors">
+                    <button onClick={() => router.push('/owner/customers?action=add')} className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-gray-200 dark:border-slate-700 rounded-xl text-gray-600 dark:text-slate-400 font-bold hover:border-blue-500 hover:text-blue-600 dark:hover:border-blue-500 dark:hover:text-blue-400 transition-colors">
                       <Plus className="w-5 h-5" /> Add New Customer
                     </button>
                   </>
@@ -610,9 +683,15 @@ export default function POSPage() {
                     </div>
                     <h2 className="text-2xl font-black text-gray-900 dark:text-white mb-2">Payment Successful!</h2>
                     <p className="text-gray-500 dark:text-slate-400 mb-8">Change due: <span className="font-bold text-gray-900 dark:text-white">{formatLKR(change)}</span></p>
-                    <button onClick={resetPOS} className="px-8 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg shadow-blue-500/25 hover:bg-blue-700 transition-colors">
-                      Start New Sale
-                    </button>
+                    <div className="flex gap-4">
+                      <button onClick={printReceipt} className="px-6 py-3 bg-white dark:bg-slate-800 text-gray-900 dark:text-white border border-gray-200 dark:border-slate-700 font-bold rounded-xl hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2">
+                        <Printer className="w-5 h-5" />
+                        Print Receipt
+                      </button>
+                      <button onClick={resetPOS} className="px-8 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg shadow-blue-500/25 hover:bg-blue-700 transition-colors">
+                        Start New Sale
+                      </button>
+                    </div>
                   </motion.div>
                 ) : (
                   <>
@@ -643,7 +722,7 @@ export default function POSPage() {
 
                     {paymentModal.method === 'CASH' && (
                       <div className="mb-8">
-                        <label className="block text-sm font-bold text-gray-700 dark:text-slate-300 mb-2">Tendered Amount (LKR)</label>
+                        <label className="block text-sm font-bold text-gray-700 dark:text-slate-300 mb-2">Tendered Amount (Rs.)</label>
                         <input
                           type="number"
                           autoFocus

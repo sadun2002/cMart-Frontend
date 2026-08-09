@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { Menu, X, LayoutDashboard, UserPlus } from 'lucide-react';
+import { Menu, X, LayoutDashboard, UserPlus, LogOut } from 'lucide-react';
 import { COMPANY_NAME } from '@/lib/constants';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { SmartNavbar } from '@/components/ui/smart-navbar';
@@ -12,26 +12,26 @@ const NAV_LINKS = [
   { href: '/about', label: 'About' },
   { href: '/services', label: 'Services' },
   { href: '/pricing', label: 'Pricing' },
-  { href: '/portfolio', label: 'Themes' },
+  { href: '/themes', label: 'Themes' },
   { href: '/contact', label: 'Contact' },
+  { href: '/download', label: 'Downloads' },
 ];
 
 export function SiteHeader() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { user, isLoading } = useAuthStore();
+  const { user, isLoading, logout } = useAuthStore();
 
   const isLoggedIn = !!user && !isLoading;
   const getDashboardUrl = () => {
     if (!user) return '/login';
     if (user.type === 'super_admin' || user.adminRole) return '/admin/dashboard';
-    if (user.role === 'STORE_OWNER') return '/owner/dashboard';
+    if (user.role === 'STORE_OWNER') {
+      return user.tenant?.active === false ? '/pending' : '/owner/dashboard';
+    }
     return '/employee/dashboard';
   };
   const getDashboardLabel = () => {
-    if (!user) return 'Go to Dashboard';
-    if (user.type === 'super_admin' || user.adminRole) return 'Admin Dashboard';
-    if (user.role === 'STORE_OWNER') return 'Owner Dashboard';
-    return 'Employee Dashboard';
+    return 'Go to Dashboard';
   };
 
   return (
@@ -62,28 +62,38 @@ export function SiteHeader() {
 
             {/* Desktop Actions */}
             <div className="hidden md:flex items-center gap-3">
-              <ThemeToggle />
-              {isLoggedIn ? (
-                <Link
-                  href={getDashboardUrl()}
-                  className="text-sm bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors shadow-sm flex items-center gap-2"
+              {/* TODO: Remove this logout button after testing */}
+              {isLoggedIn && (
+                <button
+                  onClick={() => logout()}
+                  className="p-2 text-gray-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400 transition-colors bg-white/50 dark:bg-slate-900/50 rounded-lg border border-gray-200 dark:border-slate-800"
+                  title="Logout (Testing only)"
                 >
-                  <LayoutDashboard className="w-4 h-4" />
-                  {getDashboardLabel()}
-                </Link>
-              ) : (
-                <Link
-                  href="/register"
-                  className="text-sm bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors shadow-sm flex items-center gap-2"
-                >
-                  <UserPlus className="w-4 h-4" />
-                  Start Free Trial
-                </Link>
+                  <LogOut className="w-5 h-5" />
+                </button>
               )}
+              <ThemeToggle />
+              <Link
+                href={isLoggedIn ? getDashboardUrl() : '/login'}
+                className="text-sm bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors shadow-sm flex items-center gap-2"
+              >
+                <LayoutDashboard className="w-4 h-4" />
+                Go to Dashboard
+              </Link>
             </div>
 
             {/* Mobile Menu Button */}
             <div className="md:hidden flex items-center gap-3 z-50">
+              {/* TODO: Remove this logout button after testing */}
+              {isLoggedIn && (
+                <button
+                  onClick={() => logout()}
+                  className="p-2 text-gray-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400 transition-colors"
+                  title="Logout (Testing only)"
+                >
+                  <LogOut className="w-5 h-5" />
+                </button>
+              )}
               <ThemeToggle />
               <button 
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -109,25 +119,14 @@ export function SiteHeader() {
                 </div>
               ))}
               <div className="pt-8 border-t border-gray-100 dark:border-slate-800 space-y-3">
-                {isLoggedIn ? (
-                  <Link
-                    href={getDashboardUrl()}
-                    className="block w-full text-center bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-xl font-bold transition-colors flex items-center justify-center gap-2"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <LayoutDashboard className="w-5 h-5" />
-                    {getDashboardLabel()}
-                  </Link>
-                ) : (
-                  <Link
-                    href="/register"
-                    className="block w-full text-center bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-xl font-bold transition-colors flex items-center justify-center gap-2"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <UserPlus className="w-5 h-5" />
-                    Start Free Trial
-                  </Link>
-                )}
+                <Link
+                  href={isLoggedIn ? getDashboardUrl() : '/login'}
+                  className="block w-full text-center bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-xl font-bold transition-colors flex items-center justify-center gap-2"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <LayoutDashboard className="w-5 h-5" />
+                  Go to Dashboard
+                </Link>
               </div>
             </div>
           </div>
