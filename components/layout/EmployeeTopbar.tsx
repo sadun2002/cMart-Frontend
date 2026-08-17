@@ -38,22 +38,31 @@ export default function EmployeeTopbar({ collapsed, onToggle }: { collapsed?: bo
   const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isAutoHidePage = pathname.includes('/expenses') || pathname === '/employee/pos' || pathname === '/employee/products' || pathname === '/employee/categories' || pathname === '/employee/inventory' || pathname === '/employee/suppliers' || pathname === '/employee/sales' || pathname === '/employee/customers' || pathname === '/employee/employees' || pathname === '/employee/attendance' || pathname === '/employee/barcode-generator' || pathname === '/employee/employees/roles' || pathname === '/employee/employees/leaves' || pathname === '/employee/employees/payrolls' || pathname === '/employee/online-orders' || pathname === '/employee/online-store/customers' || pathname === '/employee/online-store/themes' || pathname === '/employee/online-store/pages' || pathname === '/employee/online-store/banners' || pathname === '/employee/online-store/domain' || pathname === '/employee/online-store/seo' || pathname === '/employee/online-store/settings' || pathname.startsWith('/employee/reports');
 
-  useEffect(() => {
-    if (!isAutoHidePage) {
-      setIsVisible(true);
-      if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
-      return;
-    }
-
-    if (isVisible) {
+  const startHideTimer = () => {
+    if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+    if (isAutoHidePage && isVisible) {
       hideTimeoutRef.current = setTimeout(() => {
         setIsVisible(false);
       }, 3500);
     }
+  };
 
-    return () => {
-      if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
-    };
+  const clearHideTimer = () => {
+    if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+  };
+
+  useEffect(() => {
+    if (!isAutoHidePage) {
+      setIsVisible(true);
+      clearHideTimer();
+      return;
+    }
+
+    if (isVisible) {
+      startHideTimer();
+    }
+
+    return () => clearHideTimer();
   }, [isAutoHidePage, isVisible]);
 
   const currentPage = Object.entries(pageTitles).find(([key]) => pathname.startsWith(key));
@@ -74,6 +83,9 @@ export default function EmployeeTopbar({ collapsed, onToggle }: { collapsed?: bo
         />
       )}
       <header 
+        onMouseEnter={clearHideTimer}
+        onMouseLeave={startHideTimer}
+        onMouseMove={clearHideTimer}
         className={`z-40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-gray-200 dark:border-slate-800 transition-all duration-500 ease-in-out flex-shrink-0 ${
           isAutoHidePage && !isVisible 
             ? 'h-0 -translate-y-full opacity-0 overflow-hidden absolute w-full' 
@@ -85,7 +97,6 @@ export default function EmployeeTopbar({ collapsed, onToggle }: { collapsed?: bo
         <div className="min-w-0">
           <div className="flex items-center">
             <h1 className="text-xl font-black text-gray-900 dark:text-white truncate">{title}</h1>
-            <BranchSelector />
           </div>
           <nav className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-slate-500 mt-0.5">
             <Link href="/employee/dashboard" className="hover:text-blue-600 transition-colors">Home</Link>

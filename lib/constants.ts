@@ -139,3 +139,10 @@ export const EMPLOYEE_NAV = [
   { href: '/employee/reports/my-sales', label: 'My Reports', icon: 'BarChart2' },
   { href: '/employee/settings', label: 'Settings', icon: 'Settings' },
 ] as const;
+
+export const MOCK_PRODUCTS = [
+  { id: 1, name: "Essential White Tee", price: 3500, image: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=500&q=80" },
+  { id: 2, name: "Classic Denim Jacket", price: 8500, image: "https://images.unsplash.com/photo-1576871337622-98d48d1cf531?w=500&q=80" },
+  { id: 3, name: "Minimalist Watch", price: 12000, image: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&q=80" },
+  { id: 4, name: "Leather Tote Bag", price: 9500, image: "https://images.unsplash.com/photo-1590874103328-eac38a683ce7?w=500&q=80" },
+];

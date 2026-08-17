@@ -4,6 +4,7 @@ import { Toaster } from 'sonner';
 import { ThemeProvider } from '@/components/providers/theme-provider';
 import { FullscreenHandler } from '@/components/providers/fullscreen-handler';
 import { DesktopRouter } from '@/components/providers/desktop-router';
+import { AuthLoader } from '@/components/providers/auth-loader';
 
 export const metadata: Metadata = {
   title: {
@@ -35,6 +36,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="antialiased font-sans" suppressHydrationWarning>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <DesktopRouter>
+            <AuthLoader />
             <FullscreenHandler />
             {children}
             <Toaster position="top-center" richColors />

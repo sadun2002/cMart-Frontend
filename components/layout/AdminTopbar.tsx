@@ -19,22 +19,31 @@ export default function AdminTopbar({ collapsed, onToggle }: { collapsed?: boole
   const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isAutoHidePage = pathname === '/admin/stores' || pathname === '/admin/stores/pending';
 
-  useEffect(() => {
-    if (!isAutoHidePage) {
-      setIsVisible(true);
-      if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
-      return;
-    }
-
-    if (isVisible) {
+  const startHideTimer = () => {
+    if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+    if (isAutoHidePage && isVisible) {
       hideTimeoutRef.current = setTimeout(() => {
         setIsVisible(false);
       }, 3500);
     }
+  };
 
-    return () => {
-      if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
-    };
+  const clearHideTimer = () => {
+    if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+  };
+
+  useEffect(() => {
+    if (!isAutoHidePage) {
+      setIsVisible(true);
+      clearHideTimer();
+      return;
+    }
+
+    if (isVisible) {
+      startHideTimer();
+    }
+
+    return () => clearHideTimer();
   }, [isAutoHidePage, isVisible]);
   
   const currentPage = ADMIN_NAV.find(item => pathname.startsWith(item.href));
@@ -54,7 +63,11 @@ export default function AdminTopbar({ collapsed, onToggle }: { collapsed?: boole
           onMouseEnter={() => setIsVisible(true)}
         />
       )}
-      <header className={`z-40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800 transition-all duration-500 ease-in-out flex-shrink-0 ${
+      <header 
+        onMouseEnter={clearHideTimer}
+        onMouseLeave={startHideTimer}
+        onMouseMove={clearHideTimer}
+        className={`z-40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800 transition-all duration-500 ease-in-out flex-shrink-0 ${
         isAutoHidePage && !isVisible 
           ? 'h-0 -translate-y-full opacity-0 overflow-hidden absolute w-full' 
           : 'h-16 translate-y-0 opacity-100 relative'

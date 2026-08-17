@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import api, { setCookie, clearAuthCookies } from './api';
+import { userAPI } from './api';
 
 // ============================================================
 // cMart — Auth Zustand Store
@@ -21,6 +22,14 @@ export interface AuthUser {
     subdomain: string;
     plan: string;
     active: boolean;
+    subscription?: {
+      plan: string;
+      status: string;
+      startDate: string;
+      trialEndDate?: string;
+      nextBillingDate?: string;
+      endDate?: string;
+    };
   };
   permissions?: Record<string, boolean>;
 }
@@ -76,6 +85,15 @@ export const useAuthStore = create<AuthState>()(
             refreshToken: payload.refreshToken,
             isLoading: false,
           });
+
+          // Refresh user data from server to get latest tenant/subscription info
+          try {
+            const { data } = await api.get('/auth/me');
+            const me = data.data || data;
+            set({ user: { ...me, type: me.adminRole ? 'super_admin' : 'user' } });
+          } catch {
+            // ignore me fetch failure, use payload data
+          }
 
           // Check if tenant is pending
           if (payload.user.role === 'STORE_OWNER' && payload.user.tenant && payload.user.tenant.active === false) {
@@ -149,22 +167,34 @@ export const useAuthStore = create<AuthState>()(
         set({ accessToken: access, refreshToken: refresh });
       },
 
-      updatePlan: (plan: string) => {
-        set((state) => {
-          if (!state.user) return state;
-          
-          // Ensure tenant exists so the plan gets updated
-          const updatedTenant = state.user.tenant 
-            ? { ...state.user.tenant, plan } 
-            : { id: 0, businessName: 'My Store', subdomain: 'store', plan, active: true };
+      updatePlan: async (plan: string) => {
+        try {
+          await userAPI.updatePlan(plan);
+        } catch (err) {
+          console.error('Failed to update plan on server:', err);
+        }
+        // Refresh user data from server to get latest tenant/subscription info
+        try {
+          const { data } = await api.get('/auth/me');
+          const me = data.data || data;
+          set({ user: { ...me, type: me.adminRole ? 'super_admin' : 'user' } });
+        } catch {
+          // fallback to local update if /me fails
+          set((state) => {
+            if (!state.user) return state;
+            
+            const updatedTenant = state.user.tenant 
+              ? { ...state.user.tenant, plan } 
+              : { id: 0, businessName: 'My Store', subdomain: 'store', plan, active: true };
 
-          return {
-            user: {
-              ...state.user,
-              tenant: updatedTenant
-            }
-          };
-        });
+            return {
+              user: {
+                ...state.user,
+                tenant: updatedTenant
+              }
+            };
+          });
+        }
       },
     }),
     {

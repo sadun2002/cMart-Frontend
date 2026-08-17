@@ -110,6 +110,25 @@ export const reportsApi = {
 // ============================================================
 // Theme API
 // ============================================================
+export interface Theme {
+  id: number | string;
+  name: string;
+  description?: string;
+  price: number;
+  type: string;
+  previewUrl?: string;
+  tags?: string[];
+  version?: string;
+  pageCount?: number;
+  colors?: {
+    primary?: string;
+    secondary?: string;
+    accent?: string;
+    text?: string;
+    background?: string;
+  };
+}
+
 export const themeApi = {
   list: () => api.get('/themes'),
   get: (id: number) => api.get(`/themes/${id}`),

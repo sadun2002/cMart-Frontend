@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Plus, Package, Shield, GripVertical, LayoutDashboard } from 'lucide-react';
 import { format } from 'date-fns';
 import { dashboardComponents } from '@/lib/dashboard-components';
+import { useAuthStore } from '@/lib/auth-store';
 import { ComponentPreview } from '../settings/customize/ComponentPreview';
 
 const STORAGE_KEY = 'cMart_dashboard_prefs';
@@ -75,11 +76,13 @@ function DraggableWidget({
 
 // ── Main Dashboard ───────────────────────────────────────────────────────────
 export default function StoreOwnerDashboard() {
+  const { user } = useAuthStore();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [loading, setLoading] = useState(true);
   const [enabledIds, setEnabledIds] = useState<string[]>([]);
   // Ordered list of non-KPI widget IDs (persisted separately)
   const [widgetOrder, setWidgetOrder] = useState<string[]>([]);
+  const [renewalDate, setRenewalDate] = useState<string>('');
 
   const dragIndex = useRef<number>(-1);
   const overIndex = useRef<number>(-1);
@@ -131,6 +134,25 @@ export default function StoreOwnerDashboard() {
       setWidgetOrder(nonKpiIds);
     }
   }, [enabledIds]);
+
+  // ── Resolve renewal date from subscription ───────────────────────────────
+  useEffect(() => {
+    const sub = user?.tenant?.subscription;
+    if (!sub) {
+      setRenewalDate('');
+      return;
+    }
+    const raw = sub.nextBillingDate || sub.endDate || sub.trialEndDate || sub.startDate;
+    if (!raw) {
+      setRenewalDate('');
+      return;
+    }
+    try {
+      setRenewalDate(format(new Date(raw), 'MMM d, yyyy'));
+    } catch {
+      setRenewalDate('');
+    }
+  }, [user?.tenant?.subscription]);
 
   // ── Save order to localStorage ───────────────────────────────────────────
   const saveOrder = useCallback((order: string[]) => {
@@ -202,14 +224,14 @@ export default function StoreOwnerDashboard() {
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           <div className="space-y-2">
             <h1 className="text-2xl lg:text-3xl font-black text-white">
-              Welcome back, John! 👋
+              Welcome back, {user?.name || 'User'}! 👋
             </h1>
             <p className="text-blue-100 text-sm">
               {format(currentTime, 'EEEE, MMMM d, yyyy')}
             </p>
             <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/15 text-white text-xs font-semibold rounded-full backdrop-blur-sm">
               <Shield className="w-3 h-3" />
-              Pro Plan · Renews {format(new Date(currentTime.getFullYear(), currentTime.getMonth() + 1, 15), 'MMM d, yyyy')}
+              {user?.tenant?.plan || 'Free'} Plan {renewalDate ? `· Renews ${renewalDate}` : ''}
             </span>
           </div>
           <div className="flex flex-col items-start lg:items-end gap-2">

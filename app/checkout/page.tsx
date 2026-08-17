@@ -122,7 +122,7 @@ function CheckoutContent() {
     // Simulate payment processing securely
     await new Promise(resolve => setTimeout(resolve, 2500));
     setIsProcessing(false);
-    updatePlan(plan.key);
+    updatePlan(planKey);
     setIsSuccess(true);
     toast.success('Payment completed successfully!');
   };

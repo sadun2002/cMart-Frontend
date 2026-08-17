@@ -38,26 +38,46 @@ export default function OwnerTopbar({ collapsed, onToggle }: { collapsed?: boole
   const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isAutoHidePage = pathname.includes('/expenses') || pathname === '/owner/pos' || pathname === '/owner/products' || pathname === '/owner/categories' || pathname === '/owner/inventory' || pathname === '/owner/suppliers' || pathname === '/owner/sales' || pathname === '/owner/customers' || pathname === '/owner/employees' || pathname === '/owner/attendance' || pathname === '/owner/barcode-generator' || pathname === '/owner/employees/roles' || pathname === '/owner/employees/leaves' || pathname === '/owner/employees/payrolls' || pathname === '/owner/online-orders' || pathname === '/owner/online-store/customers' || pathname === '/owner/online-store/themes' || pathname === '/owner/online-store/pages' || pathname === '/owner/online-store/banners' || pathname === '/owner/online-store/domain' || pathname === '/owner/online-store/seo' || pathname === '/owner/online-store/settings' || pathname.startsWith('/owner/reports');
 
-  useEffect(() => {
-    if (!isAutoHidePage) {
-      setIsVisible(true);
-      if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
-      return;
-    }
-
-    if (isVisible) {
+  const startHideTimer = () => {
+    if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+    if (isAutoHidePage && isVisible) {
       hideTimeoutRef.current = setTimeout(() => {
         setIsVisible(false);
       }, 3500);
     }
+  };
 
-    return () => {
-      if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
-    };
+  const clearHideTimer = () => {
+    if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+  };
+
+  useEffect(() => {
+    if (!isAutoHidePage) {
+      setIsVisible(true);
+      clearHideTimer();
+      return;
+    }
+
+    if (isVisible) {
+      startHideTimer();
+    }
+
+    return () => clearHideTimer();
   }, [isAutoHidePage, isVisible]);
 
   const currentPage = Object.entries(pageTitles).find(([key]) => pathname.startsWith(key));
   const title = currentPage?.[1] || 'Settings';
+
+  const hideBranchSelector = [
+    '/owner/dashboard',
+    '/owner/products',
+    '/owner/barcode-generator',
+    '/owner/categories',
+    '/owner/suppliers',
+    '/owner/subscription',
+    '/owner/online-store',
+    '/owner/settings'
+  ].some(path => pathname === path || pathname.startsWith(path + '/'));
 
   const breadcrumbs = pathname.split('/').filter(Boolean).map((segment, i, arr) => ({
     label: segment.charAt(0).toUpperCase() + segment.slice(1).replace(/-/g, ' '),
@@ -74,6 +94,9 @@ export default function OwnerTopbar({ collapsed, onToggle }: { collapsed?: boole
         />
       )}
       <header 
+        onMouseEnter={clearHideTimer}
+        onMouseLeave={startHideTimer}
+        onMouseMove={clearHideTimer}
         className={`z-40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-gray-200 dark:border-slate-800 transition-all duration-500 ease-in-out flex-shrink-0 ${
           isAutoHidePage && !isVisible 
             ? 'h-0 -translate-y-full opacity-0 overflow-hidden absolute w-full' 
@@ -85,7 +108,7 @@ export default function OwnerTopbar({ collapsed, onToggle }: { collapsed?: boole
         <div className="min-w-0">
           <div className="flex items-center">
             <h1 className="text-xl font-black text-gray-900 dark:text-white truncate">{title}</h1>
-            <BranchSelector />
+            {!hideBranchSelector && <BranchSelector />}
           </div>
           <nav className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-slate-500 mt-0.5">
             <Link href="/owner/dashboard" className="hover:text-blue-600 transition-colors">Home</Link>

@@ -1,361 +1,637 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
-  FileText, Search, Plus, MoreVertical, Edit, Trash2, Eye, 
-  EyeOff, Globe, Layout, CheckCircle, Clock, X, Copy, Image as ImageIcon, CopyPlus, ExternalLink
+  Monitor, Smartphone, Palette, Save, Layout, Type, FileText, PanelRightClose, PanelRightOpen, Globe, RotateCcw, Plus, Trash2, ChevronDown, ChevronUp
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
-import { KpiCard } from '@/components/ui/kpi-card';
+import { themeApi } from '@/lib/services';
+import { defaultThemeCustomizations } from '@/components/storefront/theme-provider';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
 // Mock Data
 const mockPages = [
-  { id: '1', title: 'Home', handle: '/home', status: 'Published', lastUpdated: '2026-08-01' },
-  { id: '2', title: 'About Us', handle: '/about-us', status: 'Published', lastUpdated: '2026-08-01' },
-  { id: '3', title: 'Contact Us', handle: '/contact', status: 'Published', lastUpdated: '2026-07-28' },
-  { id: '4', title: 'FAQ', handle: '/faq', status: 'Published', lastUpdated: '2026-07-25' },
-  { id: '5', title: 'Privacy Policy', handle: '/privacy-policy', status: 'Published', lastUpdated: '2026-06-15' },
-  { id: '6', title: 'Terms and Conditions', handle: '/terms', status: 'Hidden', lastUpdated: '2026-08-02' },
-  { id: '7', title: 'Return & Refund Policy', handle: '/returns', status: 'Published', lastUpdated: '2026-07-20' },
-  { id: '8', title: 'Shipping Policy', handle: '/shipping', status: 'Published', lastUpdated: '2026-07-20' },
+  { id: '1', title: 'Home', handle: '/', status: 'Published' },
+  { id: '2', title: 'Shop', handle: '/shop', status: 'Published' },
+  { id: '3', title: 'Product Details', handle: '/product/1', status: 'Published' },
+  { id: '4', title: 'Cart', handle: '/cart', status: 'Published' },
+  { id: '5', title: 'Checkout', handle: '/checkout', status: 'Published' },
+  { id: '6', title: 'Categories', handle: '/categories', status: 'Published' },
+  { id: '7', title: 'Offers', handle: '/offers', status: 'Published' },
+  { id: '8', title: 'About Us', handle: '/about', status: 'Published' },
+  { id: '9', title: 'Contact', handle: '/contact', status: 'Published' },
+  { id: '10', title: 'FAQ', handle: '/faq', status: 'Published' },
+  { id: '11', title: 'Shipping', handle: '/shipping', status: 'Published' },
+  { id: '12', title: 'Privacy Policy', handle: '/privacy', status: 'Published' },
+  { id: '13', title: 'Terms', handle: '/terms', status: 'Published' },
+  { id: '14', title: 'Login', handle: '/login', status: 'Published' },
+  { id: '15', title: 'Register', handle: '/register', status: 'Published' },
+  { id: '16', title: 'Account', handle: '/account', status: 'Published' },
 ];
 
-export default function OnlineStorePages() {
+const FONTS = [
+  { name: 'Roboto', label: 'Roboto (Modern)' },
+  { name: 'Open Sans', label: 'Open Sans (Clean)' },
+  { name: 'Lato', label: 'Lato (Friendly)' },
+  { name: 'Montserrat', label: 'Montserrat (Geometric)' },
+  { name: 'Oswald', label: 'Oswald (Impactful)' },
+  { name: 'Source Sans 3', label: 'Source Sans 3 (Corporate)' },
+  { name: 'Slabo 27px', label: 'Slabo 27px (Classic)' },
+  { name: 'Raleway', label: 'Raleway (Elegant)' },
+  { name: 'PT Sans', label: 'PT Sans (Compact)' },
+  { name: 'Merriweather', label: 'Merriweather (Literary)' },
+  { name: 'Nunito', label: 'Nunito (Rounded)' },
+  { name: 'Playfair Display', label: 'Playfair (Editorial)' },
+  { name: 'Ubuntu', label: 'Ubuntu (Tech)' },
+  { name: 'Rubik', label: 'Rubik (Soft)' },
+  { name: 'Work Sans', label: 'Work Sans (Minimal)' },
+  { name: 'Lora', label: 'Lora (Storytelling)' },
+  { name: 'Fira Sans', label: 'Fira Sans (Legible)' },
+  { name: 'Quicksand', label: 'Quicksand (Playful)' },
+  { name: 'Karla', label: 'Karla (Quirky)' },
+  { name: 'Barlow', label: 'Barlow (Industrial)' },
+  { name: 'Mulish', label: 'Mulish (Versatile)' },
+  { name: 'Inconsolata', label: 'Inconsolata (Code)' },
+  { name: 'Titillium Web', label: 'Titillium Web (Square)' },
+  { name: 'Heebo', label: 'Heebo (Hebrew/Latin)' },
+  { name: 'Outfit', label: 'Outfit (Startup)' },
+  { name: 'Poppins', label: 'Poppins (Geometric)' },
+  { name: 'Noto Sans Sinhala', label: 'Noto Sans Sinhala (Local)' },
+  { name: 'Roboto Slab', label: 'Roboto Slab (Slab Serif)' },
+  { name: 'Inter', label: 'Inter (UI/App)' },
+];
+
+const AccordionSection = ({ title, icon: Icon, children, defaultExpanded = true }: any) => {
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+  return (
+    <section>
+      <button 
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full flex items-center justify-between mb-4 group"
+      >
+        <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider flex items-center gap-2 group-hover:text-slate-600 transition-colors">
+          <Icon className="w-4 h-4" /> {title}
+        </h3>
+        {isExpanded ? (
+          <ChevronUp className="w-4 h-4 text-slate-400 group-hover:text-slate-600 transition-colors" />
+        ) : (
+          <ChevronDown className="w-4 h-4 text-slate-400 group-hover:text-slate-600 transition-colors" />
+        )}
+      </button>
+      {isExpanded && (
+        <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
+          {children}
+        </div>
+      )}
+    </section>
+  );
+};
+
+export default function ThemeCustomizer() {
+  const [activeTab, setActiveTab] = useState<'pages' | 'settings'>('settings');
   const [pages, setPages] = useState(mockPages);
-  const [search, setSearch] = useState('');
+  const [activePage, setActivePage] = useState(mockPages[0]);
+  const [viewMode, setViewMode] = useState<'desktop' | 'mobile'>('desktop');
+  const [showPanel, setShowPanel] = useState(true);
   
-  // Slide-out panel state
-  const [isPanelOpen, setIsPanelOpen] = useState(false);
-  const [editingPage, setEditingPage] = useState<any>(null);
-  const [formData, setFormData] = useState({
-    title: '',
-    urlSlug: '',
-    content: '',
-    coverImage: '',
-    status: 'Hidden',
-    seoTitle: '',
-    seoDescription: '',
-    keywords: ''
-  });
+  const [customizations, setCustomizations] = useState(defaultThemeCustomizations);
+  const [activeThemeId, setActiveThemeId] = useState<string | number | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isResetOpen, setIsResetOpen] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+  const [iframeSrc, setIframeSrc] = useState('');
 
-  const filteredPages = pages.filter(p => p.title.toLowerCase().includes(search.toLowerCase()));
+  // Initial load from localStorage so it remembers last state
+  useEffect(() => {
+    const loadThemeSettings = async () => {
+      try {
+        const myThemeRes = await themeApi.getMyTheme().catch(() => null);
+        const myThemeData = myThemeRes as any;
+        const myTheme = myThemeData?.data?.theme || myThemeData?.theme || myThemeData?.data || myThemeData;
+        const themeId = myTheme?.id || 'default';
+        setActiveThemeId(themeId);
+        
+        const storageKey = `theme_customizations_${themeId}`;
+        const stored = localStorage.getItem(storageKey);
+        
+        // Initialize iframeSrc
+        setIframeSrc(`/s/demo?themeId=${themeId}`);
+        
+        if (stored) {
+          try {
+            setCustomizations(JSON.parse(stored));
+          } catch (e) {}
+        } else if (myTheme?.colors) {
+           // If the theme has its own default colors defined in the DB, use them!
+           setCustomizations(prev => ({
+             ...prev,
+             colors: {
+               ...prev.colors,
+               ...myTheme.colors
+             }
+           }));
+        }
+      } catch (err) {
+        console.error("Failed to load active theme settings:", err);
+      }
+    };
+    loadThemeSettings();
+  }, []);
 
-  const handleOpenPanel = (page: any) => {
-    if (page) {
-      setEditingPage(page);
-      setFormData({
-        title: page.title,
-        urlSlug: page.handle,
-        content: '<p>Mock content for ' + page.title + '</p>',
-        coverImage: '',
-        status: page.status,
-        seoTitle: page.title,
-        seoDescription: 'This is the meta description for ' + page.title,
-        keywords: page.title.split(' ').join(', ')
-      });
-      setIsPanelOpen(true);
+  // Sync to iframe via localStorage and postMessage for real-time preview
+  useEffect(() => {
+    if (activeThemeId) {
+      localStorage.setItem(`theme_customizations_${activeThemeId}`, JSON.stringify(customizations));
+      
+      const iframe = document.getElementById('preview-iframe') as HTMLIFrameElement;
+      if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.postMessage({
+          type: 'THEME_UPDATE',
+          customizations,
+          themeId: activeThemeId
+        }, '*');
+      }
+    }
+  }, [customizations, activeThemeId]);
+
+  // Sync iframe route changes back to activePage
+  useEffect(() => {
+    const handleMessage = (e: MessageEvent) => {
+      if (e.data?.type === 'STOREFRONT_ROUTE_CHANGED' && e.data?.pathname) {
+        const pathname = e.data.pathname as string;
+        
+        // Pathname is usually /s/[domain]/[handle]
+        const parts = pathname.split('/').filter(Boolean);
+        // parts = ['s', 'demo', 'shop']
+        let handle = '/';
+        if (parts.length > 2) {
+          handle = '/' + parts.slice(2).join('/');
+        }
+        
+        let matchedPage = pages.find(p => p.handle === handle);
+        
+        // Handle dynamic routes
+        if (!matchedPage) {
+          if (handle.startsWith('/product/')) {
+            matchedPage = pages.find(p => p.handle.startsWith('/product/'));
+          } else if (handle.startsWith('/categories/')) {
+            matchedPage = pages.find(p => p.handle.startsWith('/categories'));
+          }
+        }
+        
+        if (matchedPage) {
+          // Update active page without causing an infinite navigation loop
+          // (the iframe is already there, we just update the sidebar)
+          setActivePage(matchedPage);
+        }
+      }
+    };
+    
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [pages]);
+
+  const handlePageClick = (page: typeof mockPages[0]) => {
+    setActivePage(page);
+    setIframeSrc(`/s/demo${page.handle !== '/' ? page.handle : ''}?themeId=${activeThemeId || 'default'}`);
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await themeApi.updateCustomizations(customizations).catch(() => {}); // Optional backend save
+      toast.success('Theme customizations saved successfully!');
+    } catch {
+      toast.success('Theme customizations saved locally!');
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  const handleSave = () => {
-    if (!formData.title) {
-      toast.error('Page title is required');
-      return;
+  const handleReset = async () => {
+    setIsResetting(true);
+    try {
+      const myThemeRes = await themeApi.getMyTheme().catch(() => null);
+      const myThemeData = myThemeRes as any;
+      const myTheme = myThemeData?.data?.theme || myThemeData?.theme || myThemeData?.data || myThemeData;
+      
+      let resetValues = { ...defaultThemeCustomizations };
+      if (myTheme?.colors) {
+        resetValues.colors = {
+          ...resetValues.colors,
+          ...myTheme.colors
+        };
+      }
+      setCustomizations(resetValues);
+      toast.success('Theme reset to defaults');
+      setIsResetOpen(false);
+    } catch (e) {
+      toast.error('Failed to reset theme');
+    } finally {
+      setIsResetting(false);
     }
-
-    if (editingPage) {
-      setPages(pages.map(p => p.id === editingPage.id ? { ...p, title: formData.title, handle: formData.urlSlug || '/' + formData.title.toLowerCase().replace(/\s+/g, '-'), status: formData.status, lastUpdated: new Date().toISOString().split('T')[0] } : p));
-      toast.success('Page updated successfully');
-    }
-    setIsPanelOpen(false);
-  };
-
-  const handleDelete = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if(confirm('Are you sure you want to delete this page?')) {
-      setPages(pages.filter(p => p.id !== id));
-      toast.success('Page deleted');
-    }
-  };
-
-  const handleToggleStatus = (id: string, currentStatus: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const newStatus = currentStatus === 'Published' ? 'Hidden' : 'Published';
-    setPages(pages.map(p => p.id === id ? { ...p, status: newStatus, lastUpdated: new Date().toISOString().split('T')[0] } : p));
-    toast.success(`Page ${newStatus === 'Published' ? 'published' : 'unpublished'}`);
-  };
-
-  const kpis = {
-    total: pages.length,
-    published: pages.filter(p => p.status === 'Published').length,
-    hidden: pages.filter(p => p.status === 'Hidden').length
   };
 
   return (
-    <div className="font-sans flex flex-col h-full bg-slate-50/50 dark:bg-slate-900/50 p-6 relative overflow-hidden">
-      
-      {/* ──────────────── HEADER ──────────────── */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
-        <div>
-          <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
-            <Layout className="w-8 h-8 text-blue-600" />
-            Online Store Pages
+    // Absolute positioning keeps it within the dashboard layout boundary, preventing sidebar overlap
+    <div className="absolute inset-0 z-50 bg-slate-50 flex flex-col font-sans">
+      {/* Topbar */}
+      <div className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0 shadow-sm z-10">
+        <div className="flex items-center gap-4">
+          <h1 className="font-bold text-lg text-slate-900 flex items-center gap-2">
+            <Palette className="w-5 h-5 text-blue-600" />
+            Page Editor
           </h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium">Create and manage static pages for your online store.</p>
+        </div>
+        
+        <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-lg">
+          <button onClick={() => setViewMode('desktop')} className={`p-1.5 rounded-md transition-colors ${viewMode === 'desktop' ? 'bg-white shadow text-blue-600' : 'text-slate-500 hover:text-slate-900'}`} title="Desktop View">
+            <Monitor className="w-4 h-4" />
+          </button>
+          <button onClick={() => setViewMode('mobile')} className={`p-1.5 rounded-md transition-colors ${viewMode === 'mobile' ? 'bg-white shadow text-blue-600' : 'text-slate-500 hover:text-slate-900'}`} title="Mobile View">
+            <Smartphone className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => setIsResetOpen(true)}
+            className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded-lg transition-colors flex items-center gap-2"
+          >
+            <RotateCcw className="w-4 h-4" />
+            Reset
+          </button>
+          <button 
+            onClick={handleSave} 
+            disabled={isSaving}
+            className={`px-5 py-2 ${isSaving ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'} text-white text-sm font-bold rounded-lg shadow-sm transition-colors flex items-center gap-2`}
+          >
+            {isSaving ? (
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <Save className="w-4 h-4" />
+            )}
+            {isSaving ? 'Saving...' : 'Save'}
+          </button>
         </div>
       </div>
 
-      {/* ──────────────── KPI CARDS ──────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-        <KpiCard title="Total Pages" value={kpis.total} icon={FileText} iconColorClass="text-blue-600" iconBgClass="bg-blue-50 dark:bg-blue-500/10" />
-        <KpiCard title="Published" value={kpis.published} icon={CheckCircle} iconColorClass="text-emerald-600" iconBgClass="bg-emerald-50 dark:bg-emerald-500/10" />
-        <KpiCard title="Hidden / Drafts" value={kpis.hidden} icon={EyeOff} iconColorClass="text-amber-600" iconBgClass="bg-amber-50 dark:bg-amber-500/10" />
-      </div>
-
-      {/* ──────────────── LIST VIEW ──────────────── */}
-      <div className="flex-1 bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col">
+      {/* Main Workspace */}
+      <div className="flex-1 flex flex-row-reverse overflow-hidden relative">
         
-        {/* Toolbar */}
-        <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center gap-4">
-          <div className="relative w-full max-w-md">
-            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
-              <Search className="h-5 w-5" />
+        {/* Right Sidebar (Settings) Toggle Button when hidden */}
+        {!showPanel && (
+          <button 
+            onClick={() => setShowPanel(true)} 
+            className="absolute right-0 top-1/2 -translate-y-1/2 bg-white border border-slate-200 border-r-0 rounded-l-xl p-2 shadow-md z-50 text-slate-500 hover:text-slate-900 transition-colors"
+            title="Show Settings Panel"
+          >
+            <PanelRightOpen className="w-5 h-5" />
+          </button>
+        )}
+
+        {/* Right Sidebar (Settings) */}
+        {showPanel && (
+          <div className="w-80 bg-white border-l border-slate-200 flex flex-col shrink-0 z-10 shadow-sm transition-all">
+            {/* Tabs */}
+            <div className="flex p-2 gap-1 border-b border-slate-100 items-center">
+              <button 
+                onClick={() => setShowPanel(false)} 
+                className="p-2 mr-1 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors" 
+                title="Hide Panel"
+              >
+                <PanelRightClose className="w-5 h-5" />
+              </button>
+              <button 
+                onClick={() => setActiveTab('settings')}
+                className={`flex-1 py-2 text-sm font-bold rounded-lg transition-colors ${activeTab === 'settings' ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
+              >
+              Theme Settings
+            </button>
+            <button 
+              onClick={() => setActiveTab('pages')}
+              className={`flex-1 py-2 text-sm font-bold rounded-lg transition-colors ${activeTab === 'pages' ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
+            >
+              Pages
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-5 custom-scrollbar">
+            {activeTab === 'settings' ? (
+              <div className="space-y-8 animate-in fade-in slide-in-from-left-4 duration-300">
+                {/* Typography */}
+                <AccordionSection title="Typography" icon={Type}>
+                  <div className="space-y-3">
+                    <label className="text-sm font-bold text-slate-700">Global Font</label>
+                    <select 
+                      value={customizations.font}
+                      onChange={(e) => setCustomizations({...customizations, font: e.target.value})}
+                      className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-900 outline-none focus:border-blue-500 transition-colors cursor-pointer"
+                    >
+                      {FONTS.map(f => <option key={f.name} value={f.name}>{f.label}</option>)}
+                    </select>
+                  </div>
+                </AccordionSection>
+
+                <hr className="border-slate-100" />
+
+                {/* Colors */}
+                <AccordionSection title="Colors" icon={Palette}>
+                  <div className="space-y-4">
+                    {Object.entries(customizations.colors).map(([key, value]) => (
+                      <div key={key} className="flex items-center justify-between">
+                        <label className="text-sm font-bold text-slate-700 capitalize">{key}</label>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-medium text-slate-400 uppercase">{value}</span>
+                          <input 
+                            type="color" 
+                            value={value}
+                            onChange={(e) => setCustomizations({
+                              ...customizations, 
+                              colors: { ...customizations.colors, [key as keyof typeof customizations.colors]: e.target.value }
+                            })}
+                            className="w-8 h-8 rounded cursor-pointer border-0 p-0"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </AccordionSection>
+
+                <hr className="border-slate-100" />
+
+                {/* Footer Settings - Always Show */}
+                <AccordionSection title="Footer Settings" icon={Layout}>
+                  <div className="space-y-6">
+                    <div className="space-y-3">
+                      <label className="text-sm font-bold text-slate-700">Footer Text</label>
+                      <textarea 
+                        value={customizations.footerText}
+                        onChange={(e) => setCustomizations({...customizations, footerText: e.target.value})}
+                        className="w-full h-24 p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-900 outline-none focus:border-blue-500 transition-colors resize-none"
+                      />
+                    </div>
+                    
+                    <div className="space-y-3">
+                      <label className="text-sm font-bold text-slate-700">Social Media Links</label>
+                      <div className="space-y-3">
+                        {['facebook', 'instagram', 'twitter', 'youtube', 'linkedin', 'tiktok', 'whatsapp'].map((platform) => {
+                          const links = customizations.socialLinks || defaultThemeCustomizations.socialLinks;
+                          const socialData = links[platform as keyof typeof links] || { enabled: false, url: '' };
+                          
+                          return (
+                            <div key={platform} className="flex items-center gap-3 bg-slate-50 p-2 rounded-lg border border-slate-200">
+                              <div className="flex items-center gap-2 w-28 shrink-0">
+                                <button
+                                  onClick={() => {
+                                    setCustomizations({
+                                      ...customizations,
+                                      socialLinks: {
+                                        ...(customizations.socialLinks || defaultThemeCustomizations.socialLinks),
+                                        [platform]: { ...socialData, enabled: !socialData.enabled }
+                                      }
+                                    });
+                                  }}
+                                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full transition-colors duration-200 ease-in-out focus:outline-none ${socialData.enabled ? 'bg-blue-600' : 'bg-slate-300'}`}
+                                >
+                                  <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${socialData.enabled ? 'translate-x-2' : '-translate-x-2'}`} />
+                                </button>
+                                <span className="text-xs font-semibold text-slate-600 capitalize">{platform}</span>
+                              </div>
+                              <input
+                                type="text"
+                                placeholder={`https://${platform}.com/...`}
+                                value={socialData.url}
+                                onChange={(e) => {
+                                  setCustomizations({
+                                    ...customizations,
+                                    socialLinks: {
+                                      ...(customizations.socialLinks || defaultThemeCustomizations.socialLinks),
+                                      [platform]: { ...socialData, url: e.target.value }
+                                    }
+                                  });
+                                }}
+                                disabled={!socialData.enabled}
+                                className="flex-1 h-8 px-2 bg-white border border-slate-200 rounded-md text-xs text-slate-900 outline-none focus:border-blue-500 transition-colors disabled:bg-slate-100 disabled:text-slate-400"
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </AccordionSection>
+
+                {/* Dynamic Page Settings */}
+                {['/contact', '/about', '/terms', '/privacy', '/shipping', '/faq'].includes(activePage.handle) && (
+                  <>
+                    <hr className="border-slate-100" />
+                    <AccordionSection title={`${activePage.title} Settings`} icon={FileText}>
+                      <div className="space-y-6">
+                        {activePage.handle === '/contact' && (
+                          <>
+                            <div className="space-y-3">
+                              <label className="text-sm font-bold text-slate-700">Email Address</label>
+                              <input 
+                                type="email"
+                                value={customizations.pageData?.contact?.email || ''}
+                                onChange={(e) => setCustomizations({...customizations, pageData: { ...customizations.pageData, contact: { ...customizations.pageData?.contact, email: e.target.value } as any }})}
+                                className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-900 outline-none focus:border-blue-500 transition-colors"
+                              />
+                            </div>
+                            <div className="space-y-3">
+                              <label className="text-sm font-bold text-slate-700">Phone Number</label>
+                              <input 
+                                type="text"
+                                value={customizations.pageData?.contact?.phone || ''}
+                                onChange={(e) => setCustomizations({...customizations, pageData: { ...customizations.pageData, contact: { ...customizations.pageData?.contact, phone: e.target.value } as any }})}
+                                className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-900 outline-none focus:border-blue-500 transition-colors"
+                              />
+                            </div>
+                            <div className="space-y-3">
+                              <label className="text-sm font-bold text-slate-700">Physical Address</label>
+                              <textarea 
+                                value={customizations.pageData?.contact?.address || ''}
+                                onChange={(e) => setCustomizations({...customizations, pageData: { ...customizations.pageData, contact: { ...customizations.pageData?.contact, address: e.target.value } as any }})}
+                                className="w-full h-20 p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-900 outline-none focus:border-blue-500 transition-colors resize-none"
+                              />
+                            </div>
+                          </>
+                        )}
+
+                        {activePage.handle === '/about' && (
+                          <>
+                            <div className="space-y-3">
+                              <label className="text-sm font-bold text-slate-700">Page Title</label>
+                              <input 
+                                type="text"
+                                value={customizations.pageData?.about?.title || ''}
+                                onChange={(e) => setCustomizations({...customizations, pageData: { ...customizations.pageData, about: { ...customizations.pageData?.about, title: e.target.value } as any }})}
+                                className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-900 outline-none focus:border-blue-500 transition-colors"
+                              />
+                            </div>
+                            <div className="space-y-3">
+                              <label className="text-sm font-bold text-slate-700">Subtitle</label>
+                              <textarea 
+                                value={customizations.pageData?.about?.subtitle || ''}
+                                onChange={(e) => setCustomizations({...customizations, pageData: { ...customizations.pageData, about: { ...customizations.pageData?.about, subtitle: e.target.value } as any }})}
+                                className="w-full h-16 p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-900 outline-none focus:border-blue-500 transition-colors resize-none"
+                              />
+                            </div>
+                            <div className="space-y-3">
+                              <label className="text-sm font-bold text-slate-700">Our Story</label>
+                              <textarea 
+                                value={customizations.pageData?.about?.story || ''}
+                                onChange={(e) => setCustomizations({...customizations, pageData: { ...customizations.pageData, about: { ...customizations.pageData?.about, story: e.target.value } as any }})}
+                                className="w-full h-48 p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-900 outline-none focus:border-blue-500 transition-colors resize-none"
+                              />
+                            </div>
+                          </>
+                        )}
+
+                        {['/terms', '/privacy', '/shipping'].includes(activePage.handle) && (
+                          <div className="space-y-3">
+                            <label className="text-sm font-bold text-slate-700 capitalize">{activePage.handle.replace('/', '')} Content</label>
+                            <textarea 
+                              value={customizations.pageData?.[activePage.handle.replace('/', '') as keyof typeof customizations.pageData]?.content || ''}
+                              onChange={(e) => setCustomizations({
+                                ...customizations, 
+                                pageData: { 
+                                  ...customizations.pageData, 
+                                  [activePage.handle.replace('/', '')]: { content: e.target.value } 
+                                } as any 
+                              })}
+                              className="w-full h-[400px] p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-900 outline-none focus:border-blue-500 transition-colors resize-none"
+                            />
+                          </div>
+                        )}
+
+                        {activePage.handle === '/faq' && (
+                          <div className="space-y-4">
+                            {(customizations.pageData?.faq?.items || []).map((faqItem, idx) => (
+                              <div key={idx} className="p-3 border border-slate-200 rounded-lg bg-slate-50 relative group">
+                                <button 
+                                  onClick={() => {
+                                    const newItems = [...(customizations.pageData?.faq?.items || [])];
+                                    newItems.splice(idx, 1);
+                                    setCustomizations({...customizations, pageData: { ...customizations.pageData, faq: { items: newItems } } as any});
+                                  }}
+                                  className="absolute right-2 top-2 p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors opacity-0 group-hover:opacity-100"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                                <div className="space-y-3">
+                                  <div>
+                                    <label className="text-xs font-bold text-slate-500 uppercase">Question</label>
+                                    <input 
+                                      type="text"
+                                      value={faqItem.question}
+                                      onChange={(e) => {
+                                        const newItems = [...(customizations.pageData?.faq?.items || [])];
+                                        newItems[idx].question = e.target.value;
+                                        setCustomizations({...customizations, pageData: { ...customizations.pageData, faq: { items: newItems } } as any});
+                                      }}
+                                      className="w-full mt-1 h-8 px-2 bg-white border border-slate-200 rounded-md text-sm text-slate-900 outline-none focus:border-blue-500"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-xs font-bold text-slate-500 uppercase">Answer</label>
+                                    <textarea 
+                                      value={faqItem.answer}
+                                      onChange={(e) => {
+                                        const newItems = [...(customizations.pageData?.faq?.items || [])];
+                                        newItems[idx].answer = e.target.value;
+                                        setCustomizations({...customizations, pageData: { ...customizations.pageData, faq: { items: newItems } } as any});
+                                      }}
+                                      className="w-full mt-1 h-16 p-2 bg-white border border-slate-200 rounded-md text-sm text-slate-900 outline-none focus:border-blue-500 resize-none"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                            <button 
+                              onClick={() => {
+                                const newItems = [...(customizations.pageData?.faq?.items || []), { question: '', answer: '' }];
+                                setCustomizations({...customizations, pageData: { ...customizations.pageData, faq: { items: newItems } } as any});
+                              }}
+                              className="w-full py-2 border border-dashed border-slate-300 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:text-blue-600 hover:border-blue-300 transition-colors flex items-center justify-center gap-2"
+                            >
+                              <Plus className="w-4 h-4" />
+                              Add FAQ Item
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </AccordionSection>
+                  </>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider">Your Pages</h3>
+                </div>
+                {pages.map(page => (
+                  <div 
+                    key={page.id} 
+                    onClick={() => handlePageClick(page)}
+                    className={`p-3 rounded-xl cursor-pointer transition-all border ${activePage.id === page.id ? 'bg-blue-50 border-blue-200' : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-sm'}`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <FileText className={`w-5 h-5 ${activePage.id === page.id ? 'text-blue-600' : 'text-slate-400'}`} />
+                        <div>
+                          <div className={`font-bold text-sm ${activePage.id === page.id ? 'text-blue-900' : 'text-slate-700'}`}>{page.title}</div>
+                          <div className={`text-xs mt-0.5 ${activePage.id === page.id ? 'text-blue-600/70' : 'text-slate-500'}`}>{page.handle}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+        )}
+
+        {/* Live Preview Area */}
+        <div className="flex-1 bg-slate-100/50 flex flex-col items-center justify-center p-6 relative overflow-hidden">
+          {/* Iframe wrapper for mobile/desktop toggle */}
+          <div className={`transition-all duration-500 ease-in-out bg-white rounded-2xl overflow-hidden shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] border border-slate-200 relative flex flex-col ${viewMode === 'mobile' ? 'w-[375px] h-[812px]' : 'w-full max-w-[1440px] h-full'}`}>
+            {/* Browser-like header for preview */}
+            <div className="h-12 bg-slate-50 border-b border-slate-200 flex items-center px-4 gap-4 shrink-0">
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded-full bg-red-400 shadow-inner"></div>
+                <div className="w-3 h-3 rounded-full bg-amber-400 shadow-inner"></div>
+                <div className="w-3 h-3 rounded-full bg-emerald-400 shadow-inner"></div>
+              </div>
+              <div className="flex-1 max-w-md mx-auto h-7 bg-white rounded-md border border-slate-200 flex items-center px-3 gap-2 shadow-sm">
+                <Globe className="w-3.5 h-3.5 text-slate-400" />
+                <span className="text-xs text-slate-500 font-medium truncate">store.cmart.lk/s/demo{activePage.handle !== '/' ? activePage.handle : ''}</span>
+              </div>
             </div>
-            <input
-              type="text"
-              placeholder="Search pages by title..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-11 pr-4 h-11 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl shadow-sm text-slate-900 dark:text-white font-medium placeholder:text-slate-400 transition-all outline-none"
+            
+            {/* Actual Iframe */}
+            <iframe 
+              id="preview-iframe"
+              src={iframeSrc || `/s/demo?themeId=${activeThemeId || 'default'}`} 
+              className="w-full flex-1 border-0"
+              title="Live Preview"
             />
           </div>
         </div>
-
-        {/* Table */}
-        <div className="flex-1 overflow-x-auto custom-scrollbar">
-          <table className="w-full text-left whitespace-nowrap min-w-[800px]">
-            <thead className="sticky top-0 bg-slate-50/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-100 dark:border-slate-800 text-xs font-bold text-slate-500 uppercase tracking-wider z-10">
-              <tr>
-                <th className="px-6 py-4">Title</th>
-                <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4">Last Updated</th>
-                <th className="px-6 py-4 text-center">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-              {filteredPages.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="px-6 py-20 text-center">
-                    <div className="flex flex-col items-center justify-center text-slate-400 gap-4">
-                      <FileText className="w-12 h-12 opacity-20" />
-                      <p className="font-medium text-lg text-slate-500">No pages found.</p>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                filteredPages.map((page) => (
-                  <tr key={page.id} onClick={() => handleOpenPanel(page)} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer group">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
-                          <FileText className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <div className="font-bold text-slate-900 dark:text-white">{page.title}</div>
-                          <div className="text-xs font-medium text-slate-500 flex items-center gap-1 mt-0.5">
-                            <Globe className="w-3.5 h-3.5" /> {page.handle}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] uppercase tracking-wider font-bold ${
-                        page.status === 'Published' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
-                      }`}>
-                        {page.status === 'Published' ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-                        {page.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm font-medium text-slate-500">
-                      {page.lastUpdated}
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={(e) => handleToggleStatus(page.id, page.status, e)} className={`p-2 rounded-lg transition-colors ${page.status === 'Hidden' ? 'text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-500/10' : 'text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10'}`} title={page.status === 'Hidden' ? 'Publish' : 'Unpublish'}>
-                          {page.status === 'Hidden' ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
-                        </button>
-                        <button onClick={(e) => { e.stopPropagation(); toast.info('Previewing ' + page.handle); }} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg transition-colors" title="Preview">
-                          <ExternalLink className="w-5 h-5" />
-                        </button>
-                        <button onClick={(e) => handleDelete(page.id, e)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors" title="Delete">
-                          <Trash2 className="w-5 h-5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
       </div>
 
-      {/* ──────────────── SLIDE-OUT PANEL ──────────────── */}
-      <AnimatePresence>
-        {isPanelOpen && (
-          <>
-            <motion.div 
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-slate-900/20 backdrop-blur-sm z-[100]"
-              onClick={() => setIsPanelOpen(false)}
-            />
-            <motion.div 
-              initial={{ x: '100%', boxShadow: '-20px 0 25px -5px rgb(0 0 0 / 0.1)' }}
-              animate={{ x: 0 }} exit={{ x: '100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed inset-y-0 right-0 w-full md:w-[600px] bg-white dark:bg-slate-900 z-[110] border-l border-slate-200 dark:border-slate-800 flex flex-col"
-            >
-              {/* Panel Header */}
-              <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-slate-800 shrink-0">
-                <h2 className="text-xl font-black text-slate-900 dark:text-white">
-                  Edit Page
-                </h2>
-                <button onClick={() => setIsPanelOpen(false)} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-full transition-colors">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Panel Body */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                
-                {/* Title */}
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Page Title</label>
-                  <input 
-                    type="text" 
-                    value={formData.title} 
-                    onChange={e => setFormData({...formData, title: e.target.value})}
-                    placeholder="e.g. About Us" 
-                    className="w-full h-11 px-4 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl text-slate-900 dark:text-white font-medium outline-none transition-all"
-                  />
-                </div>
-
-                {/* URL Slug */}
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-slate-700 dark:text-slate-300">URL Slug</label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 font-medium">
-                      /
-                    </div>
-                    <input 
-                      type="text" 
-                      value={formData.urlSlug.replace('/', '')} 
-                      onChange={e => setFormData({...formData, urlSlug: '/' + e.target.value})}
-                      placeholder="about-us" 
-                      className="w-full h-11 pl-8 pr-4 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl text-slate-900 dark:text-white font-medium outline-none transition-all"
-                    />
-                  </div>
-                </div>
-
-                {/* Cover Image */}
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Cover / Feature Image</label>
-                  <div className="w-full h-32 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl flex flex-col items-center justify-center text-slate-400 hover:text-blue-500 hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 cursor-pointer transition-colors group">
-                    <ImageIcon className="w-8 h-8 mb-2 group-hover:scale-110 transition-transform" />
-                    <span className="text-sm font-medium">Click to upload image</span>
-                  </div>
-                </div>
-
-                {/* Content Placeholder */}
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-slate-700 dark:text-slate-300 flex justify-between">
-                    Content
-                    <span className="text-xs font-normal text-slate-400">Rich Text Editor</span>
-                  </label>
-                  <div className="w-full h-64 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex flex-col">
-                    {/* Mock Editor Toolbar */}
-                    <div className="flex gap-2 pb-3 border-b border-slate-200 dark:border-slate-800 mb-3">
-                      <div className="w-6 h-6 bg-slate-200 dark:bg-slate-800 rounded"></div>
-                      <div className="w-6 h-6 bg-slate-200 dark:bg-slate-800 rounded"></div>
-                      <div className="w-6 h-6 bg-slate-200 dark:bg-slate-800 rounded"></div>
-                      <div className="w-px h-6 bg-slate-200 dark:bg-slate-800 mx-2"></div>
-                      <div className="w-6 h-6 bg-slate-200 dark:bg-slate-800 rounded"></div>
-                    </div>
-                    <textarea 
-                      value={formData.content}
-                      onChange={e => setFormData({...formData, content: e.target.value})}
-                      placeholder="Write your page content here..."
-                      className="w-full flex-1 bg-transparent resize-none outline-none text-slate-700 dark:text-slate-300 font-medium"
-                    ></textarea>
-                  </div>
-                </div>
-
-                {/* Visibility */}
-                <div className="space-y-2 p-5 bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 rounded-2xl">
-                  <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Visibility</label>
-                  <div className="flex items-center gap-4 mt-2">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="radio" checked={formData.status === 'Published'} onChange={() => setFormData({...formData, status: 'Published'})} className="w-4 h-4 text-blue-600 focus:ring-blue-500 border-gray-300" />
-                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Visible (Published)</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="radio" checked={formData.status === 'Hidden'} onChange={() => setFormData({...formData, status: 'Hidden'})} className="w-4 h-4 text-blue-600 focus:ring-blue-500 border-gray-300" />
-                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Hidden (Draft)</span>
-                    </label>
-                  </div>
-                </div>
-
-                {/* SEO Settings */}
-                <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
-                  <h3 className="font-bold text-slate-900 dark:text-white">Search engine listing preview</h3>
-                  <div className="space-y-3">
-                    <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-500">Page title</label>
-                      <input 
-                        type="text" 
-                        value={formData.seoTitle} 
-                        onChange={e => setFormData({...formData, seoTitle: e.target.value})}
-                        className="w-full h-9 px-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 focus:border-blue-500 rounded-lg text-sm text-slate-900 dark:text-white outline-none"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-500">Meta description</label>
-                      <textarea 
-                        value={formData.seoDescription} 
-                        onChange={e => setFormData({...formData, seoDescription: e.target.value})}
-                        className="w-full h-20 p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 focus:border-blue-500 rounded-lg text-sm text-slate-900 dark:text-white outline-none resize-none"
-                      ></textarea>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-500">Keywords</label>
-                      <input 
-                        type="text" 
-                        value={formData.keywords} 
-                        onChange={e => setFormData({...formData, keywords: e.target.value})}
-                        placeholder="e.g. store, fashion, about us"
-                        className="w-full h-9 px-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 focus:border-blue-500 rounded-lg text-sm text-slate-900 dark:text-white outline-none"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-
-              {/* Panel Footer */}
-              <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex justify-end gap-3 shrink-0">
-                <button onClick={() => setIsPanelOpen(false)} className="px-5 py-2.5 text-sm font-bold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">
-                  Cancel
-                </button>
-                <button onClick={handleSave} className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl shadow-sm transition-colors">
-                  Save Page
-                </button>
-              </div>
-
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+      <ConfirmDialog
+        isOpen={isResetOpen}
+        title="Reset Theme Settings"
+        message="Are you sure you want to reset all customizations? This will revert your fonts, colors, and footer text back to the default theme settings."
+        confirmText="Reset Theme"
+        onConfirm={handleReset}
+        onCancel={() => setIsResetOpen(false)}
+        type="info"
+        isLoading={isResetting}
+      />
     </div>
   );
 }

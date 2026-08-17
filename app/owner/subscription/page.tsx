@@ -54,10 +54,16 @@ export default function SubscriptionPage() {
           </div>
           
           <div className="flex flex-wrap sm:flex-nowrap gap-3 w-full lg:w-auto z-10">
-            <button className="flex-1 lg:flex-none px-6 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl shadow-sm transition-colors text-sm whitespace-nowrap">
+            <button 
+              onClick={() => alert("Plan cancellation initiated. Please contact support to confirm.")}
+              className="flex-1 lg:flex-none px-6 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl shadow-sm transition-colors text-sm whitespace-nowrap"
+            >
               Cancel Plan
             </button>
-            <button className="flex-1 lg:flex-none px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-sm transition-colors text-sm whitespace-nowrap">
+            <button 
+              onClick={() => alert("Redirecting to payment gateway...")}
+              className="flex-1 lg:flex-none px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-sm transition-colors text-sm whitespace-nowrap"
+            >
               Update Payment Method
             </button>
           </div>

@@ -179,6 +179,10 @@ export const employeeAPI = {
 };
 
 // ─── Super Admin (Company) Endpoints ────────────────────────
+export const userAPI = {
+  updatePlan: (plan: string) => api.patch('/auth/plan', { plan }),
+};
+
 export const superAdminAPI = {
   // Tenants (Stores)
   getTenants: () => api.get('/admin/stores'),
@@ -188,8 +192,8 @@ export const superAdminAPI = {
   rejectTenant: (id: number, reason?: string) => api.patch(`/admin/stores/${id}/status`, { suspend: true, reason }),
 
   // Themes
-  getThemes: () => api.get('/admin/themes'),
-  uploadTheme: (data: FormData) => api.post('/admin/themes', data, {
+  getThemes: () => api.get('/themes/all'),
+  uploadTheme: (data: FormData) => api.post('/themes', data, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
   

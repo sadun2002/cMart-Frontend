@@ -49,7 +49,7 @@ export function PricingSection() {
               period: "forever",
               features: PLANS.FREE.features,
               highlight: false,
-              cta: "Start Free Trial",
+              cta: "See More",
             },
             {
               key: "PRO",
@@ -58,7 +58,7 @@ export function PricingSection() {
               period: "/month",
               features: PLANS.PRO.features,
               highlight: true,
-              cta: "Start Free Trial",
+              cta: "See More",
             },
             {
               key: "ENT",
@@ -67,7 +67,7 @@ export function PricingSection() {
               period: "/month",
               features: PLANS.ENTERPRISE.features,
               highlight: false,
-              cta: "Start Free Trial",
+              cta: "See More",
             },
           ].map((plan) => (
             <div
@@ -131,7 +131,7 @@ export function PricingSection() {
                 ))}
               </ul>
               <Link
-                href="/register"
+                href="/pricing"
                 className={`mt-6 text-center py-3 rounded-xl font-semibold text-sm transition-colors ${
                   plan.highlight
                     ? "bg-white text-blue-600 hover:bg-blue-50"

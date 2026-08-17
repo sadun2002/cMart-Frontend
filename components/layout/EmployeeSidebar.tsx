@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { CURRENT_TIER } from '@/lib/constants';
+import { useAuthStore } from '@/lib/auth-store';
 import { UpgradeModal } from '@/components/ui/upgrade-modal';
 import {
   LayoutDashboard, ShoppingCart, Package, Tag, Warehouse, Truck,
@@ -81,6 +81,8 @@ const settingsSubItems = [
 
 export default function EmployeeSidebar({ collapsed, onToggle }: EmployeeSidebarProps) {
   const pathname = usePathname();
+  const { user } = useAuthStore();
+  const userPlan = user?.tenant?.plan || 'FREE';
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const [upgradeFeature, setUpgradeFeature] = useState('');
@@ -93,7 +95,7 @@ export default function EmployeeSidebar({ collapsed, onToggle }: EmployeeSidebar
   const isHoveringRef = useRef(false);
 
   const handleNavigation = (e: React.MouseEvent, item: any) => {
-    if (item.tier === 'PRO' && CURRENT_TIER !== 'PRO' && CURRENT_TIER !== 'ENTERPRISE') {
+    if (item.tier === 'PRO' && userPlan !== 'PRO' && userPlan !== 'ENTERPRISE') {
       e.preventDefault();
       setUpgradeFeature(item.label);
       setUpgradeModalOpen(true);
@@ -230,7 +232,7 @@ export default function EmployeeSidebar({ collapsed, onToggle }: EmployeeSidebar
             >
               <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-blue-600 dark:text-blue-400' : ''}`} />
               {!collapsed && <span className="truncate">{item.label}</span>}
-              {!collapsed && item.tier === 'PRO' && CURRENT_TIER === 'FREE' && <Lock className="w-3 h-3 text-slate-400 ml-auto" />}
+              {!collapsed && item.tier === 'PRO' && userPlan === 'FREE' && <Lock className="w-4 h-4 text-slate-400 ml-auto" />}
             </Link>
           );
         })}
@@ -295,7 +297,7 @@ export default function EmployeeSidebar({ collapsed, onToggle }: EmployeeSidebar
         <div>
           <button
             onClick={(e) => {
-              if (CURRENT_TIER === 'FREE') {
+              if (userPlan === 'FREE') {
                 e.preventDefault();
                 setUpgradeFeature('Online Store');
                 setUpgradeModalOpen(true);
@@ -319,11 +321,11 @@ export default function EmployeeSidebar({ collapsed, onToggle }: EmployeeSidebar
             {!collapsed && (
               <>
                 <span className="flex-1 text-left truncate">Online Store</span>
-                {CURRENT_TIER === 'FREE' ? (
-                  <Lock className="w-4 h-4 text-slate-400" />
-                ) : (
-                  <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${onlineStoreOpen ? 'rotate-180' : ''}`} />
-                )}
+                 {userPlan === 'FREE' ? (
+                   <Lock className="w-4 h-4 text-slate-400" />
+                 ) : (
+                   <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${onlineStoreOpen ? 'rotate-180' : ''}`} />
+                 )}
               </>
             )}
           </button>
@@ -361,7 +363,7 @@ export default function EmployeeSidebar({ collapsed, onToggle }: EmployeeSidebar
         <div>
           <button
             onClick={(e) => {
-              if (CURRENT_TIER === 'FREE') {
+              if (userPlan === 'FREE') {
                 e.preventDefault();
                 setUpgradeFeature('Employees');
                 setUpgradeModalOpen(true);
@@ -385,11 +387,11 @@ export default function EmployeeSidebar({ collapsed, onToggle }: EmployeeSidebar
             {!collapsed && (
               <>
                 <span className="flex-1 text-left truncate">Employees</span>
-                {CURRENT_TIER === 'FREE' ? (
-                  <Lock className="w-4 h-4 text-slate-400" />
-                ) : (
-                  <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${employeesOpen ? 'rotate-180' : ''}`} />
-                )}
+                 {userPlan === 'FREE' ? (
+                   <Lock className="w-4 h-4 text-slate-400" />
+                 ) : (
+                   <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${employeesOpen ? 'rotate-180' : ''}`} />
+                 )}
               </>
             )}
           </button>
