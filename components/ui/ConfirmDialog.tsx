@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertTriangle, Info, Loader2 } from 'lucide-react';
+import { useState } from 'react';
 
 interface ConfirmDialogProps {
   isOpen: boolean;
@@ -7,7 +8,7 @@ interface ConfirmDialogProps {
   message: string;
   confirmText?: string;
   cancelText?: string;
-  onConfirm: () => void;
+  onConfirm: () => void | Promise<void>;
   onCancel: () => void;
   type?: 'danger' | 'warning' | 'info';
   isLoading?: boolean;
@@ -24,6 +25,21 @@ export function ConfirmDialog({
   type = 'danger',
   isLoading = false
 }: ConfirmDialogProps) {
+  const [internalLoading, setInternalLoading] = useState(false);
+
+  const handleConfirm = async () => {
+    try {
+      const result = onConfirm();
+      if (result instanceof Promise) {
+        setInternalLoading(true);
+        await result;
+      }
+    } finally {
+      setInternalLoading(false);
+    }
+  };
+
+  const isCurrentlyLoading = isLoading || internalLoading;
   return (
     <AnimatePresence>
       {isOpen && (
@@ -59,17 +75,17 @@ export function ConfirmDialog({
                   {cancelText}
                 </button>
                 <button 
-                  onClick={onConfirm} 
-                  disabled={isLoading}
+                  onClick={handleConfirm} 
+                  disabled={isCurrentlyLoading}
                   className={`flex-1 py-3 rounded-xl font-bold text-white transition-all shadow-lg flex items-center justify-center gap-2 ${
-                    isLoading ? 'opacity-70 cursor-not-allowed' : 'hover:-translate-y-0.5 active:translate-y-0'
+                    isCurrentlyLoading ? 'opacity-70 cursor-not-allowed' : 'hover:-translate-y-0.5 active:translate-y-0'
                   } ${
                     type === 'danger' ? 'bg-red-600 hover:bg-red-700 shadow-red-600/20' : 
                     type === 'warning' ? 'bg-amber-500 hover:bg-amber-600 shadow-amber-500/20' :
                     'bg-blue-600 hover:bg-blue-700 shadow-blue-600/20'
                   }`}
                 >
-                  {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
+                  {isCurrentlyLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
                   {confirmText}
                 </button>
               </div>

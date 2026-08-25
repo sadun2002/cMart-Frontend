@@ -34,6 +34,12 @@ export const defaultThemeCustomizations = {
       subtitle: 'Curating quality and simplicity for the modern lifestyle.',
       story: 'Founded with a passion for exceptional design and everyday utility, we started as a small project to bring beautifully crafted products to people who appreciate minimalism. We believe that the objects we interact with daily should not only be functional but also bring a sense of joy and calm to our lives.\n\nOver the years, we\'ve partnered with artisans and independent creators to curate a collection that reflects our core values: quality, sustainability, and timeless aesthetics.',
     },
+    hero: {
+      title: 'Welcome to our store',
+      subtitle: 'Discover our curated collection of essential pieces designed for modern living. Quality materials, timeless design, and unmatched comfort.',
+      buttonText: 'Shop Now',
+      buttonLink: '/shop',
+    },
     terms: {
       content: 'These are the terms and conditions. Please read them carefully before using our services.',
     },
@@ -88,6 +94,18 @@ function hexToHslString(hex: string) {
   return `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
 }
 
+function isColorDark(hex: string) {
+  if (!hex) return false;
+  hex = hex.replace(/^#/, '');
+  if (hex.length === 3) hex = hex.split('').map(x => x + x).join('');
+  if (hex.length !== 6) return false;
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance < 0.5;
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [customizations, setCustomizations] = useState(defaultThemeCustomizations);
   const [activeThemeId, setActiveThemeId] = useState<string | number | null>(null);
@@ -105,9 +123,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         let themeId = params.get('themeId');
         
         let myTheme = null;
-        const myThemeRes = await themeApi.getMyTheme().catch(() => null);
-        const myThemeData = myThemeRes as any;
-        myTheme = myThemeData?.data?.theme || myThemeData?.theme || myThemeData?.data || myThemeData;
+        
+        // Only attempt to fetch if we might have a token, to prevent the axios interceptor from redirecting to /login
+        const hasToken = document.cookie.includes('accessToken=');
+        if (hasToken) {
+          const myThemeRes = await themeApi.getMyTheme().catch(() => null);
+          const myThemeData = myThemeRes as any;
+          myTheme = myThemeData?.data?.theme || myThemeData?.theme || myThemeData?.data || myThemeData;
+        }
         
         if (!themeId || themeId === 'default') {
           themeId = myTheme?.id || 'default';
@@ -172,7 +195,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     };
   }, [activeThemeId]);
 
-  // 3. Inject CSS Variables into the DOM dynamically
+  // 3. Inject CSS Variables into the DOM dynamically using a <style> tag
+  // This allows dark mode to work because it prevents inline styles from overriding the .dark class
   useEffect(() => {
     const root = document.documentElement;
     
@@ -196,43 +220,74 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // Apply colors (Convert Hex to HSL for Tailwind globals.css)
-    if (customizations.colors) {
-      if (customizations.colors.primary) {
-        const primaryHsl = hexToHslString(customizations.colors.primary);
-        root.style.setProperty('--primary', primaryHsl);
-        root.style.setProperty('--ring', primaryHsl); // typically ring matches primary
-        // For primary-foreground, we should ideally calculate contrast, but for now we fallback to white/black
-        // Since default is dark primary, white foreground is safe. We will let it use globals.css default
-        // unless we want to force it. For now, leave --primary-foreground to globals.css
-      }
-      if (customizations.colors.secondary) {
-        const secondaryHsl = hexToHslString(customizations.colors.secondary);
-        root.style.setProperty('--secondary', secondaryHsl);
-        root.style.setProperty('--border', secondaryHsl);
-        root.style.setProperty('--input', secondaryHsl);
-      }
-      if (customizations.colors.accent) {
-        const accentHsl = hexToHslString(customizations.colors.accent);
-        root.style.setProperty('--accent', accentHsl);
-        root.style.setProperty('--muted', accentHsl);
-      }
-      if (customizations.colors.background) {
-        const bgHsl = hexToHslString(customizations.colors.background);
-        root.style.setProperty('--background', bgHsl);
-        root.style.setProperty('--card', bgHsl);
-        root.style.setProperty('--popover', bgHsl);
-      }
-      if (customizations.colors.text) {
-        const textHsl = hexToHslString(customizations.colors.text);
-        root.style.setProperty('--foreground', textHsl);
-        root.style.setProperty('--card-foreground', textHsl);
-        root.style.setProperty('--popover-foreground', textHsl);
-      }
-      if (customizations.colors.mutedText) {
-        root.style.setProperty('--muted-foreground', hexToHslString(customizations.colors.mutedText));
-      }
+    // Apply colors via <style> tag to allow .dark class overriding
+    let styleTag = document.getElementById('dynamic-theme-colors');
+    if (!styleTag) {
+      styleTag = document.createElement('style');
+      styleTag.id = 'dynamic-theme-colors';
+      document.head.appendChild(styleTag);
     }
+
+    let cssText = '';
+
+    if (customizations.colors) {
+      const primaryHsl = customizations.colors.primary ? hexToHslString(customizations.colors.primary) : '';
+      const secondaryHsl = customizations.colors.secondary ? hexToHslString(customizations.colors.secondary) : '';
+      const accentHsl = customizations.colors.accent ? hexToHslString(customizations.colors.accent) : '';
+      const bgHsl = customizations.colors.background ? hexToHslString(customizations.colors.background) : '';
+      const textHsl = customizations.colors.text ? hexToHslString(customizations.colors.text) : '';
+      const mutedTextHsl = customizations.colors.mutedText ? hexToHslString(customizations.colors.mutedText) : '';
+
+      const primaryIsDark = customizations.colors.primary ? isColorDark(customizations.colors.primary) : false;
+      const darkPrimaryHsl = primaryIsDark ? '0 0% 98%' : primaryHsl;
+
+      cssText += `
+        :root:not(.dark) {
+          ${primaryHsl ? `--primary: ${primaryHsl}; --ring: ${primaryHsl};` : ''}
+          ${secondaryHsl ? `--secondary: ${secondaryHsl}; --border: ${secondaryHsl}; --input: ${secondaryHsl};` : ''}
+          ${accentHsl ? `--accent: ${accentHsl}; --muted: ${accentHsl};` : ''}
+          ${bgHsl ? `--background: ${bgHsl}; --card: ${bgHsl}; --popover: ${bgHsl};` : ''}
+          ${textHsl ? `--foreground: ${textHsl}; --card-foreground: ${textHsl}; --popover-foreground: ${textHsl};` : ''}
+          ${mutedTextHsl ? `--muted-foreground: ${mutedTextHsl};` : ''}
+        }
+        
+        .dark {
+          --background: 240 10% 3.9%;
+          --foreground: 0 0% 98%;
+          --card: 240 10% 3.9%;
+          --card-foreground: 0 0% 98%;
+          --popover: 240 10% 3.9%;
+          --popover-foreground: 0 0% 98%;
+          --secondary: 240 3.7% 15.9%;
+          --muted: 240 3.7% 15.9%;
+          --muted-foreground: 240 5% 64.9%;
+          --border: 240 3.7% 15.9%;
+          --input: 240 3.7% 15.9%;
+          --ring: 240 4.9% 83.9%;
+          ${darkPrimaryHsl ? `--primary: ${darkPrimaryHsl};` : ''}
+          ${primaryIsDark ? `--primary-foreground: 240 5.9% 10%;` : ''}
+        }
+      `;
+    }
+
+    styleTag.textContent = cssText;
+
+    // Clean up inline styles that might have been left over from previous versions
+    root.style.removeProperty('--primary');
+    root.style.removeProperty('--ring');
+    root.style.removeProperty('--secondary');
+    root.style.removeProperty('--border');
+    root.style.removeProperty('--input');
+    root.style.removeProperty('--accent');
+    root.style.removeProperty('--muted');
+    root.style.removeProperty('--background');
+    root.style.removeProperty('--card');
+    root.style.removeProperty('--popover');
+    root.style.removeProperty('--foreground');
+    root.style.removeProperty('--card-foreground');
+    root.style.removeProperty('--popover-foreground');
+    root.style.removeProperty('--muted-foreground');
+
   }, [customizations]);
 
   return (
@@ -241,3 +296,4 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     </ThemeContext.Provider>
   );
 }
+

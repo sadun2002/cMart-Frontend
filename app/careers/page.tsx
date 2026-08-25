@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Briefcase, 
@@ -100,6 +101,26 @@ const OPEN_POSITIONS = [
 ];
 
 export default function CareersPage() {
+  const benefitsScrollRef = useRef<HTMLDivElement>(null);
+  const [isBenefitsPaused, setIsBenefitsPaused] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || window.innerWidth >= 768) return;
+    
+    const interval = setInterval(() => {
+      if (isBenefitsPaused || !benefitsScrollRef.current) return;
+      
+      const el = benefitsScrollRef.current;
+      if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 10) {
+        el.scrollTo({ left: 0, behavior: 'smooth' });
+      } else {
+        el.scrollBy({ left: 300, behavior: 'smooth' });
+      }
+    }, 3000);
+    
+    return () => clearInterval(interval);
+  }, [isBenefitsPaused]);
+
   return (
     <div className="font-sans min-h-screen bg-white dark:bg-slate-950 transition-colors selection:bg-blue-100 dark:selection:bg-blue-900 selection:text-blue-900 dark:selection:text-blue-50">
       <SiteHeader />
@@ -152,7 +173,14 @@ export default function CareersPage() {
             </p>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div 
+            ref={benefitsScrollRef}
+            onMouseEnter={() => setIsBenefitsPaused(true)}
+            onMouseLeave={() => setIsBenefitsPaused(false)}
+            onTouchStart={() => setIsBenefitsPaused(true)}
+            onTouchEnd={() => setIsBenefitsPaused(false)}
+            className="flex md:grid md:grid-cols-2 lg:grid-cols-4 gap-8 overflow-x-auto snap-x snap-mandatory hide-scrollbar pb-8 px-4 md:px-0 -mx-4 md:mx-0 items-stretch"
+          >
             {BENEFITS.map((benefit, index) => (
               <motion.div 
                 key={index}
@@ -160,7 +188,7 @@ export default function CareersPage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
-                className="bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl border border-gray-100 dark:border-slate-800 p-8 rounded-3xl hover:border-blue-100 dark:hover:border-blue-900/50 transition-colors shadow-sm"
+                className="w-[85vw] sm:w-[70vw] md:w-auto shrink-0 snap-center bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl border border-gray-100 dark:border-slate-800 p-8 rounded-3xl hover:border-blue-100 dark:hover:border-blue-900/50 transition-colors shadow-sm"
               >
                 <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-6 ${benefit.color}`}>
                   <benefit.icon className="w-7 h-7" />

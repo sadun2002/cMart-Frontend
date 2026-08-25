@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useAuthStore } from '@/lib/auth-store';
 import { COMPANY_NAME, PLANS } from '@/lib/constants';
 import { toast } from 'sonner';
-import { ArrowRight, Check, Store, AlertCircle, Eye, EyeOff, ChevronDown } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Check, Store, AlertCircle, Eye, EyeOff, ChevronDown } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -16,7 +16,7 @@ const step1Schema = z
   .object({
     name: z.string().min(1, 'Full name is required').max(100, 'Name is too long'),
     email: z.string().min(1, 'Email is required').email('Please enter a valid email').max(100, 'Email is too long'),
-    phone: z.string().regex(/^\d{10}$/, 'Phone number must be exactly 10 digits').optional().or(z.literal('')),
+    phone: z.string().regex(/^\d{10}$/, 'Phone number must be exactly 10 digits'),
     password: z.string()
       .min(8, 'Password must be at least 8 characters')
       .max(50, 'Password is too long')
@@ -63,9 +63,9 @@ const BUSINESS_TYPES = [
 ];
 
 const PLANS_INFO = [
-  { plan: 'FREE', label: 'Free Forever', desc: `${PLANS.FREE.maxProducts} products, ${PLANS.FREE.maxEmployees} employees` },
-  { plan: 'PRO', label: 'Pro — Rs. 2,500/mo', desc: `${PLANS.PRO.maxProducts} products, ${PLANS.PRO.maxEmployees} employees` },
-  { plan: 'ENT', label: 'Enterprise — Rs. 10,000/mo', desc: 'Unlimited everything' },
+  { plan: 'STARTUP', label: '30-Day Free Trial', desc: 'Local POS, fully offline capability' },
+  { plan: 'PRO', label: 'Pro — Rs. 2,490/mo', desc: 'Cloud Sync, Online Store, Reports' },
+  { plan: 'ENTERPRISE', label: 'Enterprise — Rs. 5,990/mo', desc: 'Unlimited everything, Multi-branch' },
 ];
 
 export default function RegisterPage() {
@@ -315,14 +315,14 @@ export default function RegisterPage() {
 
         <div className="relative z-10 space-y-6">
           <div>
-            <h2 className="text-3xl font-bold mb-2">Start your free {14}-day trial</h2>
+            <h2 className="text-3xl font-bold mb-2">Start your free 30-day trial</h2>
             <p className="text-blue-200 text-sm">No credit card required. Cancel anytime.</p>
           </div>
 
           <div className="space-y-3">
             {PLANS_INFO.map((p) => (
-              <div key={p.plan} className="flex items-center gap-3 bg-white/10 backdrop-blur-sm rounded-xl p-3.5 border border-white/5">
-                <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center text-xs font-bold shrink-0">
+              <div key={p.plan} className="flex items-center gap-4 bg-white/10 backdrop-blur-sm rounded-xl p-3.5 border border-white/5">
+                <div className="w-24 h-9 bg-white/20 rounded-xl flex items-center justify-center text-[11px] font-black tracking-wider shrink-0">
                   {p.plan}
                 </div>
                 <div>
@@ -340,15 +340,9 @@ export default function RegisterPage() {
       </div>
 
       {/* Right Panel — Form */}
-      <div className="flex-1 flex items-center justify-center p-6 bg-gray-50 dark:bg-slate-950 transition-colors overflow-y-auto">
+      <div className="flex-1 flex items-center justify-center p-6 bg-white dark:bg-slate-950 md:bg-gray-50 transition-colors overflow-y-auto">
         <div className="w-full max-w-md py-8">
-          {/* Mobile logo */}
-          <Link href="/" className="flex items-center gap-2 mb-8 lg:hidden group">
-            <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center shadow-md group-hover:scale-105 transition-transform">
-              <span className="text-white font-black text-base">c</span>
-            </div>
-            <span className="text-xl font-black text-gray-900 dark:text-white">{COMPANY_NAME}</span>
-          </Link>
+
 
           {/* Progress */}
           <div className="flex items-center gap-2 mb-8">
@@ -368,7 +362,7 @@ export default function RegisterPage() {
           </div>
 
           {/* Card */}
-          <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl shadow-blue-900/5 dark:shadow-none border border-gray-100 dark:border-slate-800 p-8">
+          <div className="md:bg-white md:dark:bg-slate-900 md:rounded-3xl md:shadow-xl md:shadow-blue-900/5 md:border md:border-gray-100 md:dark:border-slate-800 md:p-8">
             <div className="mb-6">
               <h1 className="text-2xl font-black text-gray-900 dark:text-white">
                 {step === 1 ? 'Create your account' : 'Set up your store'}
@@ -406,13 +400,16 @@ export default function RegisterPage() {
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Phone</label>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Phone *</label>
                   <input
                     type="tel"
                     {...step1.register('phone')}
                     placeholder="+94 77 000 0000"
                     className="w-full px-4 py-3 border-2 border-gray-200 dark:border-slate-700 rounded-xl text-sm bg-white dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:border-blue-500 dark:focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
                   />
+                  {step1.formState.errors.phone && (
+                    <p className="text-red-500 dark:text-red-400 text-xs mt-1.5">{step1.formState.errors.phone.message}</p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Password * (min 8 chars)</label>
@@ -463,7 +460,7 @@ export default function RegisterPage() {
                   onClick={handleNext}
                   className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-sm transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-600/25 dark:shadow-none hover:shadow-xl hover:shadow-blue-600/30 hover:-translate-y-0.5"
                 >
-                  Continue <ArrowRight className="w-4 h-4" />
+                  Continue <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
             )}
@@ -638,12 +635,12 @@ export default function RegisterPage() {
                     onClick={() => setStep(1)}
                     className="flex-1 py-3 border-2 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800 font-bold rounded-xl text-sm transition-all"
                   >
-                    &larr; Back
+                    <ChevronLeft className="w-4 h-4 inline mr-1" /> Back
                   </button>
                   <button
                     type="submit"
                     disabled={isAuthLoading || isCheckingSubdomain || subdomainStatus === 'taken'}
-                    className={`flex-1 px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl text-sm transition-all flex items-center justify-center gap-2 ${(isAuthLoading || isCheckingSubdomain || subdomainStatus === 'taken') ? 'opacity-70 cursor-not-allowed' : ''}`}
+                    className={`flex-1 px-2 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl text-sm transition-all flex items-center justify-center gap-2 ${(isAuthLoading || isCheckingSubdomain || subdomainStatus === 'taken') ? 'opacity-70 cursor-not-allowed' : ''}`}
                   >
                     {isAuthLoading ? (
                       <>
@@ -652,7 +649,7 @@ export default function RegisterPage() {
                       </>
                     ) : (
                       <>
-                        Create my store <ArrowRight className="w-4 h-4" />
+                        Create store <ChevronRight className="w-4 h-4" />
                       </>
                     )}
                   </button>
@@ -667,6 +664,30 @@ export default function RegisterPage() {
                 Sign in
               </Link>
             </div>
+          </div>
+
+          {/* Back to home */}
+          <div className="mt-6 text-center">
+            <a 
+              href="/" 
+              onClick={async (e) => {
+                e.preventDefault();
+                const isDesktopEnv = typeof window !== 'undefined' && ('__TAURI__' in window || '__TAURI_INTERNALS__' in window);
+                if (isDesktopEnv) {
+                  try {
+                    const { open } = await import('@tauri-apps/plugin-shell');
+                    await open('https://cmart.lk');
+                  } catch (err) {
+                    console.error("Failed to open external URL", err);
+                  }
+                } else {
+                  window.location.href = '/';
+                }
+              }}
+              className="text-xs text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 transition-colors"
+            >
+              <ChevronLeft className="w-3 h-3 inline mr-1" /> Back to {COMPANY_NAME}.lk
+            </a>
           </div>
         </div>
       </div>

@@ -348,6 +348,7 @@ export default function AdminStoresPage() {
                   const domain = store.requestedDomain || store.domain || '';
                   const status = store.status || 'Active';
                   const plan = store.plan?.name || store.plan || 'Free';
+                  const joined = store.createdAt ? new Date(store.createdAt).toLocaleDateString() : 'N/A';
 
                   return (
                   <div key={store.id} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl p-6 shadow-sm hover:shadow-md transition-shadow relative group flex flex-col">

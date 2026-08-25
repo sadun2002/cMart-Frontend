@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { COMPANY_NAME, COMPANY_TAGLINE, PLANS, formatLKR } from '@/lib/constants';
+import { FeatureCards } from '@/components/sections/feature-cards';
 import type { Metadata } from 'next';
-import { Store, Globe, Package, Users, BarChart3, CreditCard, Rocket, PhoneCall, Coffee, ArrowRight, Moon, Star } from 'lucide-react';
+import { Store, Globe, Package, Users, BarChart3, CreditCard, Rocket, PhoneCall, Coffee, ArrowRight, ChevronRight, Moon, Star } from 'lucide-react';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { SiteHeader } from '@/components/layout/site-header';
 import { SiteFooter } from '@/components/layout/site-footer';
@@ -66,31 +67,12 @@ export default function HomePage() {
               href="/services"
               className="inline-flex items-center gap-2 bg-white text-blue-600 hover:bg-blue-50 px-8 py-3.5 rounded-xl font-bold text-base transition-colors shadow-lg"
             >
-              Explore All Features <ArrowRight className="w-5 h-5 ml-1" />
+              Explore All Features <ChevronRight className="w-5 h-5 ml-1" />
             </Link>
           </div>
         </div>
 
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {[
-              { icon: Store, title: 'Point of Sale', desc: 'Fast, intuitive POS with barcode scanning, cash/card/QR payment, and thermal receipt printing.', color: 'text-blue-600', bg: 'bg-blue-100/50 dark:bg-blue-900/30', border: 'border-blue-100 dark:border-blue-900/50' },
-              { icon: Globe, title: 'Online Store', desc: 'Auto-generated e-commerce website on your own subdomain. Apply beautiful themes in one click.', color: 'text-blue-600', bg: 'bg-blue-100/50 dark:bg-blue-900/30', border: 'border-blue-100 dark:border-blue-900/50' },
-              { icon: Package, title: 'Inventory Management', desc: 'Track stock levels, get low-stock alerts, manage suppliers, and prevent stockouts automatically.', color: 'text-blue-600', bg: 'bg-blue-100/50 dark:bg-blue-900/30', border: 'border-blue-100 dark:border-blue-900/50' },
-              { icon: Users, title: 'Team Management', desc: 'Add employees with custom permissions. Track attendance, working hours, and performance.', color: 'text-blue-600', bg: 'bg-blue-100/50 dark:bg-blue-900/30', border: 'border-blue-100 dark:border-blue-900/50' },
-              { icon: BarChart3, title: 'Smart Reports', desc: 'Detailed sales, profit/loss, inventory, and employee reports with export to CSV/PDF.', color: 'text-blue-600', bg: 'bg-blue-100/50 dark:bg-blue-900/30', border: 'border-blue-100 dark:border-blue-900/50' },
-              { icon: CreditCard, title: 'PayHere Integration', desc: 'Accept online payments via PayHere QR. Fully integrated with Sri Lankan payment gateway.', color: 'text-blue-600', bg: 'bg-blue-100/50 dark:bg-blue-900/30', border: 'border-blue-100 dark:border-blue-900/50' },
-            ].map((f) => (
-              <div key={f.title} className="group bg-white dark:bg-slate-900/50 rounded-[2rem] p-8 border border-gray-100 dark:border-slate-800 hover:border-gray-200 dark:hover:border-slate-700 hover:shadow-xl hover:shadow-gray-200/50 dark:hover:shadow-none transition-all duration-300 hover:-translate-y-1">
-                <div className={`w-14 h-14 rounded-2xl ${f.bg} ${f.color} flex items-center justify-center mb-6 border ${f.border} group-hover:scale-110 transition-transform duration-300`}>
-                  <f.icon className="w-7 h-7" strokeWidth={2.5} />
-                </div>
-                <h3 className="font-bold text-xl text-gray-900 dark:text-white mb-3 transition-colors">{f.title}</h3>
-                <p className="text-gray-500 dark:text-slate-400 text-sm leading-relaxed transition-colors">{f.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
+        <FeatureCards />
       </section>
 
       {/* Pricing */}
@@ -115,7 +97,8 @@ export default function HomePage() {
         </div>
         
         {/* Marquee Container with fade edges */}
-        <div className="relative marquee-container">
+        {/* Marquee Container with fade edges */}
+        <div className="relative marquee-container group">
           {/* Fade edge masks - left and right gradient overlays */}
           <div className="absolute inset-0 pointer-events-none z-20" style={{
             background: 'linear-gradient(to right, hsl(var(--background)) 0%, transparent 20%, transparent 80%, hsl(var(--background)) 100%)'
@@ -124,12 +107,12 @@ export default function HomePage() {
           {/* Marquee tracks */}
           <div className="flex overflow-x-hidden">
             {/* Track 1 */}
-            <div className="animate-marquee marquee-track flex gap-6 px-6 whitespace-nowrap min-w-full shrink-0">
+            <div className="animate-marquee group-hover:[animation-play-state:paused] group-active:[animation-play-state:paused] marquee-track flex gap-6 px-6 whitespace-nowrap min-w-full shrink-0">
               {[
                 { name: "Saman Silva", role: "Retail Store Owner", review: `Since switching to ${COMPANY_NAME}, managing my inventory and online orders has never been easier. Highly recommended!`, initial: "S" },
                 { name: "Nimal Perera", role: "Supermarket Manager", review: "The POS system is lightning fast and the inventory alerts save us from stockouts every single day. A must-have.", initial: "N" },
                 { name: "Kumari Fernando", role: "Boutique Owner", review: "Setting up my e-commerce site took literally one click. My online sales have doubled since I started using this platform.", initial: "K" },
-                { name: "Ruwan Jayasinghe", role: "Electronics Shop", review: "The integrated PayHere support made it so easy to accept online payments. Customer support is also excellent.", initial: "R" },
+                { name: "Ruwan Jayasinghe", role: "Electronics Shop", review: "The integrated online payment support made it so easy to accept online payments. Customer support is also excellent.", initial: "R" },
                 { name: "Chamari Alwis", role: "Clothing Store", review: "I can track my employees' sales performance and attendance all in one dashboard. It's incredibly convenient.", initial: "C" },
                 { name: "Kasun Bandara", role: "Pharmacy Owner", review: "Barcode scanning and receipt printing work flawlessly. It's a complete ecosystem that every business needs.", initial: "K" }
               ].map((t, i) => (
@@ -156,12 +139,12 @@ export default function HomePage() {
             </div>
             
             {/* Track 2 (duplicate for seamless loop) */}
-            <div className="animate-marquee marquee-track flex gap-6 px-6 whitespace-nowrap min-w-full shrink-0" aria-hidden="true">
+            <div className="animate-marquee group-hover:[animation-play-state:paused] group-active:[animation-play-state:paused] marquee-track flex gap-6 px-6 whitespace-nowrap min-w-full shrink-0" aria-hidden="true">
               {[
                 { name: "Saman Silva", role: "Retail Store Owner", review: `Since switching to ${COMPANY_NAME}, managing my inventory and online orders has never been easier. Highly recommended!`, initial: "S" },
                 { name: "Nimal Perera", role: "Supermarket Manager", review: "The POS system is lightning fast and the inventory alerts save us from stockouts every single day. A must-have.", initial: "N" },
                 { name: "Kumari Fernando", role: "Boutique Owner", review: "Setting up my e-commerce site took literally one click. My online sales have doubled since I started using this platform.", initial: "K" },
-                { name: "Ruwan Jayasinghe", role: "Electronics Shop", review: "The integrated PayHere support made it so easy to accept online payments. Customer support is also excellent.", initial: "R" },
+                { name: "Ruwan Jayasinghe", role: "Electronics Shop", review: "The integrated online payment support made it so easy to accept online payments. Customer support is also excellent.", initial: "R" },
                 { name: "Chamari Alwis", role: "Clothing Store", review: "I can track my employees' sales performance and attendance all in one dashboard. It's incredibly convenient.", initial: "C" },
                 { name: "Kasun Bandara", role: "Pharmacy Owner", review: "Barcode scanning and receipt printing work flawlessly. It's a complete ecosystem that every business needs.", initial: "K" }
               ].map((t, i) => (

@@ -6,9 +6,9 @@ import Link from 'next/link';
 import { useAuthStore } from '@/lib/auth-store';
 import { COMPANY_NAME, COMPANY_TAGLINE } from '@/lib/constants';
 import { toast } from 'sonner';
-import { Eye, EyeOff, ShoppingCart, Globe, BarChart3, Users, ArrowRight, ShieldCheck, Smile, AlertCircle, Store } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Store, TrendingUp, Users, ShieldCheck, ChevronRight, ChevronLeft, AlertCircle, CheckCircle, Eye, EyeOff, ShoppingCart, Globe, BarChart3, Smile } from 'lucide-react';
 import { z } from 'zod';
 
 const loginSchema = z.object({
@@ -42,18 +42,31 @@ export default function LoginPage() {
     formState: { errors },
   } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: 'demo@cmart.lk', password: 'owner123' },
+    defaultValues: { email: '', password: '' },
   });
 
   const onSubmit = async (data: LoginForm) => {
     try {
-      const { redirectTo } = await login(data.email, data.password);
-      toast.success('Welcome back!');
+      const { redirectTo, user } = await login(data.email, data.password);
+      
+      if (user?.role === 'STORE_OWNER' && user?.tenant && !user.tenant.active) {
+        if (user.tenant.suspended) {
+          toast.error('Your account is suspended.');
+        } else {
+          toast.info('Your account is under review.');
+        }
+      } else {
+        toast.success('Welcome back!');
+      }
       
       const searchParams = new URLSearchParams(window.location.search);
       const redirectUrl = searchParams.get('redirect');
       
-      router.push(redirectUrl || redirectTo);
+      if (user?.tenant?.plan === 'STARTUP' && !isDesktop) {
+        router.push('/offline-access');
+      } else {
+        router.push(redirectUrl || redirectTo);
+      }
     } catch (err: any) {
       const msg = err.response?.data?.message || err.message || 'Login failed';
       const errorMessage = Array.isArray(msg) ? msg[0] : msg;
@@ -122,12 +135,17 @@ export default function LoginPage() {
           {/* Social proof */}
           <div className="flex items-center gap-4 pt-2">
             <div className="flex -space-x-2">
-              {['11', '47', '12', '44'].map((img, i) => (
-                <img key={i} src={`https://i.pravatar.cc/40?img=${img}`} className="w-8 h-8 rounded-full border-2 border-blue-600 object-cover" alt="" />
+              {[
+                'https://randomuser.me/api/portraits/men/43.jpg',
+                'https://randomuser.me/api/portraits/women/68.jpg',
+                'https://randomuser.me/api/portraits/men/22.jpg',
+                'https://randomuser.me/api/portraits/women/44.jpg'
+              ].map((imgSrc, i) => (
+                <img key={i} src={imgSrc} className="w-8 h-8 rounded-full border-2 border-blue-600 object-cover" alt="Sri Lankan store owner" />
               ))}
             </div>
             <div className="text-sm">
-              <span className="font-bold text-white">500+ stores</span>
+              <span className="font-bold text-white">30+ stores</span>
               <span className="text-blue-200"> already running on {COMPANY_NAME}</span>
             </div>
           </div>
@@ -140,18 +158,12 @@ export default function LoginPage() {
       </div>
 
       {/* ── RIGHT PANEL — Form ── */}
-      <div className="flex-1 flex flex-col items-center justify-center p-6 bg-gray-50 dark:bg-slate-950 transition-colors">
-        {/* Mobile logo */}
-        <Link href="/" className="flex items-center gap-2 mb-8 lg:hidden group">
-          <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center shadow-md group-hover:scale-105 transition-transform">
-            <span className="text-white font-black text-base">c</span>
-          </div>
-          <span className="text-xl font-black text-gray-900 dark:text-white">{COMPANY_NAME}</span>
-        </Link>
+      <div className="flex-1 flex flex-col items-center justify-center p-6 bg-white dark:bg-slate-950 md:bg-gray-50 transition-colors">
+
 
         <div className="w-full max-w-[420px]">
           {/* Card */}
-          <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl shadow-blue-900/5 dark:shadow-none border border-gray-100 dark:border-slate-800 p-8">
+          <div className="md:bg-white md:dark:bg-slate-900 md:rounded-3xl md:shadow-xl md:shadow-blue-900/5 md:border md:border-gray-100 md:dark:border-slate-800 md:p-8">
             {/* Header */}
             <div className="mb-7">
               <h1 className="text-2xl font-black text-gray-900 dark:text-white flex items-center gap-2">
@@ -181,7 +193,7 @@ export default function LoginPage() {
                   type="email"
                   autoComplete="email"
                   {...register('email')}
-                  placeholder="demo@cmart.lk"
+                  placeholder="nimal@gmail.com"
                   className="w-full px-4 py-3 border-2 border-gray-200 dark:border-slate-700 rounded-xl text-sm bg-white dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:border-blue-500 dark:focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
                 />
                 {errors.email && (
@@ -205,7 +217,7 @@ export default function LoginPage() {
                     type={showPassword ? 'text' : 'password'}
                     autoComplete="current-password"
                     {...register('password')}
-                    placeholder="owner123"
+                    placeholder="nimal123"
                     className="w-full px-4 py-3 pr-12 border-2 border-gray-200 dark:border-slate-700 rounded-xl text-sm bg-white dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:border-blue-500 dark:focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all [&::-ms-reveal]:hidden [&::-ms-clear]:hidden"
                   />
                   <button
@@ -238,7 +250,7 @@ export default function LoginPage() {
                   </>
                 ) : (
                   <>
-                    Sign in <ArrowRight className="w-4 h-4" />
+                    Sign in <ChevronRight className="w-4 h-4" />
                   </>
                 )}
               </button>
@@ -250,7 +262,7 @@ export default function LoginPage() {
               <div>
                 <p className="text-xs font-bold text-blue-700 dark:text-blue-400 mb-0.5">Universal Login</p>
                 <p className="text-xs text-blue-600 dark:text-blue-300 leading-relaxed">
-                  Admins, Store Owners & Employees all use this page. You&apos;ll be automatically redirected to your dashboard.
+                  Store Owners & Employees use this page. You&apos;ll be automatically redirected to your dashboard.
                 </p>
               </div>
             </div>
@@ -268,9 +280,26 @@ export default function LoginPage() {
 
           {/* Back to home */}
           <div className="mt-6 text-center">
-            <Link href="/" className="text-xs text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 transition-colors">
-              &larr; Back to {COMPANY_NAME}.lk
-            </Link>
+            <a 
+              href="/" 
+              onClick={async (e) => {
+                e.preventDefault();
+                const isDesktopEnv = typeof window !== 'undefined' && ('__TAURI__' in window || '__TAURI_INTERNALS__' in window);
+                if (isDesktopEnv) {
+                  try {
+                    const { open } = await import('@tauri-apps/plugin-shell');
+                    await open('https://cmart.lk');
+                  } catch (err) {
+                    console.error("Failed to open external URL", err);
+                  }
+                } else {
+                  window.location.href = '/';
+                }
+              }}
+              className="text-xs text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 transition-colors"
+            >
+              <ChevronLeft className="w-3 h-3 inline mr-1" /> Back to {COMPANY_NAME}.lk
+            </a>
           </div>
         </div>
       </div>

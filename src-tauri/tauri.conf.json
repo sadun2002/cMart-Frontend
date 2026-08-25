@@ -1,18 +1,18 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "cMart POS",
-  "version": "0.1.0",
-  "identifier": "com.tauri.dev",
+  "version": "0.1.8",
+  "identifier": "com.cmart.pos",
   "build": {
     "frontendDist": "../out",
     "devUrl": "http://localhost:3000",
     "beforeDevCommand": "npm run dev",
-    "beforeBuildCommand": "npm run build"
+    "beforeBuildCommand": "node build-tauri-frontend.js"
   },
   "app": {
     "windows": [
       {
-        "title": "cMart POS",
+        "title": "cMart POS - v0.1.8",
         "width": 1280,
         "height": 720,
         "minWidth": 1024,
@@ -29,6 +29,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "createUpdaterArtifacts": true,
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -38,6 +39,12 @@
     ],
     "android": {
       "debugApplicationIdSuffix": ".debug"
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IENDRkU4NERGRTA2MzU0OUQKUldTZFZHUGczNFQrekw5RlJUWlB0UWp3S1VxTVRDT1lSSFU1WFlWZVN3ZHI0UU4yeERJdTRocjgK",
+      "dangerousInsecureTransportProtocol": true
     }
   }
 }

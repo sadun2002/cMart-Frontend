@@ -1,3 +1,5 @@
+import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Lock, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -10,7 +12,15 @@ interface UpgradeModalProps {
 }
 
 export function UpgradeModal({ isOpen, onClose, featureName, requiredTier = 'Pro' }: UpgradeModalProps) {
-  return (
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
+
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
         <>
@@ -55,20 +65,24 @@ export function UpgradeModal({ isOpen, onClose, featureName, requiredTier = 'Pro
 
               <div className="mt-4 flex flex-col gap-3 relative z-10">
                 <Button 
-                  onClick={() => {
-                    const url = '/pricing';
-                    const fullUrl = window.location.origin + url;
+                  onClick={async () => {
+                    let domain = 'cmart.lk';
+                    try {
+                      // Attempt to read from env if available (it might be undefined in some contexts)
+                      domain = process.env.NEXT_PUBLIC_PLATFORM_DOMAIN || 'cmart.lk';
+                    } catch(e) {}
                     
-                    // Support for Electron/Desktop apps exposing shell commands
-                    if (typeof window !== 'undefined' && (window as any).electron?.openExternal) {
-                      (window as any).electron.openExternal(fullUrl);
-                    } else if (typeof window !== 'undefined' && (window as any).api?.openExternal) {
-                      (window as any).api.openExternal(fullUrl);
-                    } else {
-                      // Standard browser behavior (opens new tab)
-                      // Well-configured Electron apps will intercept this and open default browser anyway
+                    const fullUrl = `https://${domain}/pricing`;
+                    
+                    try {
+                      // Import dynamically so it doesn't crash SSR or standard web browsers
+                      const { open } = await import('@tauri-apps/plugin-shell');
+                      await open(fullUrl);
+                    } catch (error) {
+                      // Fallback for standard browsers
                       window.open(fullUrl, '_blank', 'noopener,noreferrer');
                     }
+                    
                     onClose();
                   }}
                   className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium shadow-md hover:shadow-xl hover:shadow-blue-500/20 transition-all duration-300"
@@ -84,6 +98,7 @@ export function UpgradeModal({ isOpen, onClose, featureName, requiredTier = 'Pro
           </div>
         </>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }

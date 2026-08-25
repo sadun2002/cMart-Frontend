@@ -5,8 +5,9 @@ import { ShoppingCart, Search, Menu, User, X } from "lucide-react";
 import { useStorefrontCart } from "@/store/useStorefrontCart";
 import { useEffect, useState, useRef } from "react";
 import { useStorefrontAuth } from "@/store/useStorefrontAuth";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { MinimalistCartPanel } from "./MinimalistCartPanel";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 export function MinimalistHeader({ storeName = "My Store", domain = "" }) {
   const items = useStorefrontCart((state) => state.items);
@@ -18,7 +19,23 @@ export function MinimalistHeader({ storeName = "My Store", domain = "" }) {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const router = useRouter();
+  const pathname = usePathname();
   const searchRef = useRef<HTMLDivElement>(null);
+
+  const isActive = (path: string) => {
+    if (path === `/s/${domain}`) {
+      return pathname === path; // Exact match for home
+    }
+    return pathname?.startsWith(path);
+  };
+
+  const getLinkClass = (path: string) => {
+    return `text-sm font-medium transition-colors cursor-pointer ${
+      isActive(path) 
+        ? "text-primary" // Assuming primary is the blue color
+        : "text-muted-foreground hover:text-foreground"
+    }`;
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -69,22 +86,22 @@ export function MinimalistHeader({ storeName = "My Store", domain = "" }) {
 
             {/* Desktop Navigation */}
             <nav className="hidden sm:flex space-x-8">
-              <Link href={`/s/${domain}`} className="text-sm font-medium text-foreground hover:text-primary transition-colors cursor-pointer">
+              <Link href={`/s/${domain}`} className={getLinkClass(`/s/${domain}`)}>
                 Home
               </Link>
-              <Link href={`/s/${domain}/shop`} className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
+              <Link href={`/s/${domain}/shop`} className={getLinkClass(`/s/${domain}/shop`)}>
                 Shop
               </Link>
-              <Link href={`/s/${domain}/categories`} className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
+              <Link href={`/s/${domain}/categories`} className={getLinkClass(`/s/${domain}/categories`)}>
                 Categories
               </Link>
-              <Link href={`/s/${domain}/about`} className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
+              <Link href={`/s/${domain}/about`} className={getLinkClass(`/s/${domain}/about`)}>
                 About Us
               </Link>
-              <Link href={`/s/${domain}/contact`} className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
+              <Link href={`/s/${domain}/contact`} className={getLinkClass(`/s/${domain}/contact`)}>
                 Contact Us
               </Link>
-              <Link href={`/s/${domain}/offers`} className="text-sm font-medium text-red-600 hover:text-red-800 transition-colors cursor-pointer">
+              <Link href={`/s/${domain}/offers`} className={`text-sm font-medium transition-colors cursor-pointer ${isActive(`/s/${domain}/offers`) ? 'text-red-700' : 'text-red-600 hover:text-red-800'}`}>
                 Offers & Sale
               </Link>
             </nav>
@@ -100,19 +117,19 @@ export function MinimalistHeader({ storeName = "My Store", domain = "" }) {
                 </button>
                 {/* Search Bar Overlay attached to the button area for relative positioning or absolute drop down */}
                 {isSearchOpen && (
-                  <div className="absolute top-16 left-0 right-0 bg-white border-b border-gray-100 py-4 px-4 sm:px-6 lg:px-8 shadow-sm origin-top animate-in fade-in slide-in-from-top-2">
-                    <form onSubmit={handleSearch} className="max-w-3xl mx-auto flex items-stretch border border-gray-300 rounded-md overflow-hidden focus-within:ring-1 focus-within:ring-black focus-within:border-black transition-all">
+                  <div className="absolute top-16 left-0 right-0 bg-background border-b border-border py-4 px-4 sm:px-6 lg:px-8 shadow-sm origin-top animate-in fade-in slide-in-from-top-2">
+                    <form onSubmit={handleSearch} className="max-w-3xl mx-auto flex items-stretch border border-border rounded-md overflow-hidden focus-within:ring-1 focus-within:ring-primary focus-within:border-primary transition-all">
                       <input
                         type="text"
                         autoFocus
                         placeholder="Search products..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="flex-1 border-0 focus:ring-0 sm:text-sm px-4 py-2 outline-none"
+                        className="flex-1 border-0 bg-background text-foreground focus:ring-0 sm:text-sm px-4 py-2 outline-none"
                       />
                       <button
                         type="submit"
-                        className="bg-black text-white px-6 py-2 text-sm font-medium hover:bg-gray-800 transition-colors"
+                        className="bg-primary text-primary-foreground px-6 py-2 text-sm font-medium hover:opacity-90 transition-colors"
                       >
                         Search
                       </button>
@@ -121,6 +138,8 @@ export function MinimalistHeader({ storeName = "My Store", domain = "" }) {
                 )}
               </div>
               
+              <ThemeToggle className="p-2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer" />
+
               <Link 
                 href={isAuthenticated ? `/s/${domain}/account` : `/s/${domain}/login`} 
                 className="p-2 text-muted-foreground hover:text-foreground transition-colors hidden sm:block cursor-pointer"

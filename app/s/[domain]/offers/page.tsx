@@ -1,4 +1,8 @@
 "use client";
+import { AuraOffers } from "@/components/storefront/themes/aura/pages/AuraOffers";
+import { MarketOffers } from "@/components/storefront/themes/market/pages/MarketOffers";
+
+import { VerdantOffers } from "@/components/storefront/themes/verdant/pages/VerdantOffers";
 
 import { MinimalistHeader } from "@/components/storefront/themes/minimalist/MinimalistHeader";
 import { MinimalistFooter } from "@/components/storefront/themes/minimalist/MinimalistFooter";
@@ -41,9 +45,16 @@ const DUMMY_OFFERS = [
   { id: "4", name: "Leather Tote Bag", price: 7200, compareAtPrice: 9500, image: "https://images.unsplash.com/photo-1590874103328-eac38a683ce7?w=500&q=80", category: "Accessories" },
 ];
 
-export default function StorefrontOffersPage(props: { params: Promise<{ domain: string }> }) {
+
+export default function StorefrontOffersPage(props: { 
+  params: Promise<{ domain: string }>;
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   const params = use(props.params);
+  const searchParams = props.searchParams ? use(props.searchParams) : {};
   const storeName = params.domain.replace("-", " ").toUpperCase() || "My Store";
+  const theme = searchParams?.theme as string;
+
   const addItem = useStorefrontCart((state) => state.addItem);
 
   const handleAddToCart = (e: React.MouseEvent, product: typeof DUMMY_OFFERS[0]) => {
@@ -61,6 +72,18 @@ export default function StorefrontOffersPage(props: { params: Promise<{ domain: 
 
   const getDiscountPercent = (price: number, compareAt: number) =>
     Math.round(((compareAt - price) / compareAt) * 100);
+
+
+  if (theme === 'market') {
+    return <MarketOffers storeName={storeName} domain={params.domain} />;
+  }
+  if (theme === 'aura') {
+    return <AuraOffers storeName={storeName} domain={params.domain} />;
+  }
+
+  if (theme === 'verdant') {
+    return <VerdantOffers storeName={storeName} domain={params.domain} />;
+  }
 
   return (
     <div className="flex flex-col min-h-screen">

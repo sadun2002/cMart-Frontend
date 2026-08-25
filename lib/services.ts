@@ -165,3 +165,14 @@ export const settingsApi = {
   update: (data: any) => api.patch('/settings', data),
   updateProfile: (data: any) => api.patch('/settings/profile', data),
 };
+
+// ============================================================
+// Banners API
+// ============================================================
+export const bannersApi = {
+  list: () => api.get('/banners'),
+  publicList: (domain: string) => api.get(`/banners/public/${domain}`),
+  create: (data: FormData) => api.post('/banners', data, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  update: (id: number | string, data: FormData) => api.patch(`/banners/${id}`, data, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  delete: (id: number | string) => api.delete(`/banners/${id}`),
+};

@@ -1,51 +1,40 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
-  Image as ImageIcon, Plus, Trash2, CheckCircle, 
-  EyeOff, Search, GripVertical, ExternalLink, X, Type, Link as LinkIcon 
+  Plus, Edit2, Trash2, Image as ImageIcon, Save, CheckCircle, 
+  EyeOff, Eye, Search, GripVertical, ExternalLink, X, Type, Link as LinkIcon 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { KpiCard } from '@/components/ui/kpi-card';
+import { CustomSelect } from '@/components/ui/custom-select';
+import { bannersApi, themeApi } from '@/lib/services';
 
-// Mock Data
-const mockBanners = [
-  { 
-    id: '1', 
-    title: 'Summer Sale 2026', 
-    subtitle: 'Up to 50% Off on all electronics',
-    image: 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?auto=format&fit=crop&q=80&w=1200', 
-    status: 'Active', 
-    ctaText: 'Shop Now',
-    ctaLink: '/collections/summer',
-    order: 1 
-  },
-  { 
-    id: '2', 
-    title: 'New Arrivals - Fashion', 
-    subtitle: 'Check out the latest trendy outfits',
-    image: 'https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?auto=format&fit=crop&q=80&w=1200', 
-    status: 'Active', 
-    ctaText: 'Discover',
-    ctaLink: '/collections/new-arrivals',
-    order: 2 
-  },
-  { 
-    id: '3', 
-    title: 'Free Delivery', 
-    subtitle: 'On orders over Rs. 5000',
-    image: 'https://images.unsplash.com/photo-1586528116311-ad8ed7450951?auto=format&fit=crop&q=80&w=1200', 
-    status: 'Inactive', 
-    ctaText: 'Learn More',
-    ctaLink: '/shipping-policy',
-    order: 3 
-  },
+const mockPages = [
+  { id: '1', title: 'Home', handle: '/' },
+  { id: '2', title: 'Shop', handle: '/shop' },
+  { id: '3', title: 'Product Details', handle: '/product/1' },
+  { id: '4', title: 'Cart', handle: '/cart' },
+  { id: '5', title: 'Checkout', handle: '/checkout' },
+  { id: '6', title: 'Categories', handle: '/categories' },
+  { id: '7', title: 'Offers and Sales', handle: '/offers' },
+  { id: '8', title: 'About Us', handle: '/about' },
+  { id: '9', title: 'Contact', handle: '/contact' },
+  { id: '10', title: 'FAQ', handle: '/faq' },
+  { id: '11', title: 'Shipping', handle: '/shipping' },
+  { id: '12', title: 'Privacy Policy', handle: '/privacy' },
+  { id: '13', title: 'Terms', handle: '/terms' },
+  { id: '14', title: 'Login', handle: '/login' },
+  { id: '15', title: 'Register', handle: '/register' },
+  { id: '16', title: 'Account', handle: '/account' },
+  { id: '17', title: 'Forgot Password', handle: '/forgot-password' },
 ];
 
 export default function BannersPage() {
-  const [banners, setBanners] = useState(mockBanners);
+  const [banners, setBanners] = useState<any[]>([]);
   const [search, setSearch] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
   
   // Slide-out panel state
   const [isPanelOpen, setIsPanelOpen] = useState(false);
@@ -58,61 +47,141 @@ export default function BannersPage() {
     ctaLink: '',
     status: 'Inactive',
   });
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [activeTheme, setActiveTheme] = useState<any>(null);
+
+  useEffect(() => {
+    fetchBanners();
+    fetchActiveTheme();
+  }, []);
+
+  const fetchActiveTheme = async () => {
+    try {
+      const res = await themeApi.getMyTheme().catch(() => null);
+      const data = res as any;
+      const theme = data?.data?.theme || data?.theme || data?.data || data;
+      console.log('Fetched active theme:', theme); // Debug log to see the actual structure
+      setActiveTheme(theme);
+    } catch (e) {}
+  };
+
+  const fetchBanners = async () => {
+    try {
+      const res = await bannersApi.list();
+      setBanners(res.data);
+    } catch (error) {
+      toast.error('Failed to load banners');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const filteredBanners = banners.filter(b => b.title.toLowerCase().includes(search.toLowerCase())).sort((a, b) => a.order - b.order);
 
   const handleOpenPanel = (banner: any = null) => {
+    setImageFile(null);
     if (banner) {
       setEditingBanner(banner);
       setFormData({
-        title: banner.title,
-        subtitle: banner.subtitle,
-        image: banner.image,
-        ctaText: banner.ctaText,
-        ctaLink: banner.ctaLink,
-        status: banner.status,
+        title: banner.title || '',
+        subtitle: banner.subtitle || '',
+        image: banner.image || '',
+        ctaText: banner.ctaText || '',
+        ctaLink: banner.ctaLink || '',
+        status: banner.status || 'Inactive',
       });
     } else {
       setEditingBanner(null);
-      setFormData({ title: '', subtitle: '', image: '', ctaText: '', ctaLink: '', status: 'Inactive' });
+      setFormData({ 
+        title: 'New Collection', 
+        subtitle: 'Discover our latest arrivals and seasonal offers.', 
+        image: '', 
+        ctaText: 'Shop Now', 
+        ctaLink: '/', 
+        status: 'Active' 
+      });
     }
     setIsPanelOpen(true);
   };
 
-  const handleSave = () => {
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setImageFile(file);
+      setFormData({ ...formData, image: URL.createObjectURL(file) });
+    }
+  };
+
+  const handleSave = async () => {
     if (!formData.title) {
       toast.error('Banner title is required');
       return;
     }
-
-    if (editingBanner) {
-      setBanners(banners.map(b => b.id === editingBanner.id ? { ...b, ...formData } : b));
-      toast.success('Banner updated successfully');
-    } else {
-      const newBanner = {
-        id: Math.random().toString(),
-        ...formData,
-        order: banners.length + 1
-      };
-      setBanners([...banners, newBanner]);
-      toast.success('New banner created');
+    if (!editingBanner && !imageFile && !formData.image) {
+      toast.error('Banner image is required');
+      return;
     }
-    setIsPanelOpen(false);
+
+    setIsSaving(true);
+    try {
+      const data = new FormData();
+      data.append('title', formData.title);
+      data.append('subtitle', formData.subtitle);
+      data.append('ctaText', formData.ctaText);
+      data.append('ctaLink', formData.ctaLink);
+      data.append('status', formData.status);
+      
+      if (imageFile) {
+        data.append('image', imageFile);
+      } else if (formData.image) {
+         data.append('image', formData.image); // retain url if no new image uploaded
+      }
+
+      if (editingBanner) {
+        await bannersApi.update(editingBanner.id, data);
+        toast.success('Banner updated successfully');
+      } else {
+        data.append('order', (banners.length + 1).toString());
+        await bannersApi.create(data);
+        toast.success('New banner created');
+      }
+      
+      await fetchBanners();
+      setIsPanelOpen(false);
+    } catch (error) {
+      toast.error('Failed to save banner');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleDelete = (id: string, e: React.MouseEvent) => {
+  const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if(confirm('Are you sure you want to delete this banner?')) {
-      setBanners(banners.filter(b => b.id !== id));
-      toast.success('Banner deleted');
+      try {
+        await bannersApi.delete(id);
+        toast.success('Banner deleted');
+        setBanners(banners.filter(b => b.id !== id));
+      } catch (error) {
+        toast.error('Failed to delete banner');
+      }
     }
   };
 
-  const handleToggleStatus = (id: string, currentStatus: string, e: React.MouseEvent) => {
+  const handleToggleStatus = async (id: string, currentStatus: string, e: React.MouseEvent) => {
     e.stopPropagation();
     const newStatus = currentStatus === 'Active' ? 'Inactive' : 'Active';
-    setBanners(banners.map(b => b.id === id ? { ...b, status: newStatus } : b));
-    toast.success(`Banner ${newStatus === 'Active' ? 'activated' : 'deactivated'}`);
+    try {
+      const data = new FormData();
+      data.append('status', newStatus);
+      await bannersApi.update(id, data);
+      setBanners(banners.map(b => b.id === id ? { ...b, status: newStatus } : b));
+      toast.success(`Banner ${newStatus === 'Active' ? 'activated' : 'deactivated'}`);
+    } catch (error) {
+      toast.error('Failed to change status');
+    }
   };
 
   const kpis = {
@@ -120,6 +189,12 @@ export default function BannersPage() {
     active: banners.filter(b => b.status === 'Active').length,
     inactive: banners.filter(b => b.status === 'Inactive').length
   };
+
+  const isMinimalist = activeTheme?.id === 1 || activeTheme?.themeId === 1 || activeTheme?.slug === 'minimalist' || activeTheme?.theme?.id === 1 || activeTheme?.theme?.slug === 'minimalist' || activeTheme?.name?.toLowerCase().includes('minimalist');
+
+  if (isLoading) {
+    return <div className="p-6 flex items-center justify-center">Loading banners...</div>;
+  }
 
   return (
     <div className="font-sans flex flex-col h-full bg-slate-50/50 dark:bg-slate-900/50 p-6 relative overflow-hidden">
@@ -210,7 +285,7 @@ export default function BannersPage() {
 
                   <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity pr-4">
                     <button onClick={(e) => handleToggleStatus(banner.id, banner.status, e)} className={`p-2.5 rounded-xl transition-colors ${banner.status === 'Inactive' ? 'text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-500/10' : 'text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10'}`} title={banner.status === 'Inactive' ? 'Activate' : 'Deactivate'}>
-                      {banner.status === 'Inactive' ? <CheckCircle className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
+                      {banner.status === 'Inactive' ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
                     </button>
                     <button onClick={(e) => handleDelete(banner.id, e)} className="p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-colors" title="Delete">
                       <Trash2 className="w-5 h-5" />
@@ -251,96 +326,77 @@ export default function BannersPage() {
               {/* Panel Body */}
               <div className="flex-1 overflow-y-auto p-6 space-y-6">
                 
-                {/* Image Upload */}
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Banner Image</label>
-                  <div className="w-full aspect-[21/9] border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl flex flex-col items-center justify-center text-slate-400 hover:text-blue-500 hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 cursor-pointer transition-all group overflow-hidden relative">
-                    {formData.image ? (
-                      <img src={formData.image} alt="Banner Preview" className="w-full h-full object-cover" />
-                    ) : (
-                      <>
-                        <ImageIcon className="w-10 h-10 mb-3 group-hover:scale-110 transition-transform" />
-                        <span className="text-sm font-bold">Click to upload image</span>
-                        <span className="text-xs font-medium mt-1 opacity-70">Recommended size: 1920x820px</span>
-                      </>
-                    )}
+                {isMinimalist ? (
+                  <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
+                    <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center">
+                      <ImageIcon className="w-10 h-10 text-slate-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-slate-900 dark:text-white">Banners Not Supported</h3>
+                      <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-2 max-w-sm">
+                        The current theme ({activeTheme?.name || 'Minimalist'}) does not utilize image banners. Its design focuses on typography, spacing, and minimalism.
+                      </p>
+                    </div>
                   </div>
-                </div>
-
-                <div className="grid grid-cols-1 gap-6 pt-2">
-                  {/* Title */}
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Primary Title</label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
-                        <Type className="w-5 h-5" />
+                ) : (
+                  <>
+                    {/* Image Upload */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Banner Image</label>
+                      <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageChange} />
+                      <div 
+                        onClick={() => fileInputRef.current?.click()}
+                        className="w-full aspect-[21/9] border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl flex flex-col items-center justify-center text-slate-400 hover:text-blue-500 hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 cursor-pointer transition-all group overflow-hidden relative">
+                        {formData.image ? (
+                          <img src={formData.image} alt="Banner Preview" className="w-full h-full object-cover" />
+                        ) : (
+                          <>
+                            <ImageIcon className="w-10 h-10 mb-3 group-hover:scale-110 transition-transform" />
+                            <span className="text-sm font-bold">Click to upload image</span>
+                            <span className="text-xs font-medium mt-1 opacity-70">
+                              Recommended size: {activeTheme?.id === 1 ? '800x600px' : '1920x820px'}
+                            </span>
+                          </>
+                        )}
                       </div>
-                      <input 
-                        type="text" 
-                        value={formData.title} 
-                        onChange={e => setFormData({...formData, title: e.target.value})}
-                        placeholder="e.g. Summer Sale 2026" 
-                        className="w-full h-11 pl-11 pr-4 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl text-slate-900 dark:text-white font-medium outline-none transition-all"
-                      />
                     </div>
-                  </div>
 
-                  {/* Subtitle */}
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Subtitle</label>
-                    <textarea 
-                      value={formData.subtitle} 
-                      onChange={e => setFormData({...formData, subtitle: e.target.value})}
-                      placeholder="e.g. Up to 50% Off on all electronics" 
-                      className="w-full h-24 p-4 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl text-slate-900 dark:text-white font-medium outline-none transition-all resize-none"
-                    ></textarea>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    {/* CTA Text */}
-                    <div className="space-y-2">
-                      <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Button Text</label>
-                      <input 
-                        type="text" 
-                        value={formData.ctaText} 
-                        onChange={e => setFormData({...formData, ctaText: e.target.value})}
-                        placeholder="e.g. Shop Now" 
-                        className="w-full h-11 px-4 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl text-slate-900 dark:text-white font-medium outline-none transition-all"
-                      />
-                    </div>
-                    {/* CTA Link */}
-                    <div className="space-y-2">
-                      <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Button Link</label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                          <LinkIcon className="w-4 h-4" />
+                    <div className="grid grid-cols-1 gap-6 pt-2">
+                      {/* Title */}
+                      <div className="space-y-2">
+                        <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Banner Name (Internal Reference)</label>
+                        <div className="relative">
+                          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
+                            <Type className="w-5 h-5" />
+                          </div>
+                          <input 
+                            type="text" 
+                            value={formData.title} 
+                            onChange={e => setFormData({...formData, title: e.target.value})}
+                            placeholder="e.g. Summer Sale 2026" 
+                            className="w-full h-11 pl-11 pr-4 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl text-slate-900 dark:text-white font-medium outline-none transition-all"
+                          />
                         </div>
-                        <input 
-                          type="text" 
-                          value={formData.ctaLink} 
-                          onChange={e => setFormData({...formData, ctaLink: e.target.value})}
-                          placeholder="/collections/sale" 
-                          className="w-full h-11 pl-9 pr-4 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl text-slate-900 dark:text-white font-medium outline-none transition-all"
-                        />
                       </div>
                     </div>
-                  </div>
-                </div>
 
-                {/* Status */}
-                <div className="space-y-2 p-5 bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 rounded-2xl">
-                  <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Visibility Status</label>
-                  <div className="flex items-center gap-4 mt-2">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="radio" checked={formData.status === 'Active'} onChange={() => setFormData({...formData, status: 'Active'})} className="w-4 h-4 text-blue-600 focus:ring-blue-500 border-gray-300" />
-                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Active (Visible)</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="radio" checked={formData.status === 'Inactive'} onChange={() => setFormData({...formData, status: 'Inactive'})} className="w-4 h-4 text-blue-600 focus:ring-blue-500 border-gray-300" />
-                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Inactive (Hidden)</span>
-                    </label>
-                  </div>
-                </div>
+                    {/* Status */}
+                    <div className="space-y-2 p-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 rounded-xl flex items-center justify-between">
+                      <div>
+                        <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Visibility Status</label>
+                        <div className="text-sm font-medium text-slate-500 mt-1">
+                          {formData.status === 'Active' ? 'Active (Visible)' : 'Inactive (Hidden)'}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setFormData({...formData, status: formData.status === 'Active' ? 'Inactive' : 'Active'})}
+                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full transition-colors duration-200 ease-in-out focus:outline-none ${formData.status === 'Active' ? 'bg-blue-600' : 'bg-slate-300'}`}
+                      >
+                        <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${formData.status === 'Active' ? 'translate-x-2.5' : '-translate-x-2.5'}`} />
+                      </button>
+                    </div>
+                  </>
+                )}
 
               </div>
 
@@ -349,8 +405,8 @@ export default function BannersPage() {
                 <button onClick={() => setIsPanelOpen(false)} className="px-5 py-2.5 text-sm font-bold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">
                   Cancel
                 </button>
-                <button onClick={handleSave} className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl shadow-sm transition-colors">
-                  Save Banner
+                <button onClick={handleSave} disabled={isSaving || isMinimalist} className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:text-slate-500 dark:disabled:bg-slate-800 dark:disabled:text-slate-600 text-white text-sm font-bold rounded-xl shadow-sm transition-colors">
+                  {isSaving ? 'Saving...' : 'Save Banner'}
                 </button>
               </div>
 

@@ -1,11 +1,20 @@
+import { AuraCategories } from "@/components/storefront/themes/aura/pages/AuraCategories";
+import { VerdantCategories } from "@/components/storefront/themes/verdant/pages/VerdantCategories";
 import { MinimalistHeader } from "@/components/storefront/themes/minimalist/MinimalistHeader";
 import { MinimalistFooter } from "@/components/storefront/themes/minimalist/MinimalistFooter";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
+import { MarketCategories } from "@/components/storefront/themes/market/pages/MarketCategories";
 
-export default async function StorefrontCategoriesPage(props: { params: Promise<{ domain: string }> }) {
+
+export default async function StorefrontCategoriesPage(props: { 
+  params: Promise<{ domain: string }>;
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   const params = await props.params;
+  const searchParams = props.searchParams ? await props.searchParams : {};
   const storeName = params.domain.replace("-", " ").toUpperCase() || "My Store";
+  const theme = searchParams?.theme as string;
 
   const categories = [
     { name: "Clothing", count: "12 products", image: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=500&q=80", href: `/s/${params.domain}/shop` },
@@ -14,17 +23,29 @@ export default async function StorefrontCategoriesPage(props: { params: Promise<
     { name: "Outerwear", count: "6 products", image: "https://images.unsplash.com/photo-1576871337622-98d48d1cf531?w=500&q=80", href: `/s/${params.domain}/shop` },
   ];
 
+
+  if (theme === 'market') {
+    return <MarketCategories storeName={storeName} domain={params.domain} />;
+  }
+  if (theme === 'aura') {
+    return <AuraCategories storeName={storeName} domain={params.domain} />;
+  }
+
+  if (theme === 'verdant') {
+    return <VerdantCategories storeName={storeName} domain={params.domain} />;
+  }
+
   return (
     <div className="flex flex-col min-h-screen">
       <MinimalistHeader storeName={storeName} domain={params.domain} />
       
-      <main className="flex-grow bg-white py-16">
+      <main className="flex-grow bg-background py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h1 className="text-3xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">
+            <h1 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
               Shop by Category
             </h1>
-            <p className="mt-4 max-w-2xl text-xl text-gray-500 mx-auto">
+            <p className="mt-4 max-w-2xl text-xl text-muted-foreground mx-auto">
               Find exactly what you're looking for by browsing our curated collections.
             </p>
           </div>
@@ -32,7 +53,7 @@ export default async function StorefrontCategoriesPage(props: { params: Promise<
           <div className="grid grid-cols-1 gap-y-10 sm:grid-cols-2 gap-x-6 lg:grid-cols-4 xl:gap-x-8">
             {categories.map((category) => (
               <div key={category.name} className="group relative">
-                <div className="relative w-full h-80 bg-white rounded-lg overflow-hidden group-hover:opacity-75 sm:aspect-w-2 sm:aspect-h-3 sm:h-64 lg:aspect-w-1 lg:aspect-h-1 transition-opacity">
+                <div className="relative w-full h-80 bg-muted rounded-lg overflow-hidden group-hover:opacity-75 sm:aspect-w-2 sm:aspect-h-3 sm:h-64 lg:aspect-w-1 lg:aspect-h-1 transition-opacity">
                   <img
                     src={category.image}
                     alt={category.name}
@@ -56,7 +77,7 @@ export default async function StorefrontCategoriesPage(props: { params: Promise<
           <div className="mt-16 text-center">
              <Link 
                 href={`/s/${params.domain}/shop`}
-                className="inline-flex items-center text-base font-medium text-black hover:text-gray-600 transition-colors"
+                className="inline-flex items-center text-base font-medium text-foreground hover:opacity-80 transition-colors"
              >
                 View all products
                 <ArrowRight className="ml-2 w-5 h-5" />

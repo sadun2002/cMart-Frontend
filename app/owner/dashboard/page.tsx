@@ -218,12 +218,12 @@ export default function StoreOwnerDashboard() {
       ══════════════════════════════════════════════════════════════ */}
 
       {/* Welcome Banner */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 rounded-3xl p-6 lg:p-8 shadow-xl shadow-blue-200/50 dark:shadow-blue-900/30">
+      <div className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 rounded-2xl lg:rounded-3xl p-5 lg:p-8 shadow-xl shadow-blue-200/50 dark:shadow-blue-900/30">
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-[80px] translate-x-1/2 -translate-y-1/2" />
         <div className="absolute bottom-0 left-1/3 w-48 h-48 bg-white/5 rounded-full blur-[60px]" />
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           <div className="space-y-2">
-            <h1 className="text-2xl lg:text-3xl font-black text-white">
+            <h1 className="text-xl md:text-2xl lg:text-3xl font-black text-white truncate">
               Welcome back, {user?.name || 'User'}! 👋
             </h1>
             <p className="text-blue-100 text-sm">
@@ -237,7 +237,7 @@ export default function StoreOwnerDashboard() {
           <div className="flex flex-col items-start lg:items-end gap-2">
             <p className="text-blue-200 text-xs font-medium uppercase tracking-wider">Quick Actions</p>
             <div className="flex gap-3">
-              <Link href="/owner/pos" className="inline-flex items-center gap-2 bg-white text-blue-700 font-bold px-5 py-2.5 rounded-xl text-sm shadow-lg shadow-black/10 hover:shadow-xl hover:scale-[1.02] transition-all">
+              <Link href="/owner/pos" className="hidden lg:inline-flex items-center gap-2 bg-white text-blue-700 font-bold px-5 py-2.5 rounded-xl text-sm shadow-lg shadow-black/10 hover:shadow-xl hover:scale-[1.02] transition-all">
                 <Plus className="w-4 h-4" />
                 New Sale
               </Link>

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { COMPANY_NAME, COMPANY_TAGLINE } from '@/lib/constants';
 import api from '@/lib/api';
 import { toast } from 'sonner';
-import { Mail, ArrowRight, AlertCircle, CheckCircle, ShoppingCart, Globe, BarChart3, Users } from 'lucide-react';
+import { Mail, ChevronRight, ChevronLeft, AlertCircle, CheckCircle, ShoppingCart, Globe, BarChart3, Users } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -40,6 +40,7 @@ export default function ForgotPasswordPage() {
     setIsLoading(true);
     try {
       await api.post('/auth/forgot-password', { email: data.email });
+      
       setSent(true);
       toast.success('Reset link sent!');
     } catch (err: any) {
@@ -113,16 +114,11 @@ export default function ForgotPasswordPage() {
       </div>
 
       {/* ── RIGHT PANEL — Form ── */}
-      <div className="flex-1 flex flex-col items-center justify-center p-6 bg-gray-50 dark:bg-slate-950 transition-colors">
-        <Link href="/" className="flex items-center gap-2 mb-8 lg:hidden group">
-          <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center shadow-md group-hover:scale-105 transition-transform">
-            <span className="text-white font-black text-base">c</span>
-          </div>
-          <span className="text-xl font-black text-gray-900 dark:text-white">{COMPANY_NAME}</span>
-        </Link>
+      <div className="flex-1 flex flex-col items-center justify-center p-6 bg-white dark:bg-slate-950 md:bg-gray-50 transition-colors">
+
 
         <div className="w-full max-w-[420px]">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl shadow-blue-900/5 dark:shadow-none border border-gray-100 dark:border-slate-800 p-8">
+          <div className="md:bg-white md:dark:bg-slate-900 md:rounded-3xl md:shadow-xl md:shadow-blue-900/5 md:border md:border-gray-100 md:dark:border-slate-800 md:p-8">
             {sent ? (
               /* Success state */
               <div className="text-center">
@@ -142,11 +138,12 @@ export default function ForgotPasswordPage() {
                     </p>
                   </div>
                 </div>
+                
                 <Link
                   href="/login"
                   className="inline-flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-bold transition-colors"
                 >
-                  &larr; Back to login
+                  <ChevronLeft className="w-4 h-4" /> Back to login
                 </Link>
               </div>
             ) : (
@@ -199,7 +196,7 @@ export default function ForgotPasswordPage() {
                       </>
                     ) : (
                       <>
-                        Send reset link <ArrowRight className="w-4 h-4" />
+                        Send reset link <ChevronRight className="w-4 h-4" />
                       </>
                     )}
                   </button>
@@ -217,7 +214,7 @@ export default function ForgotPasswordPage() {
 
           <div className="mt-6 text-center">
             <Link href="/" className="text-xs text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 transition-colors">
-              &larr; Back to {COMPANY_NAME}.lk
+              <ChevronLeft className="w-3 h-3 inline mr-1" /> Back to {COMPANY_NAME}.lk
             </Link>
           </div>
         </div>

@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { getDb } from '@/lib/db';
 import { KpiCard } from '@/components/ui/kpi-card';
 import { CustomSelect } from '@/components/ui/custom-select';
+import { encryptData, decryptData } from '@/lib/local-db';
 
 // Generate a random UUID
 function uuidv4() {
@@ -49,7 +50,24 @@ function ExpensesPageContent() {
       setLoading(true);
       const db = await getDb();
       const res = await db.select('SELECT * FROM expenses ORDER BY date DESC') as any[];
-      setExpenses(res || []);
+      
+      const decryptedExpenses = await Promise.all((res || []).map(async (exp) => {
+        try {
+          const description = await decryptData(exp.description) || exp.description;
+          const amountStr = await decryptData(exp.amount) || exp.amount;
+          const category = await decryptData(exp.category) || exp.category;
+          return {
+            ...exp,
+            description,
+            amount: isNaN(Number(amountStr)) ? exp.amount : Number(amountStr),
+            category
+          };
+        } catch {
+          return exp;
+        }
+      }));
+      
+      setExpenses(decryptedExpenses);
     } catch (error) {
       console.error('Error fetching expenses:', error);
     } finally {
@@ -67,9 +85,13 @@ function ExpensesPageContent() {
     setIsSubmitting(true);
     try {
       const db = await getDb();
+      const encDesc = await encryptData(desc);
+      const encAmount = await encryptData(String(amount));
+      const encCat = await encryptData(category);
+
       await db.execute(
         'INSERT INTO expenses (id, description, amount, category, date) VALUES (?, ?, ?, ?, ?)',
-        [uuidv4(), desc, Number(amount), category, date]
+        [uuidv4(), encDesc, encAmount, encCat, date]
       );
       toast.success('Expense added successfully!');
       setIsAddOpen(false);

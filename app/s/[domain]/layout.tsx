@@ -1,5 +1,4 @@
 import { Metadata } from "next";
-import { Toaster } from "sonner";
 import { ThemeProvider } from "@/components/storefront/theme-provider";
 import { StorefrontNavigationObserver } from "@/components/storefront/navigation-observer";
 
@@ -26,7 +25,6 @@ export default async function StorefrontLayout({
       <ThemeProvider>
         <StorefrontNavigationObserver domain={params.domain} />
         {children}
-        <Toaster position="bottom-center" />
       </ThemeProvider>
     </div>
   );

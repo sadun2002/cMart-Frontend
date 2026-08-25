@@ -76,7 +76,7 @@ export default function ThemesPage() {
   const handleActivate = async (id: number | string) => {
     setIsActivating(id);
     try {
-      await themeApi.apply(id);
+      await themeApi.apply(Number(id));
       setActiveThemeId(id);
       toast.success('Theme successfully activated!');
     } catch {
@@ -86,8 +86,8 @@ export default function ThemesPage() {
     }
   };
 
-  const handleBuy = (themeName: string) => {
-    toast.info(`Purchasing ${themeName}...`);
+  const handleBuy = (id: string | number) => {
+    toast.info(`Purchasing theme ${id}...`);
   };
 
   if (loading) {
@@ -266,7 +266,7 @@ export default function ThemesPage() {
                     onActivate={handleActivate}
                     onBuy={handleBuy}
                     onPreview={(id) => toast.info(`Previewing theme ${id}...`)}
-                    isActivating={isActivating}
+                    isActivating={isActivating === theme.id}
                     isActive={activeThemeId === theme.id}
                   />
                 ))}

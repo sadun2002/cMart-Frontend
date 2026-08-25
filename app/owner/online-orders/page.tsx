@@ -1,16 +1,18 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { storeOwnerAPI } from '@/lib/api';
 import { 
   Search, Filter, CheckCircle, Clock, XCircle, AlertTriangle, 
   Maximize, Minimize, List, LayoutGrid, X, Download, User as UserIcon, 
-  Eye, FileText, Printer, ChevronDown, ShoppingBag, Globe, Truck, MapPin, CreditCard, CalendarDays, Edit, Package, Trash2
+  Eye, FileText, Printer, ChevronDown, ShoppingBag, Globe, Truck, MapPin, CreditCard, CalendarDays, Edit, Package, Trash2, Copy
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { KpiCard } from '@/components/ui/kpi-card';
 import { FilterPanel } from '@/components/ui/filter-panel';
 import { CustomSelect } from '@/components/ui/custom-select';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import PrintOrderModal from '@/components/PrintOrderModal';
 import { toast } from 'sonner';
 
 // Mock Data
@@ -104,11 +106,12 @@ const mockOnlineOrders = [
   },
 ];
 
-const ORDER_STATUSES = ['All', 'Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
-const PAYMENT_STATUSES = ['All', 'Paid', 'Pending'];
+const ORDER_STATUSES = ['All', 'Pending', 'Processing', 'Shipped', 'Delivered', 'Returned', 'Cancelled'];
+const PAYMENT_STATUSES = ['All', 'Paid', 'Pending', 'Refunded'];
 
 export default function OnlineOrdersPage() {
-  const [orders, setOrders] = useState(mockOnlineOrders);
+  const [orders, setOrders] = useState<any[]>([]);
+  const [loadingData, setLoadingData] = useState(true);
   const [search, setSearch] = useState('');
   
   // View & Filter State
@@ -119,22 +122,115 @@ export default function OnlineOrdersPage() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState('All');
   const [paymentFilter, setPaymentFilter] = useState('All');
+  const [isDetailsPanelOpen, setIsDetailsPanelOpen] = useState(false);
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
   // Order Details Panel State
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
-  const [isDetailsPanelOpen, setIsDetailsPanelOpen] = useState(false);
   const [editStatusData, setEditStatusData] = useState({
     orderStatus: '',
     paymentStatus: ''
   });
   const [isUpdating, setIsUpdating] = useState(false);
+  const [updatingInline, setUpdatingInline] = useState<{ id: string, field: string } | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
-  const confirmDelete = () => {
+  const fetchOrders = async () => {
+    try {
+      setLoadingData(true);
+      const res: any = await storeOwnerAPI.getOnlineOrders();
+      const data = res.data || res;
+      // Map database format to UI format
+      const formatted = data.map((o: any) => ({
+        realId: o.id,
+        id: o.orderNumber || `ORD-ON-${o.id}`,
+        customerName: o.customerName || 'Guest',
+        customerPhone: o.customerPhone || 'N/A',
+        customerEmail: o.customerEmail || 'N/A',
+        shippingAddress: o.shippingAddress || 'N/A',
+        orderDate: new Date(o.createdAt).toLocaleDateString(),
+        orderTime: new Date(o.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        isNewCustomer: o.user ? (o.user._count?.onlineOrders <= 1) : true,
+        items: o.items.map((i: any) => ({
+          name: i.productName,
+          qty: i.quantity,
+          price: i.price,
+          total: i.subtotal,
+        })),
+        subtotal: o.subtotal,
+        deliveryFee: o.shipping || 0,
+        totalAmount: o.total,
+        paymentMethod: o.paymentMethod === 'CASH' ? 'COD' : 'Card',
+        paymentStatus: o.paymentStatus === 'COMPLETED' ? 'Paid' : 
+                       o.paymentStatus === 'REFUNDED' ? 'Refunded' : 'Pending',
+        orderStatus: o.status.charAt(0).toUpperCase() + o.status.slice(1).toLowerCase()
+      }));
+      setOrders(formatted);
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to fetch online orders');
+    } finally {
+      setLoadingData(false);
+    }
+  };
+
+  const fetchOrdersSilent = async () => {
+    try {
+      const res: any = await storeOwnerAPI.getOnlineOrders();
+      const data = res.data || res;
+      const formatted = data.map((o: any) => ({
+        realId: o.id,
+        id: o.orderNumber || `ORD-ON-${o.id}`,
+        customerName: o.customerName || 'Guest',
+        customerPhone: o.customerPhone || 'N/A',
+        customerEmail: o.customerEmail || 'N/A',
+        shippingAddress: o.shippingAddress || 'N/A',
+        orderDate: new Date(o.createdAt).toLocaleDateString(),
+        orderTime: new Date(o.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        isNewCustomer: o.user ? (o.user._count?.onlineOrders <= 1) : true,
+        items: o.items.map((i: any) => ({
+          name: i.productName,
+          qty: i.quantity,
+          price: i.price,
+          total: i.subtotal,
+        })),
+        subtotal: o.subtotal,
+        deliveryFee: o.shipping || 0,
+        totalAmount: o.total,
+        paymentMethod: o.paymentMethod === 'CASH' ? 'COD' : 'Card',
+        paymentStatus: o.paymentStatus === 'COMPLETED' ? 'Paid' : 
+                       o.paymentStatus === 'REFUNDED' ? 'Refunded' : 'Pending',
+        orderStatus: o.status.charAt(0).toUpperCase() + o.status.slice(1).toLowerCase()
+      }));
+      setOrders(formatted);
+    } catch (e) {
+      // fail silently for polling
+    }
+  };
+
+  useEffect(() => {
+    const interval = setInterval(fetchOrdersSilent, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    fetchOrders();
+  }, []);
+
+  const confirmDelete = async () => {
     if (deleteConfirmId) {
-      setOrders(orders.filter(o => o.id !== deleteConfirmId));
-      toast.success('Order deleted successfully');
-      setDeleteConfirmId(null);
+      try {
+        const orderToCancel = orders.find(o => o.id === deleteConfirmId);
+        if (orderToCancel?.realId) {
+          await storeOwnerAPI.updateOnlineOrder(orderToCancel.realId, { status: 'CANCELLED' });
+        }
+        setOrders(orders.map(o => o.id === deleteConfirmId ? { ...o, orderStatus: 'Cancelled' } : o));
+        toast.success('Order cancelled successfully');
+      } catch (e) {
+        toast.error('Failed to cancel order');
+      } finally {
+        setDeleteConfirmId(null);
+      }
     }
   };
 
@@ -147,18 +243,72 @@ export default function OnlineOrdersPage() {
     setIsDetailsPanelOpen(true);
   };
 
-  const handleUpdateStatus = (e: React.FormEvent) => {
+  const handleUpdateStatus = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!selectedOrder?.realId) return;
+
     setIsUpdating(true);
-    
-    setTimeout(() => {
-      setOrders(orders.map(o => o.id === selectedOrder.id ? { ...o, orderStatus: editStatusData.orderStatus, paymentStatus: editStatusData.paymentStatus } : o));
-      toast.success('Order status updated successfully');
+    try {
+      let finalPaymentStatus = editStatusData.paymentStatus;
+      if (['Processing', 'Shipped', 'Delivered'].includes(editStatusData.orderStatus) && selectedOrder.paymentMethod === 'Card') {
+        finalPaymentStatus = 'Paid';
+      }
+      if (editStatusData.orderStatus === 'Cancelled' && finalPaymentStatus === 'Paid') {
+        finalPaymentStatus = 'Refunded';
+      }
+      const payloadPaymentStatus = finalPaymentStatus === 'Paid' ? 'COMPLETED' : 
+                                   finalPaymentStatus === 'Refunded' ? 'REFUNDED' : 
+                                   finalPaymentStatus.toUpperCase();
+
+      await storeOwnerAPI.updateOnlineOrder(selectedOrder.realId, {
+        status: editStatusData.orderStatus.toUpperCase(),
+        paymentStatus: payloadPaymentStatus
+      });
       
-      setIsUpdating(false);
+      setOrders(orders.map(o => o.id === selectedOrder.id ? { ...o, orderStatus: editStatusData.orderStatus, paymentStatus: finalPaymentStatus } : o));
+      toast.success('Order status updated successfully');
       setIsDetailsPanelOpen(false);
       setSelectedOrder(null);
-    }, 600);
+    } catch (e) {
+      toast.error('Failed to update order status');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleInlineStatusUpdate = async (orderId: string, type: 'orderStatus' | 'paymentStatus', newValue: string) => {
+    const orderToUpdate = orders.find(o => o.id === orderId);
+    if (!orderToUpdate?.realId) return;
+
+    setUpdatingInline({ id: orderId, field: type });
+    try {
+      if (type === 'orderStatus') {
+        const updates: any = { status: newValue.toUpperCase() };
+        let newPaymentStatus = orderToUpdate.paymentStatus;
+        
+        if (['Processing', 'Shipped', 'Delivered'].includes(newValue) && orderToUpdate.paymentMethod === 'Card') {
+          updates.paymentStatus = 'COMPLETED';
+          newPaymentStatus = 'Paid';
+        }
+        
+        if (newValue === 'Cancelled' && newPaymentStatus === 'Paid') {
+          updates.paymentStatus = 'REFUNDED';
+          newPaymentStatus = 'Refunded';
+        }
+
+        await storeOwnerAPI.updateOnlineOrder(orderToUpdate.realId, updates);
+        setOrders(orders.map(o => o.id === orderId ? { ...o, orderStatus: newValue, paymentStatus: newPaymentStatus } : o));
+      } else if (type === 'paymentStatus') {
+        const payloadStatus = newValue === 'Paid' ? 'COMPLETED' : newValue.toUpperCase();
+        await storeOwnerAPI.updateOnlineOrder(orderToUpdate.realId, { paymentStatus: payloadStatus });
+        setOrders(orders.map(o => o.id === orderId ? { ...o, paymentStatus: newValue } : o));
+      }
+      toast.success(`${type === 'orderStatus' ? 'Order' : 'Payment'} status updated`);
+    } catch (e) {
+      toast.error('Failed to update status');
+    } finally {
+      setUpdatingInline(null);
+    }
   };
 
   const filteredOrders = useMemo(() => {
@@ -296,14 +446,13 @@ export default function OnlineOrdersPage() {
           <div className="flex-1 overflow-x-auto">
             <div className="min-w-max h-full flex flex-col">
               {/* Table Header */}
-              <div className="grid grid-cols-[140px_200px_120px_150px_150px_140px_100px] gap-4 h-16 px-5 items-center border-b border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/50 text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0">
+              <div className="grid grid-cols-[140px_1fr_120px_150px_150px_160px] gap-4 h-16 px-5 items-center border-b border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/50 text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0">
                 <div>Order ID</div>
                 <div>Customer</div>
                 <div>Date</div>
                 <div className="text-right">Total Amount</div>
                 <div className="text-center">Payment</div>
                 <div className="text-center">Status</div>
-                <div className="text-center">Action</div>
               </div>
 
               {/* Table Body */}
@@ -316,53 +465,86 @@ export default function OnlineOrdersPage() {
                 ) : (
                   <>
                   {filteredOrders.map((order) => (
-                    <div key={order.id} onClick={() => openOrderDetails(order)} className="cursor-pointer grid grid-cols-[140px_200px_120px_150px_150px_140px_100px] gap-4 p-5 border-b border-slate-100 dark:border-slate-800/60 items-center hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group">
+                    <div key={order.id} onClick={() => openOrderDetails(order)} className="cursor-pointer grid grid-cols-[140px_1fr_120px_150px_150px_160px] gap-4 p-5 border-b border-slate-100 dark:border-slate-800/60 items-center hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group">
                       
-                      <div className="text-sm font-bold text-slate-900 dark:text-white">{order.id}</div>
+                      <div className="flex items-center gap-1.5 text-sm font-bold text-slate-900 dark:text-white">
+                        {order.id}
+                        <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(order.id); toast.success('Order ID copied'); }} className="text-slate-400 hover:text-blue-600 transition-colors shrink-0" title="Copy ID"><Copy className="w-3.5 h-3.5" /></button>
+                      </div>
 
                       <div className="flex items-center gap-4 min-w-0">
                         <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center flex-shrink-0 text-blue-600 dark:text-blue-400">
                           <UserIcon className="w-5 h-5" />
                         </div>
-                        <div className="min-w-0">
-                          <h3 className="font-bold text-slate-900 dark:text-white text-sm truncate">{order.customerName}</h3>
+                        <div className="min-w-0 flex-1">
+                          <span className="text-[10px] text-slate-500">{order.isNewCustomer ? 'New' : 'Regular'}</span>
+                          <div className="flex items-center gap-2 -mt-0.5">
+                            <h3 className="font-bold text-slate-900 dark:text-white text-sm truncate">{order.customerName}</h3>
+                            <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(order.customerName); toast.success('Copied'); }} className="text-slate-400 hover:text-blue-600 transition-colors shrink-0" title="Copy Name"><Copy className="w-3.5 h-3.5" /></button>
+                          </div>
                           <p className="text-xs font-medium text-slate-500 truncate mt-0.5">{order.items.length} items</p>
                         </div>
                       </div>
 
-                      <div className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                        {order.orderDate}
+                      <div className="flex flex-col">
+                        <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">{order.orderDate}</span>
+                        <span className="text-xs font-medium text-slate-500">{order.orderTime}</span>
                       </div>
 
                       <div className="text-base font-black text-blue-600 dark:text-blue-400 text-right">
                         Rs. {order.totalAmount.toLocaleString()}
                       </div>
 
-                      <div className="flex flex-col items-center justify-center gap-1">
-                        <span className="text-xs font-bold text-slate-600 dark:text-slate-400">{order.paymentMethod}</span>
-                        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
-                          order.paymentStatus === 'Paid' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' :
-                          'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400'
-                        }`}>
-                          {order.paymentStatus}
-                        </span>
+                      <div className="flex flex-col items-center justify-center gap-0.5">
+                        <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{order.paymentMethod}</span>
+                        {updatingInline?.id === order.id && updatingInline?.field === 'paymentStatus' ? (
+                          <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-500 animate-pulse">
+                            <div className="w-3 h-3 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                            Updating...
+                          </span>
+                        ) : order.paymentMethod === 'COD' && order.paymentStatus === 'Pending' && order.orderStatus === 'Delivered' ? (
+                          <div className="relative group/payment cursor-pointer inline-flex items-center gap-1 text-[11px] font-medium text-amber-600 dark:text-amber-500">
+                            {order.paymentStatus} <ChevronDown className="w-3 h-3" />
+                            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 w-24 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 opacity-0 invisible group-hover/payment:opacity-100 group-hover/payment:visible transition-all z-50 overflow-hidden flex flex-col py-1">
+                              <button onClick={(e) => { e.stopPropagation(); handleInlineStatusUpdate(order.id, 'paymentStatus', 'Paid'); }} className="px-3 py-1.5 text-left hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs">Paid</button>
+                            </div>
+                          </div>
+                        ) : (
+                          <span className={`text-[11px] font-medium ${
+                            order.paymentStatus === 'Paid' ? 'text-emerald-600 dark:text-emerald-500' : 'text-slate-500'
+                          }`}>
+                            {order.paymentStatus}
+                          </span>
+                        )}
                       </div>
 
                       <div className="flex justify-center">
-                        <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold ${
-                          order.orderStatus === 'Delivered' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' :
-                          order.orderStatus === 'Cancelled' ? 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400' :
-                          order.orderStatus === 'Shipped' ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400' :
-                          'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400'
-                        }`}>
-                          {order.orderStatus}
-                        </span>
-                      </div>
+                        {updatingInline?.id === order.id && updatingInline?.field === 'orderStatus' ? (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 text-slate-500 animate-pulse">
+                            <div className="w-3.5 h-3.5 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                            Updating...
+                          </span>
+                        ) : ['Pending', 'Processing', 'Shipped'].includes(order.orderStatus) ? (
+                          <div className={`relative group/status cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold ${
 
-                      <div className="flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(order.id); }} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete Order">
-                          <Trash2 className="w-5 h-5" />
-                        </button>
+                            order.orderStatus === 'Shipped' ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400' : 'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400'
+                          }`}>
+                            {order.orderStatus} <ChevronDown className="w-3.5 h-3.5" />
+                            <div className="absolute top-full right-0 mt-1 w-36 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 opacity-0 invisible group-hover/status:opacity-100 group-hover/status:visible transition-all z-50 overflow-hidden flex flex-col py-1">
+                              {order.orderStatus === 'Pending' && <><button onClick={(e) => { e.stopPropagation(); handleInlineStatusUpdate(order.id, 'orderStatus', 'Processing'); }} className="px-3 py-2 text-left hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300">Processing</button><button onClick={(e) => { e.stopPropagation(); handleInlineStatusUpdate(order.id, 'orderStatus', 'Shipped'); }} className="px-3 py-2 text-left hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300">Shipped</button><button onClick={(e) => { e.stopPropagation(); handleInlineStatusUpdate(order.id, 'orderStatus', 'Delivered'); }} className="px-3 py-2 text-left hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300">Delivered</button><button onClick={(e) => { e.stopPropagation(); handleInlineStatusUpdate(order.id, 'orderStatus', 'Cancelled'); }} className="px-3 py-2 text-left text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20">Cancelled</button></>}
+                              {order.orderStatus === 'Processing' && <><button onClick={(e) => { e.stopPropagation(); handleInlineStatusUpdate(order.id, 'orderStatus', 'Shipped'); }} className="px-3 py-2 text-left hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300">Shipped</button><button onClick={(e) => { e.stopPropagation(); handleInlineStatusUpdate(order.id, 'orderStatus', 'Delivered'); }} className="px-3 py-2 text-left hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300">Delivered</button><button onClick={(e) => { e.stopPropagation(); handleInlineStatusUpdate(order.id, 'orderStatus', 'Cancelled'); }} className="px-3 py-2 text-left text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20">Cancelled</button></>}
+                              {order.orderStatus === 'Shipped' && <><button onClick={(e) => { e.stopPropagation(); handleInlineStatusUpdate(order.id, 'orderStatus', 'Delivered'); }} className="px-3 py-2 text-left hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300">Delivered</button><button onClick={(e) => { e.stopPropagation(); handleInlineStatusUpdate(order.id, 'orderStatus', 'Cancelled'); }} className="px-3 py-2 text-left text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20">Cancelled</button></>}
+                            </div>
+                          </div>
+                        ) : (
+                          <span className={`inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold ${
+                            order.orderStatus === 'Delivered' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' :
+                            order.orderStatus === 'Cancelled' ? 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400' :
+                            'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                          }`}>
+                            {order.orderStatus}
+                          </span>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -385,23 +567,50 @@ export default function OnlineOrdersPage() {
                     
                     <div className="flex justify-between items-start mb-4">
                       <div className="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600 dark:text-blue-400">
-                        <ShoppingBag className="w-6 h-6" />
+                        <UserIcon className="w-6 h-6" />
                       </div>
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] uppercase tracking-wider font-bold ${
-                        order.orderStatus === 'Delivered' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' :
-                        order.orderStatus === 'Cancelled' ? 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400' :
-                        order.orderStatus === 'Shipped' ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400' :
-                        'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400'
-                      }`}>
-                        {order.orderStatus}
-                      </span>
+
+                      {updatingInline?.id === order.id && updatingInline?.field === 'orderStatus' ? (
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-500 animate-pulse">
+                          <div className="w-3 h-3 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                          Updating...
+                        </div>
+                      ) : ['Pending', 'Processing', 'Shipped'].includes(order.orderStatus) ? (
+                        <div className={`relative group/status cursor-pointer inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${
+                          order.orderStatus === 'Shipped' ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400' : 'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400'
+                        }`}>
+                          {order.orderStatus} <ChevronDown className="w-3 h-3" />
+                          <div className="absolute top-full right-0 mt-1 w-32 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 opacity-0 invisible group-hover/status:opacity-100 group-hover/status:visible transition-all z-50 overflow-hidden flex flex-col py-1">
+                            {order.orderStatus === 'Pending' && <><button onClick={(e) => { e.stopPropagation(); handleInlineStatusUpdate(order.id, 'orderStatus', 'Processing'); }} className="px-3 py-1.5 text-left hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs">Processing</button><button onClick={(e) => { e.stopPropagation(); handleInlineStatusUpdate(order.id, 'orderStatus', 'Shipped'); }} className="px-3 py-1.5 text-left hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs">Shipped</button><button onClick={(e) => { e.stopPropagation(); handleInlineStatusUpdate(order.id, 'orderStatus', 'Delivered'); }} className="px-3 py-1.5 text-left hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs">Delivered</button><button onClick={(e) => { e.stopPropagation(); handleInlineStatusUpdate(order.id, 'orderStatus', 'Cancelled'); }} className="px-3 py-1.5 text-left text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 text-xs">Cancelled</button></>}
+                            {order.orderStatus === 'Processing' && <><button onClick={(e) => { e.stopPropagation(); handleInlineStatusUpdate(order.id, 'orderStatus', 'Shipped'); }} className="px-3 py-1.5 text-left hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs">Shipped</button><button onClick={(e) => { e.stopPropagation(); handleInlineStatusUpdate(order.id, 'orderStatus', 'Delivered'); }} className="px-3 py-1.5 text-left hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs">Delivered</button><button onClick={(e) => { e.stopPropagation(); handleInlineStatusUpdate(order.id, 'orderStatus', 'Cancelled'); }} className="px-3 py-1.5 text-left text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 text-xs">Cancelled</button></>}
+                            {order.orderStatus === 'Shipped' && <><button onClick={(e) => { e.stopPropagation(); handleInlineStatusUpdate(order.id, 'orderStatus', 'Delivered'); }} className="px-3 py-1.5 text-left hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs">Delivered</button><button onClick={(e) => { e.stopPropagation(); handleInlineStatusUpdate(order.id, 'orderStatus', 'Cancelled'); }} className="px-3 py-1.5 text-left text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 text-xs">Cancelled</button></>}
+                          </div>
+                        </div>
+                      ) : (
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${
+                          order.orderStatus === 'Delivered' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' :
+                          order.orderStatus === 'Cancelled' ? 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400' :
+                          'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                        }`}>
+                          {order.orderStatus}
+                        </span>
+                      )}
                     </div>
                     
                     <div className="flex-1 flex flex-col mb-4">
-                      <h3 className="font-black text-slate-900 dark:text-white text-lg leading-tight mb-1 truncate">{order.customerName}</h3>
-                      <p className="text-xs font-bold text-slate-500 uppercase tracking-wider truncate mb-3">
-                        {order.id} &bull; {order.orderDate}
-                      </p>
+                      <div className="flex flex-col mb-1">
+                        <span className="text-[10px] text-slate-500">{order.isNewCustomer ? 'New' : 'Regular'}</span>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-black text-slate-900 dark:text-white text-lg leading-tight truncate">{order.customerName}</h3>
+                          <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(order.customerName); toast.success('Copied'); }} className="text-slate-400 hover:text-blue-600 transition-colors shrink-0" title="Copy Name"><Copy className="w-3.5 h-3.5" /></button>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 mb-3">
+                        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider truncate">
+                          {order.id} &bull; {order.orderDate} {order.orderTime}
+                        </p>
+                        <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(order.id); toast.success('Order ID copied'); }} className="text-slate-400 hover:text-blue-600 transition-colors shrink-0" title="Copy ID"><Copy className="w-3 h-3" /></button>
+                      </div>
                       
                       <div className="space-y-1.5 mb-4">
                         <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-300">
@@ -410,7 +619,22 @@ export default function OnlineOrdersPage() {
                         </div>
                         <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-300">
                           <span className="font-medium">Payment</span>
-                          <span className="font-bold">{order.paymentMethod} <span className={order.paymentStatus === 'Paid' ? 'text-emerald-500' : 'text-amber-500'}>({order.paymentStatus})</span></span>
+                          {updatingInline?.id === order.id && updatingInline?.field === 'paymentStatus' ? (
+                            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 animate-pulse">
+                              <div className="w-3 h-3 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                              Updating...
+                            </span>
+                          ) : order.paymentMethod === 'COD' && order.paymentStatus === 'Pending' && order.orderStatus === 'Delivered' ? (
+                            <div className="relative group/payment cursor-pointer flex items-center gap-1">
+                              <span className="font-bold">{order.paymentMethod}</span>
+                              <span className="text-amber-600 flex items-center gap-0.5">{order.paymentStatus} <ChevronDown className="w-3 h-3" /></span>
+                              <div className="absolute top-full right-0 mt-1 w-20 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 opacity-0 invisible group-hover/payment:opacity-100 group-hover/payment:visible transition-all z-50 overflow-hidden flex flex-col py-1">
+                                <button onClick={(e) => { e.stopPropagation(); handleInlineStatusUpdate(order.id, 'paymentStatus', 'Paid'); }} className="px-3 py-1.5 text-left hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs">Paid</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <span><span className="font-bold">{order.paymentMethod}</span> <span className={order.paymentStatus === 'Paid' ? 'text-emerald-600' : 'text-slate-500'}>{order.paymentStatus}</span></span>
+                          )}
                         </div>
                         <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-300 pt-1 border-t border-slate-100 dark:border-slate-800">
                           <span className="font-medium">Total</span>
@@ -475,7 +699,10 @@ export default function OnlineOrdersPage() {
                   <h2 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
                     Order Details
                   </h2>
-                  <p className="text-sm font-bold text-slate-500 mt-1 uppercase tracking-wider">{selectedOrder.id}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <p className="text-sm font-bold text-slate-500 uppercase tracking-wider">{selectedOrder.id}</p>
+                    <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(selectedOrder.id); toast.success('Order ID copied'); }} className="text-slate-400 hover:text-blue-600 transition-colors" title="Copy ID"><Copy className="w-3.5 h-3.5" /></button>
+                  </div>
                 </div>
                 <button onClick={() => setIsDetailsPanelOpen(false)} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors">
                   <X className="w-5 h-5" />
@@ -491,20 +718,32 @@ export default function OnlineOrdersPage() {
                     <UserIcon className="w-4 h-4 text-blue-500" /> Customer Information
                   </h4>
                   <div className="space-y-3 text-sm">
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-center group">
                       <span className="text-slate-500 font-medium">Name</span>
-                      <span className="font-bold text-slate-900 dark:text-white">{selectedOrder.customerName}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-900 dark:text-white">{selectedOrder.customerName}</span>
+                        <button type="button" onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(selectedOrder.customerName); toast.success('Copied'); }} className="text-slate-400 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-all"><Copy className="w-3.5 h-3.5" /></button>
+                      </div>
                     </div>
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-center group">
                       <span className="text-slate-500 font-medium">Phone</span>
-                      <span className="font-bold text-slate-900 dark:text-white">{selectedOrder.customerPhone}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-900 dark:text-white">{selectedOrder.customerPhone}</span>
+                        <button type="button" onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(selectedOrder.customerPhone); toast.success('Copied'); }} className="text-slate-400 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-all"><Copy className="w-3.5 h-3.5" /></button>
+                      </div>
                     </div>
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-center group">
                       <span className="text-slate-500 font-medium">Email</span>
-                      <span className="font-bold text-slate-900 dark:text-white">{selectedOrder.customerEmail}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-900 dark:text-white">{selectedOrder.customerEmail}</span>
+                        <button type="button" onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(selectedOrder.customerEmail); toast.success('Copied'); }} className="text-slate-400 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-all"><Copy className="w-3.5 h-3.5" /></button>
+                      </div>
                     </div>
-                    <div className="pt-3 border-t border-slate-200 dark:border-slate-700 flex flex-col gap-1.5">
-                      <span className="text-slate-500 font-medium flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> Shipping Address</span>
+                    <div className="pt-3 border-t border-slate-200 dark:border-slate-700 flex flex-col gap-1.5 group">
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-500 font-medium flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> Shipping Address</span>
+                        <button type="button" onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(selectedOrder.shippingAddress); toast.success('Copied'); }} className="text-slate-400 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-all"><Copy className="w-3.5 h-3.5" /></button>
+                      </div>
                       <span className="font-bold text-slate-900 dark:text-white leading-relaxed">{selectedOrder.shippingAddress}</span>
                     </div>
                   </div>
@@ -560,28 +799,40 @@ export default function OnlineOrdersPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Order Status</label>
-                      <select 
-                        value={editStatusData.orderStatus}
-                        onChange={e => setEditStatusData({...editStatusData, orderStatus: e.target.value})}
-                        className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-slate-900 dark:text-white"
-                      >
-                        <option value="Pending">Pending</option>
-                        <option value="Processing">Processing</option>
-                        <option value="Shipped">Shipped</option>
-                        <option value="Delivered">Delivered</option>
-                        <option value="Cancelled">Cancelled</option>
-                      </select>
+                      {!['Pending', 'Processing', 'Shipped'].includes(selectedOrder.orderStatus) ? (
+                        <div className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium text-slate-500 cursor-not-allowed">
+                          {selectedOrder.orderStatus}
+                        </div>
+                      ) : (
+                        <select 
+                          value={editStatusData.orderStatus}
+                          onChange={e => setEditStatusData({...editStatusData, orderStatus: e.target.value})}
+                          className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-slate-900 dark:text-white"
+                        >
+                          {selectedOrder.orderStatus === 'Pending' && <><option value="Processing">Processing</option><option value="Shipped">Shipped</option><option value="Delivered">Delivered</option><option value="Cancelled">Cancelled</option></>}
+                          {selectedOrder.orderStatus === 'Processing' && <><option value="Shipped">Shipped</option><option value="Delivered">Delivered</option><option value="Cancelled">Cancelled</option></>}
+                          {selectedOrder.orderStatus === 'Shipped' && <><option value="Delivered">Delivered</option><option value="Cancelled">Cancelled</option></>}
+                          {/* We still include the current status as an option if they don't change anything */}
+                          <option value={selectedOrder.orderStatus} hidden>{selectedOrder.orderStatus}</option>
+                        </select>
+                      )}
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Payment Status</label>
-                      <select 
-                        value={editStatusData.paymentStatus}
-                        onChange={e => setEditStatusData({...editStatusData, paymentStatus: e.target.value})}
-                        className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-slate-900 dark:text-white"
-                      >
-                        <option value="Pending">Pending</option>
-                        <option value="Paid">Paid</option>
-                      </select>
+                      {!(selectedOrder.paymentMethod === 'COD' && selectedOrder.paymentStatus === 'Pending' && selectedOrder.orderStatus === 'Delivered') ? (
+                        <div className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium text-slate-500 cursor-not-allowed">
+                          {selectedOrder.paymentStatus}
+                        </div>
+                      ) : (
+                        <select 
+                          value={editStatusData.paymentStatus}
+                          onChange={e => setEditStatusData({...editStatusData, paymentStatus: e.target.value})}
+                          className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-slate-900 dark:text-white"
+                        >
+                          <option value="Pending">Pending</option>
+                          <option value="Paid">Paid</option>
+                        </select>
+                      )}
                     </div>
                   </div>
                 </form>
@@ -592,10 +843,11 @@ export default function OnlineOrdersPage() {
               <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 mt-auto shrink-0 flex gap-4">
                 <button 
                   type="button" 
-                  onClick={() => setIsDetailsPanelOpen(false)}
-                  className="flex-1 px-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-xl font-bold hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                  onClick={() => setIsPrintModalOpen(true)}
+                  className="flex-1 px-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-xl font-bold hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center justify-center gap-2"
                 >
-                  Cancel
+                  <Printer className="w-5 h-5 text-slate-500" />
+                  Print
                 </button>
                 <button 
                   type="submit" 
@@ -616,12 +868,20 @@ export default function OnlineOrdersPage() {
         )}
       </AnimatePresence>
 
+      <PrintOrderModal 
+        isOpen={isPrintModalOpen}
+        onClose={() => setIsPrintModalOpen(false)}
+        order={selectedOrder}
+        storeName="Smart POS"
+        storePhone="071 234 5678"
+      />
+
       <ConfirmDialog 
         isOpen={!!deleteConfirmId}
-        title="Delete Order"
-        message="Are you sure you want to delete this order? This action cannot be undone."
-        confirmText="Delete"
-        cancelText="Cancel"
+        title="Cancel Order"
+        message="Are you sure you want to cancel this order? This action cannot be undone."
+        confirmText="Cancel Order"
+        cancelText="Close"
         type="danger"
         onConfirm={confirmDelete}
         onCancel={() => setDeleteConfirmId(null)}

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
-import { Search, Bell, ChevronDown, X } from 'lucide-react';
+import { Search, Bell, ChevronDown, X, Globe, Menu } from 'lucide-react';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { useAuthStore } from '@/lib/auth-store';
 import Link from 'next/link';
@@ -28,10 +28,24 @@ const pageTitles: Record<string, string> = {
   '/employee/barcode-generator': 'Barcode Generator',
 };
 
-export default function EmployeeTopbar({ collapsed, onToggle }: { collapsed?: boolean; onToggle?: () => void } = {}) {
+export default function EmployeeTopbar({ collapsed, onToggle, onMobileMenuToggle }: { collapsed?: boolean; onToggle?: () => void; onMobileMenuToggle?: () => void } = {}) {
   const pathname = usePathname();
   const { user, logout } = useAuthStore();
+  const userPlan = user?.tenant?.plan || 'FREE';
   const [searchOpen, setSearchOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const profileRef = useRef<HTMLDivElement>(null);
+
+  // Close profile dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+        setProfileOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
   
   // Auto-hide Topbar logic
   const [isVisible, setIsVisible] = useState(true);
@@ -95,10 +109,19 @@ export default function EmployeeTopbar({ collapsed, onToggle }: { collapsed?: bo
         <div className="flex items-center justify-between px-6 lg:px-8 h-16 relative">
         {/* Left: Title + Breadcrumb */}
         <div className="min-w-0">
-          <div className="flex items-center">
+          <div className="flex items-center gap-3">
+            {onMobileMenuToggle && (
+              <button 
+                onClick={onMobileMenuToggle} 
+                className="p-1.5 text-gray-500 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg hidden transition-colors"
+                aria-label="Open mobile menu"
+              >
+                <Menu className="w-5 h-5" />
+              </button>
+            )}
             <h1 className="text-xl font-black text-gray-900 dark:text-white truncate">{title}</h1>
           </div>
-          <nav className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-slate-500 mt-0.5">
+          <nav className="hidden md:flex items-center gap-1.5 text-xs text-gray-400 dark:text-slate-500 mt-0.5">
             <Link href="/employee/dashboard" className="hover:text-blue-600 transition-colors">Home</Link>
             {breadcrumbs.map((crumb) => (
               <span key={crumb.href} className="flex items-center gap-1.5">
@@ -113,8 +136,10 @@ export default function EmployeeTopbar({ collapsed, onToggle }: { collapsed?: bo
 
         {/* Right: Actions */}
         <div className="flex items-center gap-4">
-          <SyncStatus />
-          <NetworkStatus />
+          {userPlan !== 'STARTUP' && userPlan !== 'FREE' && <SyncStatus />}
+          <div className="hidden md:block">
+            <NetworkStatus />
+          </div>
           
           {/* Search */}
           <button
@@ -171,25 +196,47 @@ export default function EmployeeTopbar({ collapsed, onToggle }: { collapsed?: bo
           </div>
 
           {/* Theme Toggle */}
-          <ThemeToggle />
+          <div className="hidden md:flex">
+            <ThemeToggle />
+          </div>
+
+          {/* Go to Website (Pro/Enterprise only) */}
+          {['pro', 'enterprise'].includes(user?.tenant?.plan?.toLowerCase() || '') && (
+            <a
+              href={`/s/${user?.tenant?.subdomain || 'demo'}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-2 ml-1 text-gray-400 hover:text-blue-600 transition-colors rounded-full hover:bg-blue-50 dark:hover:bg-blue-900/20 flex items-center justify-center"
+              title="View Online Store"
+            >
+              <Globe className="w-5 h-5" />
+            </a>
+          )}
 
           {/* User Avatar Dropdown */}
-          <div className="relative group ml-1">
-            <button className="flex items-center gap-2 pl-2 border-l border-gray-200 dark:border-slate-700">
+          <div className="relative ml-1" ref={profileRef}>
+            <button 
+              onClick={() => setProfileOpen(!profileOpen)}
+              className="flex items-center gap-2 pl-2 border-l border-gray-200 dark:border-slate-700"
+            >
               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-blue-500 flex items-center justify-center text-white text-sm font-bold shadow-sm">
                 {user?.name?.[0]?.toUpperCase() || 'J'}
               </div>
               <ChevronDown className="w-3.5 h-3.5 text-gray-400 hidden sm:block" />
             </button>
-            <div className="absolute right-0 mt-2 w-52 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-gray-100 dark:border-slate-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+            <div className={`absolute right-0 mt-2 w-52 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-gray-100 dark:border-slate-700 transition-all duration-200 z-50 ${profileOpen ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible -translate-y-2'}`}>
               <div className="p-3 border-b border-gray-100 dark:border-slate-700">
                 <p className="text-sm font-bold text-gray-900 dark:text-white">{user?.name || 'Store Owner'}</p>
                 <p className="text-[10px] text-gray-500 dark:text-slate-400">{user?.email || 'admin@cmart.com'}</p>
               </div>
               <div className="p-1">
-                <Link href="/employee/settings/personal" className="block px-3 py-2 text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700/50 rounded-lg transition-colors">Personal Profile</Link>
-                <Link href="/employee/settings/profile" className="block px-3 py-2 text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700/50 rounded-lg transition-colors">Store Profile</Link>
-                <Link href="/employee/settings/security" className="block px-3 py-2 text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700/50 rounded-lg transition-colors">Security Settings</Link>
+                <div className="md:hidden px-3 py-2 border-b border-gray-100 dark:border-slate-700 flex justify-between items-center mb-1">
+                  <span className="text-sm text-gray-700 dark:text-slate-300">Theme</span>
+                  <ThemeToggle />
+                </div>
+                <Link href="/employee/settings/personal" onClick={() => setProfileOpen(false)} className="block px-3 py-2 text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700/50 rounded-lg transition-colors">Personal Profile</Link>
+                <Link href="/employee/settings/profile" onClick={() => setProfileOpen(false)} className="block px-3 py-2 text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700/50 rounded-lg transition-colors">Store Profile</Link>
+                <Link href="/employee/settings/security" onClick={() => setProfileOpen(false)} className="block px-3 py-2 text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700/50 rounded-lg transition-colors">Security Settings</Link>
               </div>
               <div className="p-1 border-t border-gray-100 dark:border-slate-700">
                 <button onClick={() => { logout(); window.location.href = '/login'; }} className="w-full text-left px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">Sign Out</button>

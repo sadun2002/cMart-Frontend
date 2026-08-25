@@ -28,7 +28,7 @@ export interface Tenant {
   businessName: string;
   subdomain: string;
   customDomain?: string;
-  plan: 'FREE' | 'PRO' | 'ENTERPRISE';
+  plan: 'STARTUP' | 'PRO' | 'ENTERPRISE';
   active: boolean;
   suspended: boolean;
   logoUrl?: string;

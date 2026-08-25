@@ -234,10 +234,10 @@ export function ComponentPreview({ comp, isEnabled, layout, isDashboardView = fa
       const isGauge = comp.id.includes('gauge');
 
       return (
-        <div className={`bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 shadow-sm p-6 w-full text-left flex flex-col h-[380px] justify-between ${dim}`}>
-          <div className="flex items-center justify-between mb-4 flex-shrink-0">
-            <h2 className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2">
-              <CompIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+        <div className={`bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 shadow-sm p-4 md:p-6 w-full text-left flex flex-col h-[380px] justify-between ${dim}`}>
+          <div className="flex items-center justify-between mb-4 md:mb-5 flex-shrink-0">
+            <h2 className="text-sm md:text-base font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              <CompIcon className="w-4 h-4 md:w-5 md:h-5 text-blue-600 dark:text-blue-400" />
               {comp.label}
             </h2>
             {!isDashboardView && <span className="text-[10px] text-gray-400 dark:text-slate-500 border border-gray-100 dark:border-slate-800 px-2.5 py-1 rounded-lg bg-gray-50 dark:bg-slate-800">Mock Data</span>}
@@ -336,10 +336,10 @@ export function ComponentPreview({ comp, isEnabled, layout, isDashboardView = fa
         'bg-orange-700 text-white'
       ];
       return (
-        <div className={`bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 shadow-sm p-6 w-full text-left flex flex-col h-[380px] justify-between ${dim}`}>
+        <div className={`bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 shadow-sm p-4 md:p-6 w-full text-left flex flex-col h-[380px] justify-between ${dim}`}>
           <div>
-            <h2 className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2 mb-5">
-              <CompIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+            <h2 className="text-sm md:text-base font-bold text-gray-900 dark:text-white flex items-center gap-2 mb-4 md:mb-5">
+              <CompIcon className="w-4 h-4 md:w-5 md:h-5 text-blue-600 dark:text-blue-400" />
               {comp.label}
             </h2>
             <div className="space-y-4">
@@ -370,11 +370,11 @@ export function ComponentPreview({ comp, isEnabled, layout, isDashboardView = fa
     case 'alerts': {
       const alerts = overrideData || ALERT_ITEMS[comp.id] || [];
       return (
-        <div className={`bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 shadow-sm p-6 w-full text-left flex flex-col h-[380px] justify-between ${dim}`}>
+        <div className={`bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 shadow-sm p-4 md:p-6 w-full text-left flex flex-col h-[380px] justify-between ${dim}`}>
           <div>
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                <CompIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+            <div className="flex items-center justify-between mb-4 md:mb-5">
+              <h2 className="text-sm md:text-base font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <CompIcon className="w-4 h-4 md:w-5 md:h-5 text-blue-600 dark:text-blue-400" />
                 {comp.label}
               </h2>
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400">{alerts.length} items</span>
@@ -411,8 +411,8 @@ export function ComponentPreview({ comp, isEnabled, layout, isDashboardView = fa
       return (
         <div className={`bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 shadow-sm p-6 w-full text-left flex flex-col h-[380px] justify-between ${dim}`}>
           <div>
-            <h2 className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2 mb-5">
-              <CompIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+            <h2 className="text-sm md:text-base font-bold text-gray-900 dark:text-white flex items-center gap-2 mb-4 md:mb-5">
+              <CompIcon className="w-4 h-4 md:w-5 md:h-5 text-blue-600 dark:text-blue-400" />
               {comp.label}
             </h2>
             <div className="relative pl-5 space-y-4 before:absolute before:left-[7px] before:top-2 before:bottom-2 before:w-px before:bg-gray-200 dark:before:bg-slate-700">
@@ -476,8 +476,8 @@ export function ComponentPreview({ comp, isEnabled, layout, isDashboardView = fa
       return (
         <div className={`bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 shadow-sm p-6 w-full text-left flex flex-col h-[380px] justify-between ${dim}`}>
           <div>
-            <h2 className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2 mb-5">
-              <CompIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+            <h2 className="text-sm md:text-base font-bold text-gray-900 dark:text-white flex items-center gap-2 mb-4 md:mb-5">
+              <CompIcon className="w-4 h-4 md:w-5 md:h-5 text-blue-600 dark:text-blue-400" />
               {comp.label}
             </h2>
             <div className="overflow-x-auto">

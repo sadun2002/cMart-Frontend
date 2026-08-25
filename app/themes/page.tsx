@@ -11,6 +11,7 @@ import {
   Store,
   LayoutTemplate,
   ArrowRight,
+  ChevronRight,
   Check
 } from 'lucide-react';
 import { COMPANY_NAME } from '@/lib/constants';
@@ -48,6 +49,7 @@ export default function PortfolioPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isHeaderVisible, setIsHeaderVisible] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [isScrolledPastSearch, setIsScrolledPastSearch] = useState(false);
   const lastScrollY = useRef(0);
 
   useEffect(() => {
@@ -58,8 +60,8 @@ export default function PortfolioPage() {
         const data = res as any;
         const themeList = (data?.data || data || []) as Theme[];
         setThemes(themeList);
-      } catch {
-        console.error('Failed to load themes');
+      } catch (err) {
+        console.warn('Failed to load themes from API:', err);
       } finally {
         setLoading(false);
       }
@@ -72,11 +74,21 @@ export default function PortfolioPage() {
     lastScrollY.current = window.scrollY;
     const controlNavbar = () => {
       const currentScrollY = window.scrollY;
+      
+      // Control header visibility (scroll up/down)
       if (currentScrollY > lastScrollY.current && currentScrollY > 100) {
         setIsHeaderVisible(false);
       } else {
         setIsHeaderVisible(true);
       }
+      
+      // Control search icon visibility
+      if (currentScrollY > 400) {
+        setIsScrolledPastSearch(true);
+      } else {
+        setIsScrolledPastSearch(false);
+      }
+      
       lastScrollY.current = currentScrollY;
     };
     window.addEventListener("scroll", controlNavbar, { passive: true });
@@ -139,6 +151,7 @@ export default function PortfolioPage() {
               <Search className="h-5 w-5 text-gray-400 dark:text-slate-500" />
             </div>
             <input
+              id="theme-search-input"
               type="text"
               placeholder="Search themes by name or category..."
               value={searchQuery}
@@ -174,20 +187,39 @@ export default function PortfolioPage() {
         <div className="max-w-7xl mx-auto px-6 py-3">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
             {/* Pricing Toggle */}
-            <div className="flex items-center gap-2 bg-gray-100 dark:bg-slate-800 rounded-full p-1 shrink-0">
-              {PRICING.map(price => (
-                <button
-                  key={price}
-                  onClick={() => setActivePricing(price)}
-                  className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-all ${
-                    activePricing === price 
-                      ? 'bg-white dark:bg-slate-900 text-gray-900 dark:text-white shadow-sm' 
-                      : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white'
-                  }`}
+            {/* Left side: Pricing Toggle + Search Icon */}
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 bg-gray-100 dark:bg-slate-800 rounded-full p-1 shrink-0">
+                {PRICING.map(price => (
+                  <button
+                    key={price}
+                    onClick={() => setActivePricing(price)}
+                    className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-all ${
+                      activePricing === price 
+                        ? 'bg-white dark:bg-slate-900 text-gray-900 dark:text-white shadow-sm' 
+                        : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white'
+                    }`}
+                  >
+                    {price}
+                  </button>
+                ))}
+              </div>
+              
+              {isScrolledPastSearch && (
+                <button 
+                  onClick={() => {
+                    const input = document.getElementById('theme-search-input');
+                    if (input) {
+                      input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                      setTimeout(() => input.focus(), 500);
+                    }
+                  }}
+                  className="w-9 h-9 rounded-full bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 flex items-center justify-center text-blue-600 dark:text-blue-400 transition-colors shrink-0 shadow-sm"
+                  title="Scroll to search"
                 >
-                  {price}
+                  <Search className="w-4 h-4" />
                 </button>
-              ))}
+              )}
             </div>
           </div>
         </div>
@@ -207,14 +239,27 @@ export default function PortfolioPage() {
             <div className="bg-white dark:bg-slate-900 rounded-3xl border border-gray-100 dark:border-slate-800 overflow-hidden shadow-xl shadow-blue-900/5 dark:shadow-none flex flex-col md:flex-row group transition-all hover:shadow-2xl hover:shadow-blue-900/10 dark:hover:border-slate-700">
               <div className="w-full md:w-3/5 aspect-video md:aspect-auto relative overflow-hidden min-h-[240px]">
                 {featuredTheme.previewUrl ? (
-                  <img src={featuredTheme.previewUrl} alt={featuredTheme.name} className="w-full h-full object-cover" />
+                  <div className="w-full h-full relative overflow-hidden bg-slate-50">
+                    <div className="absolute top-0 left-0 origin-top-left pointer-events-none" style={{ width: '200%', height: '200%', transform: 'scale(0.5)' }}>
+                      <iframe
+                        src={featuredTheme.previewUrl}
+                        className="w-full h-full border-0"
+                        scrolling="no"
+                        tabIndex={-1}
+                        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                      />
+                    </div>
+                  </div>
                 ) : (
                   <div className={`w-full h-full bg-gradient-to-br ${getGradient(featuredTheme.id)} flex items-center justify-center`}>
                     <span className="text-white font-black text-2xl">{featuredTheme.name}</span>
                   </div>
                 )}
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-500 flex items-center justify-center">
-                  <button className="opacity-0 group-hover:opacity-100 transform translate-y-4 group-hover:translate-y-0 transition-all duration-300 bg-white text-gray-900 font-bold px-6 py-3 rounded-xl shadow-xl flex items-center gap-2 text-sm">
+                  <button 
+                    onClick={() => featuredTheme.previewUrl && window.open(featuredTheme.previewUrl, '_blank')}
+                    className="opacity-0 group-hover:opacity-100 transform translate-y-4 group-hover:translate-y-0 transition-all duration-300 bg-white text-gray-900 font-bold px-6 py-3 rounded-xl shadow-xl flex items-center gap-2 text-sm"
+                  >
                     <Eye className="w-4 h-4" /> Live Preview
                   </button>
                 </div>
@@ -234,10 +279,13 @@ export default function PortfolioPage() {
                   {featuredTheme.description || 'A professionally designed theme for your online store.'}
                 </p>
                 <div className="flex flex-wrap gap-3">
-                  <button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl transition-colors shadow-lg shadow-blue-600/20 dark:shadow-none flex items-center justify-center gap-2 text-sm">
-                    <ShoppingBag className="w-4 h-4" /> Get This Theme
+                  <button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-xl transition-colors shadow-lg shadow-blue-600/20 dark:shadow-none flex items-center justify-center gap-2 text-sm">
+                    <ShoppingBag className="w-4 h-4" /> Get Theme
                   </button>
-                  <button className="bg-gray-50 dark:bg-slate-800 hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-900 dark:text-white border border-gray-200 dark:border-slate-700 font-bold py-3 px-6 rounded-xl transition-colors text-sm">
+                  <button 
+                    onClick={() => featuredTheme.previewUrl && window.open(featuredTheme.previewUrl, '_blank')}
+                    className="flex-1 bg-gray-50 dark:bg-slate-800 hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-900 dark:text-white border border-gray-200 dark:border-slate-700 font-bold py-2 px-6 rounded-xl transition-colors text-sm"
+                  >
                     Preview
                   </button>
                 </div>
@@ -272,8 +320,8 @@ export default function PortfolioPage() {
             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">No themes found</h3>
             <p className="text-gray-500 dark:text-slate-400 mb-6">Try adjusting your filters or search query.</p>
             <button 
-              onClick={() => { setSearchQuery(''); setActiveCategory('All'); setActivePricing('All'); }}
-              className="text-blue-600 dark:text-blue-400 font-bold hover:text-blue-700 dark:hover:text-blue-300 transition-colors underline underline-offset-2"
+              onClick={() => { setSearchQuery(''); setActivePricing('All'); }}
+              className="text-blue-600 dark:text-blue-400 font-bold hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
             >
               Clear all filters
             </button>
@@ -302,10 +350,10 @@ export default function PortfolioPage() {
             ))}
           </div>
           <Link
-            href="/contact"
+            href="/contact?type=custom_theme"
             className="inline-flex items-center gap-2 bg-white text-blue-600 hover:bg-blue-50 font-bold py-4 px-8 rounded-xl transition-all hover:scale-105 shadow-xl"
           >
-            Request Custom Theme <ArrowRight className="w-5 h-5" />
+            Request Custom Theme <ChevronRight className="w-5 h-5" />
           </Link>
         </div>
       </section>

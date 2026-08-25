@@ -1,15 +1,38 @@
 "use client";
+import { AuraPolicies } from "@/components/storefront/themes/aura/pages/AuraPolicies";
+import { MarketPolicies } from "@/components/storefront/themes/market/pages/MarketPolicies";
+
+import { VerdantTerms } from "@/components/storefront/themes/verdant/pages/VerdantPolicies";
 
 import { use } from "react";
 import { MinimalistHeader } from "@/components/storefront/themes/minimalist/MinimalistHeader";
 import { MinimalistFooter } from "@/components/storefront/themes/minimalist/MinimalistFooter";
 import { useThemeCustomizations, defaultThemeCustomizations } from "@/components/storefront/theme-provider";
 
-export default function TermsPage(props: { params: Promise<{ domain: string }> }) {
+
+export default function TermsPage(props: { 
+  params: Promise<{ domain: string }>;
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   const params = use(props.params);
+  const searchParams = props.searchParams ? use(props.searchParams) : {};
   const storeName = params.domain.replace("-", " ").toUpperCase() || "My Store";
+  const theme = searchParams?.theme as string;
+
   const { customizations } = useThemeCustomizations();
   const content = customizations.pageData?.terms?.content || defaultThemeCustomizations.pageData.terms.content;
+
+
+  if (theme === 'market') {
+    return <MarketPolicies storeName={storeName} domain={params.domain} />;
+  }
+  if (theme === 'aura') {
+    return <AuraPolicies storeName={storeName} domain={params.domain} title="Terms of Service" lastUpdated="March 2027" children={<><h3>1. General Terms</h3><p>By accessing our website, you agree to these terms.</p></>} />;
+  }
+
+  if (theme === 'verdant') {
+    return <VerdantTerms storeName={storeName} domain={params.domain} />;
+  }
 
   return (
     <div className="flex flex-col min-h-screen">

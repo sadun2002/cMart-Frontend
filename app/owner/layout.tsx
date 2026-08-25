@@ -3,18 +3,27 @@
 import { useState, useEffect } from 'react';
 import OwnerSidebar from '@/components/layout/OwnerSidebar';
 import OwnerTopbar from '@/components/layout/OwnerTopbar';
+import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 import { useAuthStore } from '@/lib/auth-store';
 import { useRouter } from 'next/navigation';
 
 export default function OwnerLayout({ children }: { children: React.ReactNode }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { user, isLoading } = useAuthStore();
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading && user) {
-      if (user.role === 'STORE_OWNER' && user.tenant?.active === false) {
+    if (!isLoading) {
+      if (!user) {
+        router.replace('/login');
+      } else if (user.role === 'STORE_OWNER' && user.tenant?.active === false) {
         router.replace('/pending');
+      } else {
+        const isDesktop = typeof window !== 'undefined' && ('__TAURI__' in window || '__TAURI_INTERNALS__' in window);
+        if (user.tenant?.plan === 'STARTUP' && !isDesktop) {
+          router.replace('/offline-access');
+        }
       }
     }
   }, [user, isLoading, router]);
@@ -43,12 +52,34 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
     return null; // Don't render dashboard while redirecting
   }
 
+  const isTauri = typeof window !== 'undefined' && ('__TAURI__' in window || '__TAURI_INTERNALS__' in window);
+  if (user?.tenant?.plan === 'STARTUP' && !isTauri) {
+    return null; // Prevent flash while redirecting to offline-access
+  }
+
   return (
-    <div className="flex h-screen bg-[#F4F7F6] dark:bg-slate-900 overflow-hidden">
-      <OwnerSidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed((prev) => !prev)} />
+    <div className="flex h-screen bg-[#F4F7F6] dark:bg-slate-900 overflow-hidden relative">
+      {/* Mobile overlay */}
+      {mobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 md:hidden" 
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+      
+      {/* Sidebar wrapper */}
+      <div className={`hidden md:block fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <OwnerSidebar 
+          collapsed={sidebarCollapsed} 
+          onToggle={() => setSidebarCollapsed((prev) => !prev)} 
+          isMobileOpen={mobileMenuOpen}
+          onMobileClose={() => setMobileMenuOpen(false)}
+        />
+      </div>
+      
       <div className="flex-1 flex flex-col overflow-hidden">
-        <OwnerTopbar />
-        <main className="flex-1 overflow-auto relative z-10 flex flex-col min-h-0">
+        <OwnerTopbar onMobileMenuToggle={() => setMobileMenuOpen(true)} />
+        <main className="flex-1 overflow-auto relative z-10 flex flex-col min-h-0 pb-16 md:pb-0">
           <div className="fixed inset-0 pointer-events-none z-0">
             <div className="absolute top-20 right-0 w-72 h-72 bg-blue-500/5 rounded-full blur-[100px]" />
             <div className="absolute bottom-20 left-0 w-64 h-64 bg-emerald-400/5 rounded-full blur-[100px]" />
@@ -58,6 +89,8 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
           </div>
         </main>
       </div>
+      
+      <MobileBottomNav basePath="/owner" onMenuClick={() => setMobileMenuOpen(true)} />
     </div>
   );
 }

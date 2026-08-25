@@ -1,4 +1,8 @@
 "use client";
+import { AuraCart } from "@/components/storefront/themes/aura/pages/AuraCart";
+import { MarketCart } from "@/components/storefront/themes/market/pages/MarketCart";
+
+import { VerdantCart } from "@/components/storefront/themes/verdant/pages/VerdantCart";
 
 import { MinimalistHeader } from "@/components/storefront/themes/minimalist/MinimalistHeader";
 import { MinimalistFooter } from "@/components/storefront/themes/minimalist/MinimalistFooter";
@@ -9,9 +13,15 @@ import { use } from "react";
 import { useStorefrontCart } from "@/store/useStorefrontCart";
 import { useEffect, useState } from "react";
 
-export default function StorefrontCartPage(props: { params: Promise<{ domain: string }> }) {
+
+export default function StorefrontCartPage(props: { 
+  params: Promise<{ domain: string }>;
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   const params = use(props.params);
+  const searchParams = props.searchParams ? use(props.searchParams) : {};
   const storeName = params.domain.replace("-", " ").toUpperCase() || "My Store";
+  const theme = searchParams?.theme as string;
 
   const { items, updateQuantity, removeItem, getTotal } = useStorefrontCart();
   const [mounted, setMounted] = useState(false);
@@ -23,6 +33,18 @@ export default function StorefrontCartPage(props: { params: Promise<{ domain: st
   const subtotal = mounted ? getTotal() : 0;
   const tax = subtotal * 0.05; // 5% dummy tax
   const total = subtotal + tax;
+
+
+  if (theme === 'market') {
+    return <MarketCart storeName={storeName} domain={params.domain} />;
+  }
+  if (theme === 'aura') {
+    return <AuraCart storeName={storeName} domain={params.domain} />;
+  }
+
+  if (theme === 'verdant') {
+    return <VerdantCart storeName={storeName} domain={params.domain} />;
+  }
 
   return (
     <div className="flex flex-col min-h-screen">

@@ -11,24 +11,26 @@ import {
   CreditCard, Settings as SettingsIcon, ChevronDown, Store, User,
   Database, Bell, DollarSign, Printer, Lock, AlertTriangle,
   PanelLeftClose, PanelLeftOpen, SlidersHorizontal, Barcode, Shield, CalendarDays, Banknote,
-  Palette, FileText, Layout, Search, Image, PieChart
+  Palette, FileText, Layout, Search, Image, PieChart, Building2
 } from 'lucide-react';
 
 interface EmployeeSidebarProps {
   collapsed: boolean;
   onToggle: () => void;
+  isMobileOpen?: boolean;
+  onMobileClose?: () => void;
 }
 
 const mainNavItems = [
   { href: '/employee/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/employee/pos', label: 'POS', icon: ShoppingCart },
+  { href: '/employee/pos', label: 'POS', icon: ShoppingCart, hideOnMobile: true },
   { href: '/employee/products', label: 'Products', icon: Package },
-  { href: '/employee/barcode-generator', label: 'Barcode Generator', icon: Barcode },
+  { href: '/employee/barcode-generator', label: 'Barcode Generator', icon: Barcode, hideOnMobile: true },
   { href: '/employee/categories', label: 'Categories', icon: Tag },
   { href: '/employee/inventory', label: 'Inventory', icon: Warehouse },
   { href: '/employee/suppliers', label: 'Suppliers', icon: Truck, tier: 'PRO' },
   { href: '/employee/sales', label: 'Sales', icon: Receipt },
-  { href: '/employee/expenses', label: 'Expenses', icon: Banknote, tier: 'PRO' },
+  { href: '/employee/expenses', label: 'Expenses', icon: Banknote },
   { href: '/employee/customers', label: 'Customers', icon: Users, tier: 'PRO' },
   { href: '/employee/attendance', label: 'Attendance', icon: Clock, tier: 'PRO' },
   { href: '/employee/subscription', label: 'Subscription', icon: CreditCard },
@@ -39,11 +41,11 @@ const reportsSubItems = [
   { href: '/employee/reports/inventory', label: 'Inventory', icon: Warehouse },
   { href: '/employee/reports/purchase', label: 'Purchase', icon: ShoppingCart },
   { href: '/employee/reports/customers', label: 'Customers', icon: Users, tier: 'PRO' },
-  { href: '/employee/reports/suppliers', label: 'Suppliers', icon: Truck },
+  { href: '/employee/reports/suppliers', label: 'Suppliers', icon: Truck, tier: 'PRO' },
   { href: '/employee/reports/employees', label: 'Employees', icon: UserCheck, tier: 'PRO' },
   { href: '/employee/reports/attendance', label: 'Attendance', icon: Clock, tier: 'PRO' },
   { href: '/employee/reports/online-store', label: 'Online Store', icon: Globe, tier: 'PRO' },
-  { href: '/employee/reports/financial', label: 'Financial', icon: Banknote, tier: 'PRO' },
+  { href: '/employee/reports/financial', label: 'Financial', icon: Banknote },
   { href: '/employee/reports/analytics', label: 'Business Analytics', icon: PieChart, tier: 'PRO' },
 ];
 
@@ -79,7 +81,7 @@ const settingsSubItems = [
   { href: '/employee/settings/danger', label: 'Danger Zone', icon: AlertTriangle, danger: true },
 ];
 
-export default function EmployeeSidebar({ collapsed, onToggle }: EmployeeSidebarProps) {
+export default function EmployeeSidebar({ collapsed: desktopCollapsed, onToggle, isMobileOpen, onMobileClose }: EmployeeSidebarProps) {
   const pathname = usePathname();
   const { user } = useAuthStore();
   const userPlan = user?.tenant?.plan || 'FREE';
@@ -89,10 +91,10 @@ export default function EmployeeSidebar({ collapsed, onToggle }: EmployeeSidebar
   const [employeesOpen, setEmployeesOpen] = useState(false);
   const [onlineStoreOpen, setOnlineStoreOpen] = useState(false);
   const [reportsOpen, setReportsOpen] = useState(false);
-  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const collapseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const onToggleRef = useRef(onToggle);
   const isHoveringRef = useRef(false);
+
+  const collapsed = desktopCollapsed && !isMobileOpen;
 
   const handleNavigation = (e: React.MouseEvent, item: any) => {
     if (item.tier === 'PRO' && userPlan !== 'PRO' && userPlan !== 'ENTERPRISE') {
@@ -118,69 +120,24 @@ export default function EmployeeSidebar({ collapsed, onToggle }: EmployeeSidebar
     onToggleRef.current = onToggle;
   }, [onToggle]);
 
-  const clearCollapseTimeout = () => {
-    if (collapseTimeoutRef.current) {
-      clearTimeout(collapseTimeoutRef.current);
-      collapseTimeoutRef.current = null;
-    }
-  };
-
-  const startCollapseTimeout = () => {
-    clearCollapseTimeout();
-    collapseTimeoutRef.current = setTimeout(() => {
-      onToggleRef.current();
-    }, 5000);
-  };
-
-  useEffect(() => {
-    if (!collapsed) {
-      if (!isHoveringRef.current) {
-        startCollapseTimeout();
-      } else {
-        clearCollapseTimeout();
-      }
-    } else {
-      clearCollapseTimeout();
-    }
-    
-    return () => {
-      clearCollapseTimeout();
-    };
-  }, [collapsed]);
-
-  useEffect(() => {
-    return () => {
-      if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
-      clearCollapseTimeout();
-    };
-  }, []);
-
   const handleMouseEnter = () => {
     isHoveringRef.current = true;
     if (collapsed) {
-      hoverTimeoutRef.current = setTimeout(() => {
-        onToggleRef.current();
-      }, 2000);
-    } else {
-      clearCollapseTimeout();
+      onToggleRef.current();
     }
   };
 
   const handleMouseLeave = () => {
     isHoveringRef.current = false;
-    if (hoverTimeoutRef.current) {
-      clearTimeout(hoverTimeoutRef.current);
-      hoverTimeoutRef.current = null;
-    }
-    if (!collapsed) {
-      startCollapseTimeout();
+    if (!collapsed && !isMobileOpen) {
+      onToggleRef.current();
     }
   };
 
   return (
     <aside 
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
+      onMouseEnter={isMobileOpen ? undefined : handleMouseEnter}
+      onMouseLeave={isMobileOpen ? undefined : handleMouseLeave}
       className={`flex-shrink-0 h-screen flex flex-col bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-slate-800 transition-all duration-300 z-50 ${collapsed ? 'w-[68px]' : 'w-[260px]'}`}
     >
       {/* Logo */}
@@ -191,12 +148,18 @@ export default function EmployeeSidebar({ collapsed, onToggle }: EmployeeSidebar
               <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-500 rounded-lg flex items-center justify-center">
                 <span className="text-white font-black text-base">c</span>
               </div>
-              <div>
+              <div className="flex items-baseline gap-1">
                 <span className="text-gray-900 dark:text-white font-black text-2xl tracking-tight block leading-tight">cMart</span>
               </div>
             </Link>
             <button
-              onClick={onToggle}
+              onClick={() => {
+                if (isMobileOpen && onMobileClose) {
+                  onMobileClose();
+                } else {
+                  onToggle();
+                }
+              }}
               className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-slate-300 transition-colors flex-shrink-0"
               aria-label="Collapse sidebar"
             >
@@ -224,7 +187,7 @@ export default function EmployeeSidebar({ collapsed, onToggle }: EmployeeSidebar
               href={item.href}
               onClick={(e) => handleNavigation(e, item)}
               title={collapsed ? item.label : undefined}
-              className={`flex items-center gap-3 text-sm transition-colors duration-150 ${
+              className={`${(item as any).hideOnMobile ? 'hidden lg:flex' : 'flex'} items-center gap-3 text-sm transition-colors duration-150 ${
                 isActive
                   ? 'text-blue-600 dark:text-blue-400 font-medium'
                   : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300'
@@ -232,7 +195,7 @@ export default function EmployeeSidebar({ collapsed, onToggle }: EmployeeSidebar
             >
               <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-blue-600 dark:text-blue-400' : ''}`} />
               {!collapsed && <span className="truncate">{item.label}</span>}
-              {!collapsed && item.tier === 'PRO' && userPlan === 'FREE' && <Lock className="w-4 h-4 text-slate-400 ml-auto" />}
+              {!collapsed && item.tier === 'PRO' && (userPlan === 'FREE' || userPlan === 'STARTUP') && <Lock className="w-4 h-4 text-slate-400 ml-auto" />}
             </Link>
           );
         })}
@@ -297,7 +260,7 @@ export default function EmployeeSidebar({ collapsed, onToggle }: EmployeeSidebar
         <div>
           <button
             onClick={(e) => {
-              if (userPlan === 'FREE') {
+              if (userPlan === 'FREE' || userPlan === 'STARTUP') {
                 e.preventDefault();
                 setUpgradeFeature('Online Store');
                 setUpgradeModalOpen(true);
@@ -321,7 +284,7 @@ export default function EmployeeSidebar({ collapsed, onToggle }: EmployeeSidebar
             {!collapsed && (
               <>
                 <span className="flex-1 text-left truncate">Online Store</span>
-                 {userPlan === 'FREE' ? (
+                 {(userPlan === 'FREE' || userPlan === 'STARTUP') ? (
                    <Lock className="w-4 h-4 text-slate-400" />
                  ) : (
                    <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${onlineStoreOpen ? 'rotate-180' : ''}`} />
@@ -363,7 +326,7 @@ export default function EmployeeSidebar({ collapsed, onToggle }: EmployeeSidebar
         <div>
           <button
             onClick={(e) => {
-              if (userPlan === 'FREE') {
+              if (userPlan === 'FREE' || userPlan === 'STARTUP') {
                 e.preventDefault();
                 setUpgradeFeature('Employees');
                 setUpgradeModalOpen(true);
@@ -387,7 +350,7 @@ export default function EmployeeSidebar({ collapsed, onToggle }: EmployeeSidebar
             {!collapsed && (
               <>
                 <span className="flex-1 text-left truncate">Employees</span>
-                 {userPlan === 'FREE' ? (
+                 {(userPlan === 'FREE' || userPlan === 'STARTUP') ? (
                    <Lock className="w-4 h-4 text-slate-400" />
                  ) : (
                    <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${employeesOpen ? 'rotate-180' : ''}`} />

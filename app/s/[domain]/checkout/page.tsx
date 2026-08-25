@@ -1,4 +1,8 @@
 "use client";
+import { AuraCheckout } from "@/components/storefront/themes/aura/pages/AuraCheckout";
+import { MarketCheckout } from "@/components/storefront/themes/market/pages/MarketCheckout";
+
+import { VerdantCheckout } from "@/components/storefront/themes/verdant/pages/VerdantCheckout";
 
 import { MinimalistHeader } from "@/components/storefront/themes/minimalist/MinimalistHeader";
 import { MinimalistFooter } from "@/components/storefront/themes/minimalist/MinimalistFooter";
@@ -11,6 +15,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useEffect, useState, useRef } from "react";
 import { CheckCircle } from "lucide-react";
+import { storefrontAPI } from "@/lib/api";
 
 const PROVINCES = [
   "Western Province",
@@ -24,24 +29,15 @@ const PROVINCES = [
   "Sabaragamuwa Province",
 ];
 
-// Dummy saved data (mirrors what account page stores in state)
-const DUMMY_SAVED_ADDRESS = {
-  name: "John Doe",
-  street: "123 Galle Road",
-  city: "Colombo 03",
-  province: "Western Province",
-  phone: "+94 77 123 4567",
-};
 
-const DUMMY_SAVED_CARD = {
-  brand: "Visa",
-  last4: "4242",
-  expiry: "12/28",
-};
-
-export default function StorefrontCheckoutPage(props: { params: Promise<{ domain: string }> }) {
+export default function StorefrontCheckoutPage(props: { 
+  params: Promise<{ domain: string }>;
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   const params = use(props.params);
+  const searchParams = props.searchParams ? use(props.searchParams) : {};
   const storeName = params.domain.replace("-", " ").toUpperCase() || "My Store";
+  const theme = searchParams?.theme as string;
   const router = useRouter();
 
   const { getTotal, clearCart, items } = useStorefrontCart();
@@ -52,7 +48,15 @@ export default function StorefrontCheckoutPage(props: { params: Promise<{ domain
   const [isSuccess, setIsSuccess] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<"cod" | "card">("cod");
 
-  // Delivery form state — pre-fill from saved address if logged in
+  // Fetched data
+  const [addresses, setAddresses] = useState<any[]>([]);
+  const [cards, setCards] = useState<any[]>([]);
+  
+  // UI states for changing selection
+  const [isChangingAddress, setIsChangingAddress] = useState(false);
+  const [isChangingCard, setIsChangingCard] = useState(false);
+
+  // Delivery form state
   const [delivery, setDelivery] = useState({
     fullName: "",
     email: "",
@@ -63,24 +67,49 @@ export default function StorefrontCheckoutPage(props: { params: Promise<{ domain
   });
 
   // Card form state
-  const [card, setCard] = useState({ name: "", number: "", expiry: "", cvc: "" });
+  const [card, setCard] = useState({ name: "", number: "", expiry: "", cvc: "", brand: "Visa" });
   const expiryRef = useRef<HTMLInputElement>(null);
   const cvcRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setMounted(true);
     if (isAuthenticated && user) {
-      // Auto-fill delivery from saved address
-      setDelivery({
-        fullName: DUMMY_SAVED_ADDRESS.name || "",
-        email: user.email,
-        phone: DUMMY_SAVED_ADDRESS.phone,
-        street: DUMMY_SAVED_ADDRESS.street,
-        city: DUMMY_SAVED_ADDRESS.city,
-        province: DUMMY_SAVED_ADDRESS.province,
+      Promise.all([
+        storefrontAPI.getAddresses().catch(() => ({ data: [] })),
+        storefrontAPI.getCards().catch(() => ({ data: [] }))
+      ]).then(([addrRes, cardRes]) => {
+        const fetchedAddresses = addrRes.data || [];
+        const fetchedCards = cardRes.data || [];
+        
+        setAddresses(fetchedAddresses);
+        setCards(fetchedCards);
+
+        const defAddr = fetchedAddresses.find((a: any) => a.isDefault) || fetchedAddresses[0];
+        if (defAddr) {
+          setDelivery({
+            fullName: defAddr.name || user.name || "",
+            email: user.email || "",
+            phone: defAddr.phone || "",
+            street: defAddr.street || "",
+            city: defAddr.city || "",
+            province: defAddr.country || "Western Province",
+          });
+        } else {
+          setDelivery(prev => ({ ...prev, email: user.email || "", fullName: user.name || "" }));
+        }
+
+        const defCard = fetchedCards.find((c: any) => c.isDefault) || fetchedCards[0];
+        if (defCard) {
+          setPaymentMethod("card");
+          setCard({
+            name: user.name || "",
+            number: `**** **** **** ${defCard.last4}`,
+            expiry: defCard.expiry,
+            cvc: "***",
+            brand: defCard.brand,
+          });
+        }
       });
-      // Auto-select card payment if they have a saved card
-      setPaymentMethod("card");
     }
   }, [isAuthenticated, user]);
 
@@ -88,7 +117,6 @@ export default function StorefrontCheckoutPage(props: { params: Promise<{ domain
   const tax = subtotal * 0.05;
   const total = subtotal + tax;
 
-  // Card number auto-format
   const handleCardNumber = (e: React.ChangeEvent<HTMLInputElement>) => {
     let val = e.target.value.replace(/\D/g, "");
     val = val.replace(/(.{4})/g, "$1 ").trim();
@@ -103,23 +131,142 @@ export default function StorefrontCheckoutPage(props: { params: Promise<{ domain
     if (val.length === 5) cvcRef.current?.focus();
   };
 
-  const handleCheckout = (e: React.FormEvent) => {
+  const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
     if (items.length === 0) {
       toast.error("Your cart is empty!");
       return;
     }
+    if (paymentMethod === "card" && !isChangingCard) {
+      if (!card.number.includes("*")) {
+        const rawNumber = card.number.replace(/\D/g, "");
+        if (rawNumber.length < 15) {
+          toast.error("Please enter a valid card number (at least 15 digits)");
+          return;
+        }
+        if (!/^(0[1-9]|1[0-2])\/[0-9]{2}$/.test(card.expiry)) {
+          toast.error("Please enter a valid expiry date (MM/YY)");
+          return;
+        }
+        const rawCvc = card.cvc.replace(/\D/g, "");
+        if (rawCvc.length < 3) {
+          toast.error("Please enter a valid CVC");
+          return;
+        }
+      }
+    }
+
     setIsProcessing(true);
-    setTimeout(() => {
+    
+    try {
+      const orderPayload = {
+        customerName: delivery.fullName,
+        customerEmail: delivery.email,
+        customerPhone: delivery.phone,
+        shippingAddress: delivery.street,
+        city: delivery.city,
+        paymentMethod: paymentMethod === "card" ? "CARD" : "CASH",
+        paymentStatus: "PENDING",
+        subtotal,
+        tax,
+        shipping: 0,
+        discount: 0,
+        total,
+        items: items.map(item => ({
+          productId: item.productId,
+          productName: item.name,
+          quantity: item.quantity,
+          price: item.price,
+          subtotal: item.price * item.quantity
+        }))
+      };
+
+      await storefrontAPI.createOrder(orderPayload);
+      
+      if (isAuthenticated && addresses.length === 0) {
+        try {
+          await storefrontAPI.addAddress({
+            type: "Home",
+            name: delivery.fullName,
+            phone: delivery.phone,
+            street: delivery.street,
+            city: delivery.city,
+            country: delivery.province,
+            isDefault: true
+          });
+        } catch (e) {
+          console.warn("Failed to auto-save address", e);
+        }
+      }
+
+      if (isAuthenticated && paymentMethod === "card" && cards.length === 0) {
+        try {
+          const rawNumber = card.number.replace(/\D/g, '');
+          const last4 = rawNumber.length > 0 ? rawNumber.slice(-4).padStart(4, '0') : "0000";
+          
+          let formattedExpiry = card.expiry;
+          if (!/^(0[1-9]|1[0-2])\/[0-9]{2}$/.test(formattedExpiry)) {
+            formattedExpiry = "12/26"; // Fallback for dummy tests
+          }
+
+          await storefrontAPI.addCard({
+            brand: card.brand || "Visa",
+            last4: last4,
+            expiry: formattedExpiry,
+            isDefault: true
+          });
+        } catch (e) {
+          console.warn("Failed to auto-save card", e);
+        }
+      }
+
       clearCart();
-      setIsProcessing(false);
       setIsSuccess(true);
-    }, 1800);
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to place order. Please try again.");
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
-  // Success screen
+  const applyAddress = (addr: any) => {
+    setDelivery({
+      fullName: addr.name || user?.name || "",
+      email: user?.email || "",
+      phone: addr.phone || "",
+      street: addr.street || "",
+      city: addr.city || "",
+      province: addr.country || "Western Province",
+    });
+    setIsChangingAddress(false);
+  };
+
+  const applyCard = (c: any) => {
+    setCard({
+      name: user?.name || "",
+      number: `**** **** **** ${c.last4}`,
+      expiry: c.expiry,
+      cvc: "***",
+      brand: c.brand,
+    });
+    setIsChangingCard(false);
+  };
+
   if (isSuccess) {
-    return (
+  
+  if (theme === 'market') {
+    return <MarketCheckout storeName={storeName} domain={params.domain} />;
+  }
+  if (theme === 'aura') {
+    return <AuraCheckout storeName={storeName} domain={params.domain} />;
+  }
+
+  if (theme === 'verdant') {
+    return <VerdantCheckout storeName={storeName} domain={params.domain} />;
+  }
+
+  return (
       <div className="flex flex-col min-h-screen">
         <MinimalistHeader storeName={storeName} domain={params.domain} />
         <main className="flex-grow bg-muted flex items-center justify-center py-12">
@@ -129,15 +276,23 @@ export default function StorefrontCheckoutPage(props: { params: Promise<{ domain
             </div>
             <h2 className="text-2xl font-bold text-foreground">Order Placed!</h2>
             <p className="mt-3 text-muted-foreground">
-              Thank you for your purchase. We'll send a confirmation to{" "}
-              <strong>{delivery.email || user?.email}</strong>.
+              Thank you for your purchase. We have sent a confirmation email to{" "}
+              <strong>{user?.email || delivery.email}</strong>.
             </p>
-            <Link
-              href={`/s/${params.domain}`}
-              className="mt-8 inline-block w-full py-3 px-6 text-sm font-medium text-primary-foreground bg-primary hover:opacity-90 rounded-md transition-colors"
-            >
-              Continue Shopping
-            </Link>
+            <div className="mt-8 flex flex-col gap-3">
+              <Link
+                href={`/s/${params.domain}`}
+                className="inline-block w-full py-3 px-6 text-sm font-medium text-primary-foreground bg-primary hover:opacity-90 rounded-md transition-colors"
+              >
+                Continue Shopping
+              </Link>
+              <Link
+                href={`/s/${params.domain}/account?tab=orders`}
+                className="inline-block w-full py-3 px-6 text-sm font-medium text-primary bg-muted border border-border hover:bg-secondary rounded-md transition-colors"
+              >
+                View Order History
+              </Link>
+            </div>
           </div>
         </main>
         <MinimalistFooter storeName={storeName} domain={params.domain} />
@@ -166,13 +321,45 @@ export default function StorefrontCheckoutPage(props: { params: Promise<{ domain
                   <div className="md:col-span-1">
                     <h3 className="text-lg font-medium leading-6 text-foreground">Delivery Information</h3>
                     <p className="mt-1 text-sm text-muted-foreground">Where should we send your order?</p>
-                    {isAuthenticated && (
-                      <p className="mt-2 text-xs text-green-600 font-medium">
-                        ✓ Auto-filled from your account
-                      </p>
+                    {isAuthenticated && addresses.length > 0 && (
+                      <div className="mt-3">
+                        {addresses.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => setIsChangingAddress(!isChangingAddress)}
+                            className="text-xs text-primary mt-1 hover:underline cursor-pointer"
+                          >
+                            Change Address
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
                   <div className="mt-5 md:mt-0 md:col-span-2">
+                    {isChangingAddress ? (
+                      <div className="border border-border rounded-md p-4 bg-muted mb-4 animate-in fade-in">
+                        <h4 className="text-sm font-medium mb-3">Select Saved Address</h4>
+                        <div className="space-y-2">
+                          {addresses.map((addr) => (
+                            <div key={addr.id} className="flex justify-between items-center bg-background p-3 rounded border border-border">
+                              <div>
+                                <p className="text-sm font-medium">{addr.name} {addr.isDefault && <span className="text-xs text-muted-foreground">(Default)</span>}</p>
+                                <p className="text-xs text-muted-foreground">{addr.street}, {addr.city}</p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => applyAddress(addr)}
+                                className="text-xs bg-primary text-primary-foreground px-3 py-1 rounded cursor-pointer hover:opacity-90"
+                              >
+                                Select
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                        <button type="button" onClick={() => setIsChangingAddress(false)} className="mt-3 text-xs text-muted-foreground hover:text-foreground cursor-pointer">Cancel</button>
+                      </div>
+                    ) : null}
+
                     <div className="grid grid-cols-6 gap-4">
                       <div className="col-span-6 sm:col-span-6">
                         <label htmlFor="full-name" className="block text-sm font-medium text-foreground">Full name</label>
@@ -246,10 +433,18 @@ export default function StorefrontCheckoutPage(props: { params: Promise<{ domain
                     <div className="md:col-span-1">
                       <h3 className="text-lg font-medium leading-6 text-foreground">Payment</h3>
                       <p className="mt-1 text-sm text-muted-foreground">Choose your preferred payment method.</p>
-                      {isAuthenticated && paymentMethod === "card" && (
-                        <p className="mt-2 text-xs text-green-600 font-medium">
-                          ✓ Saved card detected
-                        </p>
+                      {isAuthenticated && cards.length > 0 && paymentMethod === "card" && (
+                        <div className="mt-3">
+                          {cards.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => setIsChangingCard(!isChangingCard)}
+                              className="text-xs text-primary mt-1 hover:underline cursor-pointer"
+                            >
+                              Change Card
+                            </button>
+                          )}
+                        </div>
                       )}
                     </div>
                     <div className="mt-5 md:mt-0 md:col-span-2">
@@ -260,7 +455,7 @@ export default function StorefrontCheckoutPage(props: { params: Promise<{ domain
                               type="radio" name="payment-method" value="cod"
                               checked={paymentMethod === "cod"}
                               onChange={() => setPaymentMethod("cod")}
-                              className="h-4 w-4 text-primary focus:ring-primary border-input bg-background"
+                              className="h-4 w-4 text-primary focus:ring-primary border-input bg-background cursor-pointer"
                             />
                             <span className="ml-3 block text-sm font-medium text-foreground">
                               Cash on Delivery (COD)
@@ -274,7 +469,7 @@ export default function StorefrontCheckoutPage(props: { params: Promise<{ domain
                               type="radio" name="payment-method" value="card"
                               checked={paymentMethod === "card"}
                               onChange={() => setPaymentMethod("card")}
-                              className="h-4 w-4 text-primary focus:ring-primary border-input bg-background"
+                              className="h-4 w-4 text-primary focus:ring-primary border-input bg-background cursor-pointer"
                             />
                             <span className="ml-3 block text-sm font-medium text-foreground">
                               Credit / Debit Card
@@ -283,19 +478,34 @@ export default function StorefrontCheckoutPage(props: { params: Promise<{ domain
 
                           {paymentMethod === "card" && (
                             <div className="ml-7 mt-4 grid grid-cols-6 gap-4 animate-in fade-in slide-in-from-top-2">
-                              {/* Saved card banner */}
-                              {isAuthenticated && (
-                                <div className="col-span-6 flex items-center gap-3 bg-muted border border-border rounded-md p-3">
-                                  <div className="h-7 w-10 bg-background border border-border rounded flex items-center justify-center text-xs font-bold text-muted-foreground">
-                                    {DUMMY_SAVED_CARD.brand}
+                              {isChangingCard ? (
+                                <div className="col-span-6 border border-border rounded-md p-4 bg-muted mb-2 animate-in fade-in">
+                                  <h4 className="text-sm font-medium mb-3">Select Saved Card</h4>
+                                  <div className="space-y-2">
+                                    {cards.map((c) => (
+                                      <div key={c.id} className="flex justify-between items-center bg-background p-3 rounded border border-border">
+                                        <div className="flex items-center gap-3">
+                                          <div className="h-6 w-8 bg-muted border border-border rounded flex items-center justify-center text-[10px] font-bold text-muted-foreground uppercase">
+                                            CARD
+                                          </div>
+                                          <div>
+                                            <p className="text-sm font-medium">•••• {c.last4} {c.isDefault && <span className="text-xs text-muted-foreground">(Default)</span>}</p>
+                                          </div>
+                                        </div>
+                                        <button
+                                          type="button"
+                                          onClick={() => applyCard(c)}
+                                          className="text-xs bg-primary text-primary-foreground px-3 py-1 rounded cursor-pointer hover:opacity-90"
+                                        >
+                                          Select
+                                        </button>
+                                      </div>
+                                    ))}
                                   </div>
-                                  <div>
-                                    <p className="text-sm font-medium text-foreground">•••• {DUMMY_SAVED_CARD.last4}</p>
-                                    <p className="text-xs text-muted-foreground">Expires {DUMMY_SAVED_CARD.expiry}</p>
-                                  </div>
-                                  <span className="ml-auto text-xs text-green-600 font-medium">Saved</span>
+                                  <button type="button" onClick={() => setIsChangingCard(false)} className="mt-3 text-xs text-muted-foreground hover:text-foreground cursor-pointer">Cancel</button>
                                 </div>
-                              )}
+                              ) : null}
+
                               <div className="col-span-6">
                                 <label htmlFor="name-on-card" className="block text-xs font-medium text-foreground">Name on card</label>
                                 <input

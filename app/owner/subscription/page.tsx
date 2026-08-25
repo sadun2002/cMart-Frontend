@@ -1,20 +1,84 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
+import { userAPI } from '@/lib/api';
 import { 
   CreditCard, ShieldCheck, Check, 
   Crown, Download, Clock, Zap, CheckCircle2, AlertCircle
 } from 'lucide-react';
 import { PLANS, formatLKR } from '@/lib/constants';
 import { useAuthStore } from '@/lib/auth-store';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
 
 
 export default function SubscriptionPage() {
-  const [isYearly, setIsYearly] = useState(true);
-  const { user } = useAuthStore();
-  const currentPlan = (user?.tenant?.plan || 'FREE').toUpperCase() as keyof typeof PLANS;
-  const currentPlanData = PLANS[currentPlan] || PLANS.FREE;
+  const [billing, setBilling] = useState<'monthly' | 'yearly' | 'lifetime'>('yearly');
+  const [confirmDialog, setConfirmDialog] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    actionType: 'cancel' as 'cancel' | 'downgrade',
+    targetPlan: ''
+  });
+  const { user, updatePlan } = useAuthStore();
+  const activePlanKey = (user?.tenant?.plan || 'STARTUP').toUpperCase() as keyof typeof PLANS;
+  const currentPlanData = PLANS[activePlanKey] || PLANS.STARTUP;
+
+  // Real free trial state
+  const subscription = user?.tenant?.subscription;
+  const isFreeTrial = subscription?.status === 'TRIAL' || (activePlanKey === 'STARTUP' && subscription?.trialEndDate);
+  
+  let trialDaysLeft = 0;
+  let trialHoursLeft = 0;
+  let trialText = '';
+  
+  if (subscription?.trialEndDate) {
+    const msLeft = new Date(subscription.trialEndDate).getTime() - Date.now();
+    trialDaysLeft = Math.max(0, Math.floor(msLeft / (1000 * 60 * 60 * 24)));
+    trialHoursLeft = Math.max(0, Math.floor(msLeft / (1000 * 60 * 60)));
+    
+    if (trialDaysLeft > 0) {
+      trialText = `${trialDaysLeft} days remaining`;
+    } else if (trialHoursLeft > 0) {
+      trialText = `${trialHoursLeft} hours remaining`;
+    } else {
+      trialText = 'Trial expired';
+    }
+  }
+
+  const [billingHistory, setBillingHistory] = useState<any[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+
+  useEffect(() => {
+    const fetchBillingHistory = async () => {
+      try {
+        const response = await userAPI.getBillingHistory();
+        setBillingHistory(response.data?.data || response.data || []);
+      } catch (error) {
+        console.error('Failed to fetch billing history:', error);
+      } finally {
+        setIsLoadingHistory(false);
+      }
+    };
+    fetchBillingHistory();
+  }, []);
+
+  const handleConfirmAction = async () => {
+    try {
+      if (confirmDialog.actionType === 'downgrade') {
+        const planKey = Object.keys(PLANS).find(k => PLANS[k as keyof typeof PLANS].name === confirmDialog.targetPlan) as keyof typeof PLANS;
+        if (planKey) await updatePlan(planKey);
+      } else if (confirmDialog.actionType === 'cancel') {
+        await updatePlan('STARTUP'); // Default fallback plan after cancellation
+      }
+    } catch (error) {
+      console.error('Failed to update subscription:', error);
+    } finally {
+      setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+    }
+  };
 
   return (
     <div className="flex flex-col h-full bg-slate-50/50 dark:bg-slate-900/50 p-6 relative overflow-hidden overflow-y-auto">
@@ -48,18 +112,12 @@ export default function SubscriptionPage() {
                 </span>
               </div>
               <p className="text-slate-500 dark:text-slate-400 font-medium mt-1">
-                {currentPlan === 'FREE' ? 'You are on the free plan.' : `Your next billing date is September 01, 2026 for ${formatLKR(currentPlanData.price)}.`}
+                {activePlanKey === 'STARTUP' && isFreeTrial ? `You are currently on a Free Trial. ${trialText}.` : activePlanKey === 'STARTUP' ? 'You are currently on the Startup plan.' : `Your next billing date is September 01, 2026 for ${formatLKR(billing === 'yearly' ? currentPlanData.priceYearly / 12 : currentPlanData.priceMonthly)}.`}
               </p>
             </div>
           </div>
           
           <div className="flex flex-wrap sm:flex-nowrap gap-3 w-full lg:w-auto z-10">
-            <button 
-              onClick={() => alert("Plan cancellation initiated. Please contact support to confirm.")}
-              className="flex-1 lg:flex-none px-6 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl shadow-sm transition-colors text-sm whitespace-nowrap"
-            >
-              Cancel Plan
-            </button>
             <button 
               onClick={() => alert("Redirecting to payment gateway...")}
               className="flex-1 lg:flex-none px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-sm transition-colors text-sm whitespace-nowrap"
@@ -75,38 +133,45 @@ export default function SubscriptionPage() {
             <h3 className="text-xl font-bold text-slate-900 dark:text-white">Available Plans</h3>
             
             {/* Toggle */}
-            <div className="flex items-center gap-3 bg-white dark:bg-slate-900 p-1.5 rounded-full border border-slate-200 dark:border-slate-800 shadow-sm">
+            <div className="flex items-center justify-center gap-1 sm:gap-2 bg-white dark:bg-slate-900 p-1.5 rounded-full border border-slate-200 dark:border-slate-800 shadow-sm w-fit mx-auto sm:mx-0">
               <button 
-                onClick={() => setIsYearly(false)}
-                className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all ${!isYearly ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                onClick={() => setBilling('monthly')}
+                className={`px-4 sm:px-6 py-2 rounded-full text-xs sm:text-sm font-medium transition-all whitespace-nowrap flex items-center justify-center ${billing === 'monthly' ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
               >
                 Monthly
               </button>
               <button 
-                onClick={() => setIsYearly(true)}
-                className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all flex items-center gap-1.5 ${isYearly ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                onClick={() => setBilling('yearly')}
+                className={`px-4 sm:px-6 py-2 rounded-full text-xs sm:text-sm font-medium transition-all whitespace-nowrap flex items-center justify-center gap-1.5 ${billing === 'yearly' ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
               >
                 Annually
-                <span className="text-[10px] font-black text-emerald-600 bg-emerald-100 dark:bg-emerald-900/30 px-1.5 py-0.5 rounded-full uppercase tracking-wider">Save 20%</span>
+                <span className="text-[10px] font-black text-emerald-600 bg-emerald-100 dark:bg-emerald-900/30 px-1.5 py-0.5 rounded-full uppercase tracking-wider">-20%</span>
+              </button>
+              <button 
+                onClick={() => setBilling('lifetime')}
+                className={`px-4 sm:px-6 py-2 rounded-full text-xs sm:text-sm font-medium transition-all whitespace-nowrap flex items-center justify-center ${billing === 'lifetime' ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+              >
+                Lifetime
+                <span className="text-[10px] font-black text-blue-600 bg-blue-100 dark:bg-blue-900/30 px-1.5 py-0.5 rounded-full uppercase tracking-wider hidden sm:inline-block">Startup Only</span>
               </button>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end text-left">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 items-stretch text-left">
             {[
               {
-                key: 'FREE',
-                name: PLANS.FREE.name,
-                price: 'Free',
-                period: 'forever',
-                features: PLANS.FREE.features,
+                key: 'STARTUP',
+                name: PLANS.STARTUP.name,
+                price: billing === 'lifetime' ? PLANS.STARTUP.priceLifetime : billing === 'yearly' ? (PLANS.STARTUP.priceYearly / 12) : PLANS.STARTUP.priceMonthly,
+                period: billing === 'lifetime' ? 'once' : '/month',
+                features: PLANS.STARTUP.features,
                 highlight: false,
                 rank: 0,
               },
               {
                 key: 'PRO',
                 name: PLANS.PRO.name,
-                price: formatLKR(isYearly ? PLANS.PRO.price * 0.8 : PLANS.PRO.price),
+                price: billing === 'lifetime' ? null : billing === 'yearly' ? (PLANS.PRO.priceYearly / 12) : PLANS.PRO.priceMonthly,
                 period: '/month',
                 features: PLANS.PRO.features,
                 highlight: true,
@@ -115,7 +180,7 @@ export default function SubscriptionPage() {
               {
                 key: 'ENTERPRISE',
                 name: PLANS.ENTERPRISE.name,
-                price: formatLKR(isYearly ? PLANS.ENTERPRISE.price * 0.8 : PLANS.ENTERPRISE.price),
+                price: billing === 'lifetime' ? null : billing === 'yearly' ? (PLANS.ENTERPRISE.priceYearly / 12) : PLANS.ENTERPRISE.priceMonthly,
                 period: '/month',
                 features: PLANS.ENTERPRISE.features,
                 highlight: false,
@@ -127,33 +192,48 @@ export default function SubscriptionPage() {
               let href = '/register';
               let disabled = false;
               let isCurrent = false;
+              let isDowngrade = false;
+              let isCancel = false;
 
               let userRank = 0;
-              if (currentPlan === 'PRO') userRank = 1;
-              else if (currentPlan === 'ENTERPRISE') userRank = 2;
+              if (activePlanKey === 'PRO') userRank = 1;
+              else if (activePlanKey === 'ENTERPRISE') userRank = 2;
 
-              const billingParam = isYearly ? 'annual' : 'monthly';
+              const billingParam = billing;
+              const isUnavailable = plan.price === null;
               
-              if (userRank === plan.rank) {
-                cta = 'Current Plan';
+              if (plan.key === 'PRO' || plan.key === 'ENTERPRISE') {
+                cta = 'Coming Soon';
+                disabled = true;
+                href = '#';
+              } else if (isUnavailable) {
+                cta = 'Not Available';
                 href = '#';
                 disabled = true;
+              } else if (userRank === plan.rank) {
+                if (activePlanKey === 'STARTUP' && isFreeTrial) {
+                  cta = `Free Trial (${trialText})`;
+                  disabled = true;
+                } else {
+                  cta = 'Cancel Plan';
+                  isCancel = true;
+                }
                 isCurrent = true;
               } else if (userRank < plan.rank) {
                 cta = `Upgrade to ${plan.name}`;
                 href = `/checkout?plan=${plan.key}&billing=${billingParam}`;
               } else {
                 cta = `Downgrade to ${plan.name}`;
-                href = `/checkout?plan=${plan.key}&billing=${billingParam}`;
+                isDowngrade = true;
+                href = '#';
               }
 
               return (
               <div
                 key={plan.key}
-                style={{ height: plan.highlight ? '580px' : '520px' }}
-                className={`rounded-2xl flex flex-col ${
+                className={`rounded-2xl flex flex-col h-full ${
                   plan.highlight
-                    ? 'bg-blue-600 text-white shadow-2xl shadow-blue-300/50 dark:shadow-none pt-8 px-8 pb-7'
+                    ? 'bg-blue-600 text-white shadow-2xl shadow-blue-300/50 dark:shadow-none pt-8 px-8 pb-7 md:scale-105'
                     : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-7 shadow-sm'
                 }`}
               >
@@ -166,20 +246,29 @@ export default function SubscriptionPage() {
                 <h3 className={`font-bold text-lg ${plan.highlight ? 'text-white' : 'text-gray-900 dark:text-white'}`}>
                   {plan.name}
                 </h3>
-                <div className="mt-2 mb-6 text-left flex flex-col">
-                  <div>
-                    <span className={`text-3xl font-black ${plan.highlight ? 'text-white' : 'text-gray-900 dark:text-white'}`}>
-                      {plan.price}
-                    </span>
-                    <span className={`text-sm ml-1 ${plan.highlight ? 'text-blue-200' : 'text-gray-500'}`}>
-                      {plan.period}
-                    </span>
-                  </div>
-                  <p className={`text-xs mt-1 ${plan.highlight ? "text-blue-200" : "text-gray-500"} ${!(isYearly && plan.price !== 'Free') ? 'invisible' : ''}`}>
-                    Billed annually
-                  </p>
+                <div className="mt-2 mb-6 text-left flex flex-col min-h-[80px]">
+                  {isUnavailable ? (
+                    <div className="flex flex-col justify-center h-full">
+                      <span className={`text-2xl font-black ${plan.highlight ? 'text-white' : 'text-gray-500'}`}>Not available</span>
+                      <span className={`text-sm ${plan.highlight ? 'text-blue-200' : 'text-gray-400'}`}>for lifetime billing</span>
+                    </div>
+                  ) : (
+                    <>
+                      <div>
+                        <span className={`text-3xl font-black ${plan.highlight ? 'text-white' : 'text-gray-900 dark:text-white'}`}>
+                          {formatLKR(plan.price!)}
+                        </span>
+                        <span className={`text-sm ml-1 ${plan.highlight ? 'text-blue-200' : 'text-gray-500'}`}>
+                          {plan.period}
+                        </span>
+                      </div>
+                      <p className={`text-xs mt-1 ${plan.highlight ? "text-blue-200" : "text-gray-500"} ${!(billing === 'yearly' && plan.period !== 'once') ? 'invisible' : ''}`}>
+                        Billed annually
+                      </p>
+                    </>
+                  )}
                 </div>
-                <ul className="space-y-2.5">
+                <ul className="space-y-2.5 flex-1 mb-6">
                   {plan.features.map((f) => (
                     <li key={f} className={`flex items-start gap-2 text-sm ${plan.highlight ? 'text-blue-100' : 'text-gray-600 dark:text-slate-400'}`}>
                       <span className={`mt-0.5 ${plan.highlight ? 'text-white' : 'text-green-500'}`}>✓</span>
@@ -190,17 +279,46 @@ export default function SubscriptionPage() {
                 <div className={`mt-auto pt-6 border-t ${plan.highlight ? 'border-white/20' : 'border-gray-100 dark:border-slate-800'}`}>
                   {disabled ? (
                     <div
-                      className={`block w-full text-center py-3 rounded-xl font-bold text-sm transition-colors cursor-default ${
-                        plan.highlight
-                          ? 'bg-white text-blue-600'
-                          : 'bg-blue-600 text-white'
+                      onClick={() => {
+                        if (plan.key === 'PRO' || plan.key === 'ENTERPRISE') {
+                          toast.info('This plan is coming soon!');
+                        }
+                      }}
+                      className={`block w-full text-center py-3 rounded-xl font-bold text-sm transition-colors ${plan.key === 'PRO' || plan.key === 'ENTERPRISE' ? 'cursor-pointer hover:opacity-90' : 'cursor-default'} ${
+                        isUnavailable
+                          ? 'bg-slate-100 dark:bg-slate-800 text-slate-400'
+                          : isCurrent && isFreeTrial
+                            ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10'
+                            : plan.highlight
+                              ? 'bg-white text-blue-600'
+                              : 'bg-blue-600 text-white'
                       }`}
                     >
                       {cta}
                     </div>
                   ) : (
                     <button
-                      onClick={() => window.open(href, '_blank')}
+                      onClick={() => {
+                        if (isCancel) {
+                          setConfirmDialog({
+                            isOpen: true,
+                            title: 'Cancel Plan',
+                            message: 'Are you sure you want to cancel your current plan? You will lose access to premium features and data might be restricted.',
+                            actionType: 'cancel',
+                            targetPlan: plan.name
+                          });
+                        } else if (isDowngrade) {
+                          setConfirmDialog({
+                            isOpen: true,
+                            title: `Downgrade to ${plan.name}`,
+                            message: `Are you sure you want to downgrade to the ${plan.name} plan? You may lose access to some premium features.`,
+                            actionType: 'downgrade',
+                            targetPlan: plan.name
+                          });
+                        } else {
+                          window.open(href, '_blank');
+                        }
+                      }}
                       className={`block w-full text-center py-3 rounded-xl font-bold text-sm transition-all hover:scale-105 active:scale-95 ${
                         plan.highlight
                           ? 'bg-white text-blue-600 hover:bg-gray-50'
@@ -216,6 +334,17 @@ export default function SubscriptionPage() {
             })}
           </div>
         </div>
+
+        {/* Confirm Dialog */}
+        <ConfirmDialog 
+          isOpen={confirmDialog.isOpen}
+          title={confirmDialog.title}
+          message={confirmDialog.message}
+          confirmText={confirmDialog.actionType === 'cancel' ? 'Yes, Cancel' : 'Yes, Downgrade'}
+          onConfirm={handleConfirmAction}
+          onCancel={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+          type={confirmDialog.actionType === 'cancel' ? 'danger' : 'warning'}
+        />
 
         {/* Billing History */}
         <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
@@ -236,11 +365,42 @@ export default function SubscriptionPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
-                <tr>
-                  <td colSpan={6} className="px-6 py-10 text-center text-slate-500">
-                    No billing history yet.
-                  </td>
-                </tr>
+                {isLoadingHistory ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-10 text-center text-slate-500">
+                      Loading billing history...
+                    </td>
+                  </tr>
+                ) : billingHistory.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-10 text-center text-slate-500">
+                      No billing history yet.
+                    </td>
+                  </tr>
+                ) : (
+                  billingHistory.map((record) => (
+                    <tr key={record.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                      <td className="px-6 py-4 text-slate-900 dark:text-white">{record.payhereRef || `#INV-${record.id}`}</td>
+                      <td className="px-6 py-4 text-slate-600 dark:text-slate-400">{new Date(record.createdAt).toLocaleDateString()}</td>
+                      <td className="px-6 py-4 text-slate-900 dark:text-white">Subscription</td>
+                      <td className="px-6 py-4 text-slate-900 dark:text-white">{formatLKR(record.amountLKR)}</td>
+                      <td className="px-6 py-4">
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                          record.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' :
+                          record.status === 'PENDING' ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400' :
+                          'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400'
+                        }`}>
+                          {record.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <button className="text-blue-600 hover:text-blue-700 font-bold text-sm bg-blue-50 hover:bg-blue-100 dark:bg-blue-500/10 dark:hover:bg-blue-500/20 px-3 py-1.5 rounded-lg transition-colors">
+                          Download
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

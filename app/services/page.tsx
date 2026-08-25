@@ -1,5 +1,6 @@
 "use client";
 
+import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { 
   ShoppingCart,
@@ -97,6 +98,31 @@ const SERVICES = [
 ];
 
 export default function ServicesPage() {
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [isPaused, setIsPaused] = useState(false);
+
+  useEffect(() => {
+    // Only auto-scroll on mobile devices
+    if (window.innerWidth >= 768) return;
+    if (isPaused) return;
+
+    const interval = setInterval(() => {
+      if (scrollContainerRef.current) {
+        const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
+        // If reached the end, scroll back to start
+        if (scrollLeft + clientWidth >= scrollWidth - 10) {
+          scrollContainerRef.current.scrollTo({ left: 0, behavior: 'smooth' });
+        } else {
+          // Scroll by one card width (100vw)
+          const scrollAmount = window.innerWidth;
+          scrollContainerRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+        }
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [isPaused]);
+
   return (
     <div className="min-h-screen bg-white dark:bg-slate-950 font-sans text-gray-900 dark:text-white transition-colors relative">
       <MotionBlurBackground />
@@ -116,11 +142,11 @@ export default function ServicesPage() {
           <p className="text-xl text-gray-500 dark:text-slate-400 max-w-2xl mx-auto mb-10 leading-relaxed">
             One platform. Every tool. Unlimited possibilities. Whether you sell in-person, online, or both, we have you covered.
           </p>
-          <div className="flex justify-center gap-4">
-            <Link href="/register" className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-8 rounded-xl transition-colors shadow-lg shadow-blue-600/30 dark:shadow-none">
+          <div className="flex flex-col sm:flex-row justify-center gap-4">
+            <Link href="/register" className="w-full sm:w-auto inline-flex justify-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-8 rounded-xl transition-colors shadow-lg shadow-blue-600/30 dark:shadow-none">
               Get Started Now
             </Link>
-            <Link href="/pricing" className="bg-white dark:bg-slate-900 hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-900 dark:text-white border-2 border-gray-200 dark:border-slate-800 font-bold py-4 px-8 rounded-xl transition-colors">
+            <Link href="/pricing" className="w-full sm:w-auto inline-flex justify-center bg-white dark:bg-slate-900 hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-900 dark:text-white border-2 border-gray-200 dark:border-slate-800 font-bold py-4 px-8 rounded-xl transition-colors">
               View Pricing
             </Link>
           </div>
@@ -128,15 +154,22 @@ export default function ServicesPage() {
       </section>
 
       {/* SERVICES GRID */}
-      <section className="py-24 px-6 relative z-10 bg-transparent">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      <section className="py-24 relative z-10 bg-transparent">
+        <div className="max-w-7xl mx-auto px-6">
+          <div 
+            ref={scrollContainerRef}
+            onMouseEnter={() => setIsPaused(true)}
+            onMouseLeave={() => setIsPaused(false)}
+            onTouchStart={() => setIsPaused(true)}
+            onTouchEnd={() => setIsPaused(false)}
+            className="flex md:grid md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8 overflow-x-auto snap-x snap-mandatory hide-scrollbar pb-8 px-4 md:px-0 -mx-4 md:mx-0 items-stretch"
+          >
             {SERVICES.map((service, index) => {
               const Icon = service.icon;
               return (
                 <div 
                   key={index} 
-                  className="bg-white dark:bg-slate-900 rounded-[2rem] p-8 border border-gray-200 dark:border-slate-800 hover:shadow-2xl dark:hover:shadow-blue-900/10 hover:-translate-y-1 transition-all duration-300 group flex flex-col shadow-sm dark:shadow-none"
+                  className="w-full sm:w-[85vw] md:w-auto shrink-0 snap-center bg-white dark:bg-slate-900 rounded-[2rem] p-8 border border-gray-200 dark:border-slate-800 hover:shadow-2xl dark:hover:shadow-blue-900/10 md:hover:-translate-y-1 transition-all duration-300 group flex flex-col shadow-sm dark:shadow-none"
                 >
                   <div className={`w-16 h-16 rounded-2xl ${service.bgColor} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 shadow-sm dark:shadow-none`}>
                     <Icon className={`w-8 h-8 ${service.color}`} />

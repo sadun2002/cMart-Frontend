@@ -17,21 +17,23 @@ import {
 interface OwnerSidebarProps {
   collapsed: boolean;
   onToggle: () => void;
+  isMobileOpen?: boolean;
+  onMobileClose?: () => void;
 }
 
 const mainNavItems = [
   { href: '/owner/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/owner/pos', label: 'POS', icon: ShoppingCart },
+  { href: '/owner/pos', label: 'POS', icon: ShoppingCart, hideOnMobile: true },
   { href: '/owner/products', label: 'Products', icon: Package },
-  { href: '/owner/barcode-generator', label: 'Barcode Generator', icon: Barcode },
+  { href: '/owner/barcode-generator', label: 'Barcode Generator', icon: Barcode, hideOnMobile: true },
   { href: '/owner/categories', label: 'Categories', icon: Tag },
   { href: '/owner/inventory', label: 'Inventory', icon: Warehouse },
   { href: '/owner/suppliers', label: 'Suppliers', icon: Truck, tier: 'PRO' },
   { href: '/owner/sales', label: 'Sales', icon: Receipt },
-  { href: '/owner/expenses', label: 'Expenses', icon: Banknote, tier: 'PRO' },
+  { href: '/owner/expenses', label: 'Expenses', icon: Banknote },
   { href: '/owner/customers', label: 'Customers', icon: Users, tier: 'PRO' },
   { href: '/owner/attendance', label: 'Attendance', icon: Clock, tier: 'PRO' },
-  { href: '/owner/branches', label: 'Branches', icon: Building2 },
+  { href: '/owner/branches', label: 'Branches', icon: Building2, tier: 'PRO' },
   { href: '/owner/subscription', label: 'Subscription', icon: CreditCard },
 ];
 
@@ -40,11 +42,11 @@ const reportsSubItems = [
   { href: '/owner/reports/inventory', label: 'Inventory', icon: Warehouse },
   { href: '/owner/reports/purchase', label: 'Purchase', icon: ShoppingCart },
   { href: '/owner/reports/customers', label: 'Customers', icon: Users, tier: 'PRO' },
-  { href: '/owner/reports/suppliers', label: 'Suppliers', icon: Truck },
+  { href: '/owner/reports/suppliers', label: 'Suppliers', icon: Truck, tier: 'PRO' },
   { href: '/owner/reports/employees', label: 'Employees', icon: UserCheck, tier: 'PRO' },
   { href: '/owner/reports/attendance', label: 'Attendance', icon: Clock, tier: 'PRO' },
   { href: '/owner/reports/online-store', label: 'Online Store', icon: Globe, tier: 'PRO' },
-  { href: '/owner/reports/financial', label: 'Financial', icon: Banknote, tier: 'PRO' },
+  { href: '/owner/reports/financial', label: 'Financial', icon: Banknote },
   { href: '/owner/reports/analytics', label: 'Business Analytics', icon: PieChart, tier: 'PRO' },
 ];
 
@@ -80,7 +82,7 @@ const settingsSubItems = [
   { href: '/owner/settings/danger', label: 'Danger Zone', icon: AlertTriangle, danger: true },
 ];
 
-export default function OwnerSidebar({ collapsed, onToggle }: OwnerSidebarProps) {
+export default function OwnerSidebar({ collapsed: desktopCollapsed, onToggle, isMobileOpen, onMobileClose }: OwnerSidebarProps) {
   const pathname = usePathname();
   const { user } = useAuthStore();
   const userPlan = user?.tenant?.plan || 'FREE';
@@ -90,10 +92,10 @@ export default function OwnerSidebar({ collapsed, onToggle }: OwnerSidebarProps)
   const [employeesOpen, setEmployeesOpen] = useState(false);
   const [onlineStoreOpen, setOnlineStoreOpen] = useState(false);
   const [reportsOpen, setReportsOpen] = useState(false);
-  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const collapseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const onToggleRef = useRef(onToggle);
   const isHoveringRef = useRef(false);
+
+  const collapsed = desktopCollapsed && !isMobileOpen;
 
   const handleNavigation = (e: React.MouseEvent, item: any) => {
     if (item.tier === 'PRO' && userPlan !== 'PRO' && userPlan !== 'ENTERPRISE') {
@@ -119,69 +121,24 @@ export default function OwnerSidebar({ collapsed, onToggle }: OwnerSidebarProps)
     onToggleRef.current = onToggle;
   }, [onToggle]);
 
-  const clearCollapseTimeout = () => {
-    if (collapseTimeoutRef.current) {
-      clearTimeout(collapseTimeoutRef.current);
-      collapseTimeoutRef.current = null;
-    }
-  };
-
-  const startCollapseTimeout = () => {
-    clearCollapseTimeout();
-    collapseTimeoutRef.current = setTimeout(() => {
-      onToggleRef.current();
-    }, 5000);
-  };
-
-  useEffect(() => {
-    if (!collapsed) {
-      if (!isHoveringRef.current) {
-        startCollapseTimeout();
-      } else {
-        clearCollapseTimeout();
-      }
-    } else {
-      clearCollapseTimeout();
-    }
-    
-    return () => {
-      clearCollapseTimeout();
-    };
-  }, [collapsed]);
-
-  useEffect(() => {
-    return () => {
-      if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
-      clearCollapseTimeout();
-    };
-  }, []);
-
   const handleMouseEnter = () => {
     isHoveringRef.current = true;
     if (collapsed) {
-      hoverTimeoutRef.current = setTimeout(() => {
-        onToggleRef.current();
-      }, 2000);
-    } else {
-      clearCollapseTimeout();
+      onToggleRef.current();
     }
   };
 
   const handleMouseLeave = () => {
     isHoveringRef.current = false;
-    if (hoverTimeoutRef.current) {
-      clearTimeout(hoverTimeoutRef.current);
-      hoverTimeoutRef.current = null;
-    }
-    if (!collapsed) {
-      startCollapseTimeout();
+    if (!collapsed && !isMobileOpen) {
+      onToggleRef.current();
     }
   };
 
   return (
     <aside 
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
+      onMouseEnter={isMobileOpen ? undefined : handleMouseEnter}
+      onMouseLeave={isMobileOpen ? undefined : handleMouseLeave}
       className={`flex-shrink-0 h-screen flex flex-col bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-slate-800 transition-all duration-300 z-50 ${collapsed ? 'w-[68px]' : 'w-[260px]'}`}
     >
       {/* Logo */}
@@ -192,12 +149,18 @@ export default function OwnerSidebar({ collapsed, onToggle }: OwnerSidebarProps)
               <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-500 rounded-lg flex items-center justify-center">
                 <span className="text-white font-black text-base">c</span>
               </div>
-              <div>
+              <div className="flex items-baseline gap-1">
                 <span className="text-gray-900 dark:text-white font-black text-2xl tracking-tight block leading-tight">cMart</span>
               </div>
             </Link>
             <button
-              onClick={onToggle}
+              onClick={() => {
+                if (isMobileOpen && onMobileClose) {
+                  onMobileClose();
+                } else {
+                  onToggle();
+                }
+              }}
               className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-slate-300 transition-colors flex-shrink-0"
               aria-label="Collapse sidebar"
             >
@@ -225,7 +188,7 @@ export default function OwnerSidebar({ collapsed, onToggle }: OwnerSidebarProps)
               href={item.href}
               onClick={(e) => handleNavigation(e, item)}
               title={collapsed ? item.label : undefined}
-              className={`flex items-center gap-3 text-sm transition-colors duration-150 ${
+              className={`${(item as any).hideOnMobile ? 'hidden lg:flex' : 'flex'} items-center gap-3 text-sm transition-colors duration-150 ${
                 isActive
                   ? 'text-blue-600 dark:text-blue-400 font-medium'
                   : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300'
@@ -233,7 +196,7 @@ export default function OwnerSidebar({ collapsed, onToggle }: OwnerSidebarProps)
             >
               <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-blue-600 dark:text-blue-400' : ''}`} />
               {!collapsed && <span className="truncate">{item.label}</span>}
-              {!collapsed && item.tier === 'PRO' && userPlan === 'FREE' && <Lock className="w-4 h-4 text-slate-400 ml-auto" />}
+              {!collapsed && item.tier === 'PRO' && (userPlan === 'FREE' || userPlan === 'STARTUP') && <Lock className="w-4 h-4 text-slate-400 ml-auto" />}
             </Link>
           );
         })}
@@ -298,7 +261,7 @@ export default function OwnerSidebar({ collapsed, onToggle }: OwnerSidebarProps)
         <div>
           <button
             onClick={(e) => {
-              if (userPlan === 'FREE') {
+              if (userPlan === 'FREE' || userPlan === 'STARTUP') {
                 e.preventDefault();
                 setUpgradeFeature('Online Store');
                 setUpgradeModalOpen(true);
@@ -322,7 +285,7 @@ export default function OwnerSidebar({ collapsed, onToggle }: OwnerSidebarProps)
             {!collapsed && (
               <>
                 <span className="flex-1 text-left truncate">Online Store</span>
-                 {userPlan === 'FREE' ? (
+                 {(userPlan === 'FREE' || userPlan === 'STARTUP') ? (
                    <Lock className="w-4 h-4 text-slate-400" />
                  ) : (
                    <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${onlineStoreOpen ? 'rotate-180' : ''}`} />
@@ -364,7 +327,7 @@ export default function OwnerSidebar({ collapsed, onToggle }: OwnerSidebarProps)
         <div>
           <button
             onClick={(e) => {
-              if (userPlan === 'FREE') {
+              if (userPlan === 'FREE' || userPlan === 'STARTUP') {
                 e.preventDefault();
                 setUpgradeFeature('Employees');
                 setUpgradeModalOpen(true);
@@ -388,7 +351,7 @@ export default function OwnerSidebar({ collapsed, onToggle }: OwnerSidebarProps)
             {!collapsed && (
               <>
                 <span className="flex-1 text-left truncate">Employees</span>
-                 {userPlan === 'FREE' ? (
+                 {(userPlan === 'FREE' || userPlan === 'STARTUP') ? (
                    <Lock className="w-4 h-4 text-slate-400" />
                  ) : (
                    <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${employeesOpen ? 'rotate-180' : ''}`} />

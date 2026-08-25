@@ -74,7 +74,12 @@ export function ThemeCard({
       className="group bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 overflow-hidden hover:shadow-2xl hover:shadow-blue-900/10 dark:hover:shadow-blue-900/20 hover:-translate-y-1.5 transition-all duration-300 flex flex-col"
     >
       {/* Preview */}
-      <div className="aspect-video relative overflow-hidden">
+      <a 
+        href={theme.previewUrl || '#'} 
+        target="_blank" 
+        rel="noopener noreferrer" 
+        className="aspect-video relative overflow-hidden block cursor-pointer"
+      >
         {theme.previewUrl ? (
           <div className="w-full h-full relative overflow-hidden bg-slate-50">
             <div className="absolute top-0 left-0 origin-top-left pointer-events-none" style={{ width: '400%', height: '400%', transform: 'scale(0.25)' }}>
@@ -112,34 +117,31 @@ export function ThemeCard({
         )}
 
         {/* Hover Overlay */}
-        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center pointer-events-none group-hover:pointer-events-auto">
           {variant === 'admin' ? (
             <div className="flex items-center justify-center gap-3 p-4">
               <button
-                onClick={() => onPreview?.(theme.id)}
+                onClick={(e) => { e.preventDefault(); onPreview?.(theme.id); }}
                 className="flex-1 py-2.5 bg-white text-slate-900 hover:bg-slate-100 rounded-xl font-bold transition-colors"
               >
                 Preview
               </button>
               <button
-                onClick={() => onDelete?.(theme.id)}
+                onClick={(e) => { e.preventDefault(); onDelete?.(theme.id); }}
                 className="p-2.5 bg-rose-500/80 hover:bg-rose-500 backdrop-blur-md rounded-lg text-white transition-colors"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
             </div>
           ) : (
-            <a
-              href={theme.previewUrl || '#'}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="transform translate-y-3 group-hover:translate-y-0 transition-all duration-300 bg-white text-gray-900 font-bold px-5 py-2 rounded-xl shadow-xl text-xs flex items-center gap-2 hover:bg-gray-50 cursor-pointer"
+            <div
+              className="transform translate-y-3 group-hover:translate-y-0 transition-all duration-300 bg-white text-gray-900 font-bold px-5 py-2 rounded-xl shadow-xl text-xs flex items-center gap-2"
             >
               <Eye className="w-3.5 h-3.5" /> Live Preview
-            </a>
+            </div>
           )}
         </div>
-      </div>
+      </a>
 
       {/* Content */}
       <div className="p-4 flex flex-col flex-1">
@@ -197,14 +199,14 @@ export function ThemeCard({
               ) : isFree ? (
                 <button
                   onClick={() => onActivate?.(theme.id)}
-                  disabled={isActivating === theme.id}
+                  disabled={isActivating}
                   className="flex items-center gap-1.5 text-xs font-bold text-slate-900 dark:text-white bg-slate-900 dark:bg-white hover:bg-slate-800 dark:hover:bg-slate-100 text-white dark:text-slate-900 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
                 >
-                  {isActivating === theme.id ? '...' : 'Activate'}
+                  {isActivating ? '...' : 'Activate'}
                 </button>
               ) : (
                 <button
-                  onClick={() => onBuy?.(theme.name)}
+                  onClick={() => onBuy?.(theme.id)}
                   className="flex items-center gap-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-lg transition-colors"
                 >
                   <ShoppingBag className="w-3.5 h-3.5" /> Buy Now

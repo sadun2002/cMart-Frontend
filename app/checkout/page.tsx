@@ -95,20 +95,22 @@ function CheckoutContent() {
   const plan = PLANS[planKey] || PLANS.PRO;
 
   const billingParam = searchParams.get('billing') || 'monthly';
-  const isYearly = billingParam === 'annual';
+  const isYearly = billingParam === 'yearly';
+  const isLifetime = billingParam === 'lifetime';
   
   // Calculate pricing
-  const monthlyPrice = isYearly ? plan.price * 0.8 : plan.price;
-  const totalDue = isYearly ? monthlyPrice * 12 : monthlyPrice;
+  const displayPrice = isLifetime ? plan.priceLifetime! : isYearly ? plan.priceYearly / 12 : plan.priceMonthly;
+  const totalDue = isLifetime ? plan.priceLifetime! : isYearly ? plan.priceYearly : plan.priceMonthly;
 
   const {
     register,
     handleSubmit,
     setValue,
     watch,
-    formState: { errors },
+    formState: { errors, isValid },
   } = useForm<CheckoutForm>({
     resolver: zodResolver(checkoutSchema),
+    mode: 'onChange',
     defaultValues: {
       cardNumber: '',
       expiry: '',
@@ -186,10 +188,10 @@ function CheckoutContent() {
             </p>
           </div>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="bg-white dark:bg-slate-900 shadow-2xl shadow-blue-500/5 rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-800 flex flex-col-reverse lg:flex-row">
+          <form onSubmit={handleSubmit(onSubmit)} className="bg-white dark:bg-slate-900 shadow-2xl shadow-blue-500/5 rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-800 flex flex-col md:flex-row">
             
             {/* Left: Payment form */}
-            <div className="lg:w-7/12 p-8 lg:p-12 relative z-10 border-t lg:border-t-0 lg:border-r border-slate-200 dark:border-slate-800">
+            <div className="md:w-7/12 p-6 md:p-8 lg:p-12 relative z-10 border-t md:border-t-0 md:border-r border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-2 mb-8">
                 <Lock className="w-5 h-5 text-slate-400" />
                 <h2 className="text-2xl font-black text-slate-900 dark:text-white">Payment Details</h2>
@@ -199,7 +201,7 @@ function CheckoutContent() {
                 
                 {/* Express Checkout */}
                 <div className="flex flex-col gap-3">
-                  <button type="button" className="w-full h-[52px] flex items-center justify-center gap-2 rounded-lg border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                  <button onClick={() => toast.info('Google Pay is coming soon!')} type="button" className="w-full h-[52px] flex items-center justify-center gap-2 rounded-lg border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
                     <svg className="h-9 w-auto" xmlns="http://www.w3.org/2000/svg" xmlnsXlink="http://www.w3.org/1999/xlink" version="1.1" viewBox="0 0 256 256" xmlSpace="preserve">
                       <g style={{stroke: "none", strokeWidth: 0, strokeDasharray: "none", strokeLinecap: "butt", strokeLinejoin: "miter", strokeMiterlimit: 10, fill: "none", fillRule: "nonzero", opacity: 1}} transform="translate(1.4065934065934016 1.4065934065934016) scale(2.81 2.81)">
                         <path d="M 42.54 44.553 v 10.459 h -3.374 V 29.145 h 8.772 c 2.137 0 4.161 0.787 5.736 2.249 c 1.575 1.35 2.362 3.374 2.362 5.511 s -0.787 4.049 -2.362 5.511 c -1.575 1.462 -3.486 2.249 -5.736 2.249 L 42.54 44.553 L 42.54 44.553 z M 42.54 32.294 v 8.997 h 5.623 c 1.237 0 2.474 -0.45 3.261 -1.35 c 1.799 -1.687 1.799 -4.499 0.112 -6.186 l -0.112 -0.112 c -0.9 -0.9 -2.024 -1.462 -3.261 -1.35 L 42.54 32.294 L 42.54 32.294 z" style={{stroke: "none", strokeWidth: 1, strokeDasharray: "none", strokeLinecap: "butt", strokeLinejoin: "miter", strokeMiterlimit: 10, fill: "rgb(95,99,104)", fillRule: "nonzero", opacity: 1}} transform=" matrix(1 0 0 1 0 0) " strokeLinecap="round"/>
@@ -213,14 +215,14 @@ function CheckoutContent() {
                     </svg>
                   </button>
                   <div className="grid grid-cols-2 gap-3">
-                    <button type="button" className="w-full h-[52px] flex items-center justify-center gap-2 rounded-lg bg-black text-white hover:bg-gray-800 dark:hover:bg-slate-800 transition-colors">
+                    <button onClick={() => toast.info('Apple Pay is coming soon!')} type="button" className="w-full h-[52px] flex items-center justify-center gap-2 rounded-lg bg-black text-white hover:bg-gray-800 dark:hover:bg-slate-800 transition-colors">
                       <svg className="h-8 w-auto" xmlns="http://www.w3.org/2000/svg" xmlnsXlink="http://www.w3.org/1999/xlink" version="1.1" viewBox="0 0 256 256" xmlSpace="preserve">
                         <g style={{stroke: "none", strokeWidth: 0, strokeDasharray: "none", strokeLinecap: "butt", strokeLinejoin: "miter", strokeMiterlimit: 10, fill: "none", fillRule: "nonzero", opacity: 1}} transform="translate(1.4065934065934016 1.4065934065934016) scale(2.81 2.81)">
                           <path d="M 16.445 31.287 c -1.055 1.248 -2.743 2.233 -4.43 2.092 c -0.211 -1.688 0.615 -3.481 1.582 -4.588 c 1.055 -1.283 2.901 -2.198 4.395 -2.268 C 18.168 28.281 17.482 30.004 16.445 31.287 M 17.974 33.714 c -2.444 -0.141 -4.536 1.389 -5.696 1.389 c -1.178 0 -2.953 -1.319 -4.887 -1.283 c -2.514 0.035 -4.852 1.459 -6.135 3.727 c -2.637 4.536 -0.686 11.251 1.863 14.943 c 1.248 1.828 2.743 3.832 4.711 3.762 c 1.863 -0.07 2.602 -1.213 4.852 -1.213 c 2.268 0 2.918 1.213 4.887 1.178 c 2.039 -0.035 3.323 -1.828 4.571 -3.657 c 1.424 -2.074 2.004 -4.096 2.039 -4.202 c -0.035 -0.035 -3.938 -1.529 -3.973 -6.03 c -0.035 -3.762 3.077 -5.555 3.217 -5.661 C 21.666 34.065 18.923 33.784 17.974 33.714 M 32.091 28.615 v 27.407 h 4.254 v -9.37 h 5.889 c 5.38 0 9.159 -3.692 9.159 -9.036 s -3.709 -9.001 -9.019 -9.001 L 32.091 28.615 L 32.091 28.615 z M 36.345 32.202 h 4.905 c 3.692 0 5.801 1.969 5.801 5.432 s -2.11 5.45 -5.819 5.45 h -4.887 V 32.202 z M 59.164 56.234 c 2.672 0 5.151 -1.354 6.276 -3.498 h 0.088 v 3.287 h 3.938 V 42.381 c 0 -3.956 -3.164 -6.505 -8.034 -6.505 c -4.518 0 -7.858 2.584 -7.981 6.135 h 3.832 c 0.316 -1.688 1.881 -2.795 4.026 -2.795 c 2.602 0 4.061 1.213 4.061 3.446 v 1.512 l -5.309 0.316 c -4.94 0.299 -7.612 2.321 -7.612 5.837 C 52.449 53.878 55.209 56.234 59.164 56.234 z M 60.307 52.981 c -2.268 0 -3.709 -1.09 -3.709 -2.76 c 0 -1.723 1.389 -2.725 4.043 -2.883 l 4.729 -0.299 v 1.547 C 65.37 51.153 63.19 52.981 60.307 52.981 z M 74.723 63.477 c 4.149 0 6.1 -1.582 7.806 -6.382 L 90 36.14 h -4.325 l -5.01 16.191 h -0.088 l -5.01 -16.191 h -4.448 l 7.208 19.953 l -0.387 1.213 c -0.65 2.057 -1.705 2.848 -3.586 2.848 c -0.334 0 -0.984 -0.035 -1.248 -0.07 v 3.287 C 73.352 63.442 74.406 63.477 74.723 63.477 z" style={{stroke: "none", strokeWidth: 1, strokeDasharray: "none", strokeLinecap: "butt", strokeLinejoin: "miter", strokeMiterlimit: 10, fill: "rgb(255,255,255)", fillRule: "nonzero", opacity: 1}} transform=" matrix(1 0 0 1 0 0) " strokeLinecap="round"/>
                         </g>
                       </svg>
                     </button>
-                    <button type="button" className="w-full h-[52px] flex items-center justify-center gap-2 rounded-lg bg-[#FFC439] hover:bg-[#F4BB33] transition-colors">
+                    <button onClick={() => toast.info('PayPal is coming soon!')} type="button" className="w-full h-[52px] flex items-center justify-center gap-2 rounded-lg bg-[#FFC439] hover:bg-[#F4BB33] transition-colors">
                       <svg className="h-8 w-auto" xmlns="http://www.w3.org/2000/svg" xmlnsXlink="http://www.w3.org/1999/xlink" version="1.1" viewBox="0 0 256 256" xmlSpace="preserve">
                         <g style={{stroke: "none", strokeWidth: 0, strokeDasharray: "none", strokeLinecap: "butt", strokeLinejoin: "miter", strokeMiterlimit: 10, fill: "none", fillRule: "nonzero", opacity: 1}} transform="translate(1.4065934065934016 1.4065934065934016) scale(2.81 2.81)">
                           <path d="M 50.752 42.126 c -0.191 0 -0.327 0.187 -0.269 0.369 l 2.646 8.212 l -2.393 3.87 c -0.116 0.188 0.019 0.431 0.24 0.431 h 2.828 c 0.164 0 0.317 -0.086 0.402 -0.227 l 7.391 -12.226 c 0.113 -0.188 -0.022 -0.428 -0.242 -0.428 h -2.828 c -0.166 0 -0.32 0.088 -0.404 0.231 l -2.909 4.912 l -1.477 -4.875 c -0.048 -0.159 -0.195 -0.267 -0.36 -0.267 L 50.752 42.126 z" style={{stroke: "none", strokeWidth: 1, strokeDasharray: "none", strokeLinecap: "butt", strokeLinejoin: "miter", strokeMiterlimit: 10, fill: "rgb(0,48,135)", fillRule: "nonzero", opacity: 1}} transform=" matrix(1 0 0 1 0 0) " strokeLinecap="round"/>
@@ -419,7 +421,7 @@ function CheckoutContent() {
             </div>
 
             {/* Right: Summary */}
-            <div className="lg:w-5/12 p-8 lg:p-12 bg-slate-50 dark:bg-slate-900/50 relative overflow-hidden flex flex-col justify-between">
+            <div className="md:w-5/12 p-6 md:p-8 lg:p-12 bg-slate-50 dark:bg-slate-900/50 relative overflow-hidden flex flex-col justify-between">
               {/* Decorative background element */}
               <div className="absolute top-0 right-0 w-[300px] h-[300px] bg-blue-500/10 rounded-full blur-[80px] -translate-y-20 translate-x-20 pointer-events-none" />
               
@@ -440,15 +442,15 @@ function CheckoutContent() {
                       {plan.name}
                     </h3>
                     <div className="mt-2 mb-6 flex flex-col">
-                      <div>
-                        <span className={`text-3xl font-black ${planKey === 'PRO' ? 'text-white' : 'text-slate-900 dark:text-white'}`}>
-                          {formatLKR(monthlyPrice)}
+                      <div className="flex flex-wrap items-baseline gap-1">
+                        <span className={`text-2xl lg:text-3xl font-black ${planKey === 'PRO' ? 'text-white' : 'text-slate-900 dark:text-white'}`}>
+                          {formatLKR(displayPrice)}
                         </span>
-                        <span className={`text-sm ml-1 ${planKey === 'PRO' ? 'text-blue-200' : 'text-slate-500'}`}>
-                          /month
+                        <span className={`text-sm ${planKey === 'PRO' ? 'text-blue-200' : 'text-slate-500'}`}>
+                          {isLifetime ? 'once' : '/mo'}
                         </span>
                       </div>
-                      {isYearly && plan.price > 0 && (
+                      {isYearly && plan.priceMonthly > 0 && (
                         <p className={`text-xs mt-1 ${planKey === 'PRO' ? 'text-blue-200' : 'text-slate-500'}`}>
                           Billed annually
                         </p>
@@ -466,8 +468,8 @@ function CheckoutContent() {
                     <div className={`mt-auto pt-6 border-t ${planKey === 'PRO' ? 'border-white/20' : 'border-slate-100 dark:border-slate-800'}`}>
                       <button 
                         type="submit"
-                        disabled={isProcessing}
-                        className={`w-full text-center py-3 rounded-xl font-semibold text-sm transition-colors flex items-center justify-center gap-2 ${
+                        disabled={isProcessing || !isValid}
+                        className={`w-full text-center py-3 rounded-xl font-semibold text-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
                           planKey === 'PRO'
                             ? 'bg-white text-blue-600 hover:bg-blue-50'
                             : 'bg-blue-600 dark:bg-blue-500 text-white hover:bg-blue-700 dark:hover:bg-blue-600'

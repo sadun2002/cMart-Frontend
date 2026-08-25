@@ -3,7 +3,7 @@
 import { SiteHeader } from '@/components/layout/site-header';
 import { SiteFooter } from '@/components/layout/site-footer';
 import { MotionBlurBackground } from '@/components/ui/motion-blur-background';
-import { Shield } from 'lucide-react';
+
 import Link from 'next/link';
 
 export default function PrivacyPage() {
@@ -13,11 +13,7 @@ export default function PrivacyPage() {
       <SiteHeader />
 
       <main className="pt-32 pb-24 max-w-4xl mx-auto px-6 relative z-10">
-        {/* Header */}
         <div className="mb-12">
-          <div className="w-16 h-16 rounded-2xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mb-6">
-            <Shield className="w-8 h-8 text-blue-600 dark:text-blue-400" />
-          </div>
           <h1 className="text-4xl md:text-5xl font-black text-gray-900 dark:text-white mb-4">Privacy Policy</h1>
           <p className="text-lg text-gray-500 dark:text-slate-400">
             Last updated: July 27, 2026

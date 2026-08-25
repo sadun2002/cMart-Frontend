@@ -1,7 +1,9 @@
 import type { NextConfig } from 'next';
 
+const isTauri = process.env.TAURI_ENV_PLATFORM !== undefined;
+
 const nextConfig: NextConfig = {
-  // output: 'export', // Removed to support dynamic routes like [domain]
+  output: isTauri ? 'export' : undefined,
   images: {
     unoptimized: true,
     remotePatterns: [

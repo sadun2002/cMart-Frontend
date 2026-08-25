@@ -1,13 +1,28 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
-  Image as ImageIcon, Plus, Trash2, CheckCircle, 
-  EyeOff, Search, GripVertical, ExternalLink, X, Type, Link as LinkIcon 
+  Plus, Edit2, Trash2, Image as ImageIcon, Save, CheckCircle, 
+  EyeOff, Eye, Search, GripVertical, ExternalLink, X, Type, Link as LinkIcon 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { KpiCard } from '@/components/ui/kpi-card';
+import { CustomSelect } from '@/components/ui/custom-select';
+import { themeApi } from '@/lib/services';
+
+const mockPages = [
+  { title: 'Home', handle: '/' },
+  { title: 'Shop', handle: '/shop' },
+  { title: 'Categories', handle: '/categories' },
+  { title: 'Offers', handle: '/offers' },
+  { title: 'About Us', handle: '/about' },
+  { title: 'Contact', handle: '/contact' },
+  { title: 'FAQ', handle: '/faq' },
+  { title: 'Shipping', handle: '/shipping' },
+  { title: 'Privacy Policy', handle: '/privacy' },
+  { title: 'Terms', handle: '/terms' },
+];
 
 // Mock Data
 const mockBanners = [
@@ -58,6 +73,19 @@ export default function BannersPage() {
     ctaLink: '',
     status: 'Inactive',
   });
+  const [activeTheme, setActiveTheme] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchActiveTheme = async () => {
+      try {
+        const res = await themeApi.getMyTheme().catch(() => null);
+        const data = res as any;
+        const theme = data?.data?.theme || data?.theme || data?.data || data;
+        setActiveTheme(theme);
+      } catch (e) {}
+    };
+    fetchActiveTheme();
+  }, []);
 
   const filteredBanners = banners.filter(b => b.title.toLowerCase().includes(search.toLowerCase())).sort((a, b) => a.order - b.order);
 
@@ -74,7 +102,14 @@ export default function BannersPage() {
       });
     } else {
       setEditingBanner(null);
-      setFormData({ title: '', subtitle: '', image: '', ctaText: '', ctaLink: '', status: 'Inactive' });
+      setFormData({ 
+        title: 'New Collection', 
+        subtitle: 'Discover our latest arrivals and seasonal offers.', 
+        image: '', 
+        ctaText: 'Shop Now', 
+        ctaLink: '/', 
+        status: 'Active' 
+      });
     }
     setIsPanelOpen(true);
   };
@@ -210,7 +245,7 @@ export default function BannersPage() {
 
                   <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity pr-4">
                     <button onClick={(e) => handleToggleStatus(banner.id, banner.status, e)} className={`p-2.5 rounded-xl transition-colors ${banner.status === 'Inactive' ? 'text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-500/10' : 'text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10'}`} title={banner.status === 'Inactive' ? 'Activate' : 'Deactivate'}>
-                      {banner.status === 'Inactive' ? <CheckCircle className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
+                      {banner.status === 'Inactive' ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
                     </button>
                     <button onClick={(e) => handleDelete(banner.id, e)} className="p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-colors" title="Delete">
                       <Trash2 className="w-5 h-5" />
@@ -261,7 +296,9 @@ export default function BannersPage() {
                       <>
                         <ImageIcon className="w-10 h-10 mb-3 group-hover:scale-110 transition-transform" />
                         <span className="text-sm font-bold">Click to upload image</span>
-                        <span className="text-xs font-medium mt-1 opacity-70">Recommended size: 1920x820px</span>
+                        <span className="text-xs font-medium mt-1 opacity-70">
+                          Recommended size: {activeTheme?.id === 1 ? '800x600px' : '1920x820px'}
+                        </span>
                       </>
                     )}
                   </div>
@@ -311,35 +348,30 @@ export default function BannersPage() {
                     {/* CTA Link */}
                     <div className="space-y-2">
                       <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Button Link</label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                          <LinkIcon className="w-4 h-4" />
-                        </div>
-                        <input 
-                          type="text" 
-                          value={formData.ctaLink} 
-                          onChange={e => setFormData({...formData, ctaLink: e.target.value})}
-                          placeholder="/collections/sale" 
-                          className="w-full h-11 pl-9 pr-4 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl text-slate-900 dark:text-white font-medium outline-none transition-all"
-                        />
-                      </div>
+                      <CustomSelect 
+                        value={formData.ctaLink} 
+                        onChange={(val) => setFormData({...formData, ctaLink: val})}
+                        options={mockPages.map(p => ({ label: p.title, value: p.handle }))}
+                        label="Select a page"
+                      />
                     </div>
                   </div>
                 </div>
 
                 {/* Status */}
-                <div className="space-y-2 p-5 bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 rounded-2xl">
-                  <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Visibility Status</label>
-                  <div className="flex items-center gap-4 mt-2">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="radio" checked={formData.status === 'Active'} onChange={() => setFormData({...formData, status: 'Active'})} className="w-4 h-4 text-blue-600 focus:ring-blue-500 border-gray-300" />
-                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Active (Visible)</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="radio" checked={formData.status === 'Inactive'} onChange={() => setFormData({...formData, status: 'Inactive'})} className="w-4 h-4 text-blue-600 focus:ring-blue-500 border-gray-300" />
-                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Inactive (Hidden)</span>
-                    </label>
+                <div className="space-y-2 p-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 rounded-xl flex items-center justify-between">
+                  <div>
+                    <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Visibility Status</label>
+                    <div className="text-sm font-medium text-slate-500 mt-1">
+                      {formData.status === 'Active' ? 'Active (Visible)' : 'Inactive (Hidden)'}
+                    </div>
                   </div>
+                  <button
+                    onClick={() => setFormData({...formData, status: formData.status === 'Active' ? 'Inactive' : 'Active'})}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full transition-colors duration-200 ease-in-out focus:outline-none ${formData.status === 'Active' ? 'bg-blue-600' : 'bg-slate-300'}`}
+                  >
+                    <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${formData.status === 'Active' ? 'translate-x-2.5' : '-translate-x-2.5'}`} />
+                  </button>
                 </div>
 
               </div>

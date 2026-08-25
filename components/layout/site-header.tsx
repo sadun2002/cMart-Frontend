@@ -30,25 +30,32 @@ export function SiteHeader() {
     }
     return '/employee/dashboard';
   };
-  const getDashboardLabel = () => {
-    return 'Go to Dashboard';
-  };
 
   return (
-    <SmartNavbar>
-      <nav className="border-b border-gray-100 dark:border-slate-800 bg-white/70 dark:bg-slate-950/70 backdrop-blur-md transition-colors duration-300">
-        <div className="max-w-7xl mx-auto px-6 py-4">
+    <>
+      <SmartNavbar>
+        <nav className="border-b border-gray-100 dark:border-slate-800 bg-white/70 dark:bg-slate-950/70 backdrop-blur-md transition-colors duration-300">
+          <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            {/* Logo */}
-            <Link href="/" className="flex items-center gap-2.5 z-50">
-              <div className="w-8 h-8 bg-blue-600 rounded-xl flex items-center justify-center shadow-sm">
-                <span className="text-white font-black text-base">c</span>
-              </div>
-              <span className="text-xl font-black text-gray-900 dark:text-white transition-colors">{COMPANY_NAME}</span>
-            </Link>
+            {/* Left Side: Mobile Menu + Logo */}
+            <div className="flex items-center gap-2.5 z-50">
+              <button 
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="lg:hidden p-1 -ml-1 text-gray-600 dark:text-slate-300"
+              >
+                {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              </button>
+              
+              <Link href="/" className="flex items-center gap-2.5">
+                <div className="hidden lg:flex w-8 h-8 bg-blue-600 rounded-xl items-center justify-center shadow-sm">
+                  <span className="text-white font-black text-base">c</span>
+                </div>
+                <span className="text-xl font-black text-gray-900 dark:text-white transition-colors">{COMPANY_NAME}</span>
+              </Link>
+            </div>
 
             {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center gap-8 text-sm text-gray-600">
+            <div className="hidden lg:flex items-center gap-8 text-sm text-gray-600">
               {NAV_LINKS.map((item) => (
                 <Link 
                   key={item.href} 
@@ -61,7 +68,7 @@ export function SiteHeader() {
             </div>
 
             {/* Desktop Actions */}
-            <div className="hidden md:flex items-center gap-3">
+            <div className="hidden lg:flex items-center gap-3">
               {/* TODO: Remove this logout button after testing */}
               {isLoggedIn && (
                 <button
@@ -74,7 +81,7 @@ export function SiteHeader() {
               )}
               <ThemeToggle />
               <Link
-                href={isLoggedIn ? getDashboardUrl() : '/login'}
+                href={getDashboardUrl()}
                 className="text-sm bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors shadow-sm flex items-center gap-2"
               >
                 <LayoutDashboard className="w-4 h-4" />
@@ -82,8 +89,8 @@ export function SiteHeader() {
               </Link>
             </div>
 
-            {/* Mobile Menu Button */}
-            <div className="md:hidden flex items-center gap-3 z-50">
+            {/* Mobile Actions (Right Side) */}
+            <div className="lg:hidden flex items-center gap-3 z-50">
               {/* TODO: Remove this logout button after testing */}
               {isLoggedIn && (
                 <button
@@ -95,44 +102,63 @@ export function SiteHeader() {
                 </button>
               )}
               <ThemeToggle />
-              <button 
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="p-2 text-gray-600 dark:text-slate-300"
+              <Link 
+                href={getDashboardUrl()}
+                className="p-2 text-blue-600 dark:text-blue-400"
               >
-                {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-              </button>
+                <LayoutDashboard className="w-6 h-6" />
+              </Link>
             </div>
           </div>
+          </div>
+        </nav>
+      </SmartNavbar>
 
-          {/* Mobile Menu Overlay */}
-          <div className={`md:hidden fixed inset-0 top-16 bg-white dark:bg-slate-950 transition-all duration-300 overflow-y-auto ${mobileMenuOpen ? 'opacity-100 visible' : 'opacity-0 invisible'}`}>
-            <div className="px-6 py-8 space-y-8">
-              {NAV_LINKS.map((item) => (
-                <div key={item.href}>
-                  <Link 
-                    href={item.href}
-                    className="block text-gray-900 dark:text-white font-bold text-lg hover:text-blue-600 dark:hover:text-blue-400"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    {item.label}
-                  </Link>
-                </div>
-              ))}
-              <div className="pt-8 border-t border-gray-100 dark:border-slate-800 space-y-3">
-                <Link
-                  href={isLoggedIn ? getDashboardUrl() : '/login'}
-                  className="block w-full text-center bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-xl font-bold transition-colors flex items-center justify-center gap-2"
+      {/* Mobile Menu Drawer Overlay */}
+      <div 
+        className={`lg:hidden fixed inset-0 bg-black/50 z-[100] transition-opacity duration-300 ${mobileMenuOpen ? 'opacity-100 visible' : 'opacity-0 invisible'}`}
+        onClick={() => setMobileMenuOpen(false)}
+      />
+
+      {/* Mobile Menu Drawer Panel */}
+      <div className={`lg:hidden fixed inset-y-0 left-0 w-[80vw] max-w-sm bg-white dark:bg-slate-950 z-[101] transform transition-transform duration-300 ease-in-out shadow-2xl flex flex-col ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-slate-800">
+          <span className="font-bold text-lg text-gray-900 dark:text-white">Menu</span>
+          <button 
+            onClick={() => setMobileMenuOpen(false)}
+            className="p-2 text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200 bg-gray-100 dark:bg-slate-800 rounded-full"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        
+        <div className="p-6 overflow-y-auto flex-1">
+          <div className="mb-8">
+            <Link
+              href={getDashboardUrl()}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-3.5 rounded-xl font-bold transition-colors flex items-center justify-center gap-2 shadow-sm"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              <LayoutDashboard className="w-5 h-5" />
+              Go to Dashboard
+            </Link>
+          </div>
+
+          <div className="space-y-6">
+            {NAV_LINKS.map((item) => (
+              <div key={item.href}>
+                <Link 
+                  href={item.href}
+                  className="block text-gray-700 dark:text-slate-300 font-bold text-lg hover:text-blue-600 dark:hover:text-blue-400"
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  <LayoutDashboard className="w-5 h-5" />
-                  Go to Dashboard
+                  {item.label}
                 </Link>
               </div>
-            </div>
+            ))}
           </div>
-
         </div>
-      </nav>
-    </SmartNavbar>
+      </div>
+    </>
   );
 }

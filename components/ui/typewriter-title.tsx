@@ -9,7 +9,7 @@ export function TypewriterTitle() {
       <span className="text-blue-600">
         <Typewriter
           options={{
-            strings: ['Run Your Store', 'Manage Inventory', 'Track Sales'],
+            strings: ['Run Your Store', 'Manage Stocks', 'Track Sales'],
             autoStart: true,
             loop: true,
             delay: 75,

@@ -7,8 +7,22 @@
   ],
   "permissions": [
     "core:default",
+    "core:window:allow-set-theme",
     "sql:default",
     "sql:allow-execute",
-    "sql:allow-select"
+    "sql:allow-select",
+    "shell:default",
+    "shell:allow-open",
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        {
+          "name": "wmic",
+          "cmd": "wmic",
+          "args": true
+        }
+      ]
+    },
+    "updater:default"
   ]
 }

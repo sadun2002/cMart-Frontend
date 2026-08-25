@@ -27,8 +27,9 @@ export function BranchSelector() {
 
   if (!activeBranch) return null;
 
-  // Only STORE_OWNER can switch branches.
-  const canSwitch = userRole === 'STORE_OWNER';
+  // Only STORE_OWNER can switch branches, and they must not be on STARTUP plan.
+  const userPlan = user?.tenant?.plan || 'STARTUP';
+  const canSwitch = userRole === 'STORE_OWNER' && userPlan !== 'STARTUP';
 
   return (
     <div className="relative inline-flex items-center" ref={dropdownRef}>

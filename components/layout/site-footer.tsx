@@ -1,6 +1,55 @@
+"use client";
+
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useAuthStore } from '@/lib/auth-store';
+import { toast } from 'sonner';
 
 export function SiteFooter() {
+  const router = useRouter();
+  const { user } = useAuthStore();
+
+  const handlePOSClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (user) {
+      const isDesktop = typeof window !== 'undefined' && ('__TAURI__' in window || '__TAURI_INTERNALS__' in window);
+      const plan = user.tenant?.plan || 'STARTUP';
+      
+      if (plan === 'STARTUP' && !isDesktop) {
+        router.push('/offline-access');
+      } else {
+        router.push(user.role === 'STORE_OWNER' ? '/owner/dashboard' : '/employee/dashboard');
+      }
+    } else {
+      router.push('/register');
+    }
+  };
+
+  const handleOnlineStoreClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (user) {
+      const plan = user.tenant?.plan || 'STARTUP';
+      if (plan === 'PRO' || plan === 'ENTERPRISE') {
+        const subdomain = user.tenant?.subdomain || user.tenant?.businessName?.toLowerCase().replace(/\s+/g, '-');
+        if (subdomain) {
+          window.open(`https://${subdomain}.${window.location.host}`, '_blank');
+        } else {
+          toast.error("Store domain not found.");
+        }
+      } else {
+        router.push('/pricing'); // Prompt to upgrade
+      }
+    } else {
+      router.push('/register');
+    }
+  };
+
+  const handleDocsClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    toast.info('Documentation is coming soon!');
+    // Developer note: The documentation page is built but not published due to pending issues. Don't rebuild it, reuse the existing page.
+  };
+
   return (
     <footer className="relative z-10 border-t border-gray-100 dark:border-slate-800 bg-transparent pt-16 pb-8 transition-colors">
       <div className="max-w-7xl mx-auto px-6">
@@ -34,11 +83,12 @@ export function SiteFooter() {
               </Link>
             </div>
           </div>
-          <div>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-10 md:col-span-3">
+            <div>
             <h3 className="font-bold text-gray-900 dark:text-white mb-5 text-sm uppercase tracking-wider transition-colors">Product</h3>
             <ul className="space-y-3.5 text-sm text-gray-500 dark:text-slate-400 font-medium">
-              <li><Link href="/" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">POS</Link></li>
-              <li><Link href="/" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Online Store</Link></li>
+              <li><a href="#" onClick={handlePOSClick} className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer">POS</a></li>
+              <li><a href="#" onClick={handleOnlineStoreClick} className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer">Online Store</a></li>
               <li><Link href="/themes" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Themes</Link></li>
               <li><Link href="/pricing" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Pricing</Link></li>
               <li><Link href="/download" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Downloads</Link></li>
@@ -53,14 +103,15 @@ export function SiteFooter() {
               <li><Link href="/privacy" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Privacy</Link></li>
               <li><Link href="/terms" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Terms</Link></li>
             </ul>
-          </div>
-          <div>
-            <h3 className="font-bold text-gray-900 dark:text-white mb-5 text-sm uppercase tracking-wider transition-colors">Support</h3>
+            </div>
+            <div className="col-span-2 md:col-span-1">
+              <h3 className="font-bold text-gray-900 dark:text-white mb-5 text-sm uppercase tracking-wider transition-colors">Support</h3>
             <ul className="space-y-3.5 text-sm text-gray-500 dark:text-slate-400 font-medium">
               <li><Link href="/help-center" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Help Center</Link></li>
-              <li><Link href="/documentation" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Documentation</Link></li>
+              <li><a href="#" onClick={handleDocsClick} className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer">Documentation</a></li>
               <li><Link href="/contact" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Contact</Link></li>
-            </ul>
+              </ul>
+            </div>
           </div>
         </div>
         <div className="pt-8 border-t border-gray-100 dark:border-slate-800/50 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-gray-500 dark:text-slate-500 transition-colors">

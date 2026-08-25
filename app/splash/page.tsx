@@ -12,7 +12,7 @@ export default function SplashScreen() {
     // Wait for the animation to finish (2.5 seconds)
     const timer = setTimeout(() => {
       // Check auth status from Zustand persist storage
-      const authData = localStorage.getItem('auth-storage');
+      const authData = localStorage.getItem('cmart-auth');
       let token = null;
       let userRole = null;
       let userType = null;

@@ -68,9 +68,6 @@ export default function BillingPage() {
       </div>
 
       <div className="flex justify-end gap-3">
-        <button className="px-5 py-2.5 text-sm font-semibold text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800/50 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
-          Cancel Plan
-        </button>
         <button className="px-5 py-2.5 bg-gradient-to-br from-blue-600 to-blue-500 text-white font-bold rounded-xl text-sm shadow-lg shadow-blue-200/50 dark:shadow-blue-900/20 hover:shadow-xl transition-all flex items-center gap-2">
           Upgrade Plan
           <ArrowRight className="w-4 h-4" />

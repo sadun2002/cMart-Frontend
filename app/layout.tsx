@@ -1,10 +1,13 @@
 import type { Metadata } from 'next';
 import './globals.css';
-import { Toaster } from 'sonner';
+import { GlobalToaster } from '@/components/providers/global-toaster';
 import { ThemeProvider } from '@/components/providers/theme-provider';
 import { FullscreenHandler } from '@/components/providers/fullscreen-handler';
 import { DesktopRouter } from '@/components/providers/desktop-router';
 import { AuthLoader } from '@/components/providers/auth-loader';
+import { DesktopUpdater } from '@/components/providers/desktop-updater';
+
+import { LicenseValidator } from '@/components/providers/license-validator';
 
 export const metadata: Metadata = {
   title: {
@@ -36,10 +39,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="antialiased font-sans" suppressHydrationWarning>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <DesktopRouter>
-            <AuthLoader />
-            <FullscreenHandler />
-            {children}
-            <Toaster position="top-center" richColors />
+            <LicenseValidator>
+              <DesktopUpdater />
+              <AuthLoader />
+              <FullscreenHandler />
+              {children}
+              <GlobalToaster />
+            </LicenseValidator>
           </DesktopRouter>
         </ThemeProvider>
       </body>

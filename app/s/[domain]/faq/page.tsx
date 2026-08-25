@@ -1,4 +1,8 @@
 "use client";
+import { AuraFAQ } from "@/components/storefront/themes/aura/pages/AuraFAQ";
+import { MarketFAQ } from "@/components/storefront/themes/market/pages/MarketFAQ";
+
+import { VerdantFAQ } from "@/components/storefront/themes/verdant/pages/VerdantFAQ";
 
 import { use } from "react";
 import { MinimalistHeader } from "@/components/storefront/themes/minimalist/MinimalistHeader";
@@ -7,12 +11,30 @@ import Link from "next/link";
 import { useThemeCustomizations } from "@/components/storefront/theme-provider";
 import { defaultThemeCustomizations } from "@/components/storefront/theme-provider";
 
-export default function FAQPage(props: { params: Promise<{ domain: string }> }) {
+
+export default function FAQPage(props: { 
+  params: Promise<{ domain: string }>;
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   const params = use(props.params);
+  const searchParams = props.searchParams ? use(props.searchParams) : {};
   const storeName = params.domain.replace("-", " ").toUpperCase() || "My Store";
+  const theme = searchParams?.theme as string;
+
   const { customizations } = useThemeCustomizations();
-  
   const faqs = customizations.pageData?.faq?.items || defaultThemeCustomizations.pageData.faq.items;
+
+
+  if (theme === 'market') {
+    return <MarketFAQ storeName={storeName} domain={params.domain} />;
+  }
+  if (theme === 'aura') {
+    return <AuraFAQ storeName={storeName} domain={params.domain} />;
+  }
+
+  if (theme === 'verdant') {
+    return <VerdantFAQ storeName={storeName} domain={params.domain} />;
+  }
 
   return (
     <div className="flex flex-col min-h-screen">

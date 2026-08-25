@@ -1,15 +1,40 @@
 "use client";
+import { AuraAbout } from "@/components/storefront/themes/aura/pages/AuraAbout";
+import { MarketAbout } from "@/components/storefront/themes/market/pages/MarketAbout";
+
+import { VerdantAbout } from "@/components/storefront/themes/verdant/pages/VerdantAbout";
 
 import { MinimalistHeader } from "@/components/storefront/themes/minimalist/MinimalistHeader";
 import { MinimalistFooter } from "@/components/storefront/themes/minimalist/MinimalistFooter";
 import { use } from "react";
+
 import { useThemeCustomizations } from "@/components/storefront/theme-provider";
 
-export default function StorefrontAboutPage(props: { params: Promise<{ domain: string }> }) {
+export default function StorefrontAboutPage(props: { 
+  params: Promise<{ domain: string }>;
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   const params = use(props.params);
+  
+  // Since searchParams is a Promise in Next.js 15, we must unwrap it using React.use()
+  const searchParams = props.searchParams ? use(props.searchParams) : {};
   const storeName = params.domain.replace("-", " ").toUpperCase() || "My Store";
+  const theme = searchParams?.theme as string;
+
   const { customizations } = useThemeCustomizations();
   const aboutData = customizations.pageData?.about;
+
+
+  if (theme === 'market') {
+    return <MarketAbout storeName={storeName} domain={params.domain} />;
+  }
+  if (theme === 'aura') {
+    return <AuraAbout storeName={storeName} domain={params.domain} />;
+  }
+
+  if (theme === 'verdant') {
+    return <VerdantAbout storeName={storeName} domain={params.domain} />;
+  }
 
   return (
     <div className="flex flex-col min-h-screen">

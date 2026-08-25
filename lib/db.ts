@@ -67,13 +67,16 @@ export async function initDb() {
   await getDb(); // getDb now handles initialization
 }
 
+import { encryptData, decryptData } from './local-db';
+
 // Helper functions for settings
 export async function getSetting(key: string, defaultValue: string = ''): Promise<string> {
   try {
     const db = await getDb();
     const result = await db.select('SELECT value FROM store_settings WHERE key = ?', [key]) as {value: string}[];
     if (result && result.length > 0) {
-      return result[0].value;
+      const decrypted = await decryptData(result[0].value);
+      return decrypted !== null ? decrypted : defaultValue;
     }
     return defaultValue;
   } catch (error) {
@@ -85,9 +88,10 @@ export async function getSetting(key: string, defaultValue: string = ''): Promis
 export async function setSetting(key: string, value: string): Promise<void> {
   try {
     const db = await getDb();
+    const encrypted = await encryptData(value);
     await db.execute(
       'INSERT INTO store_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = ?',
-      [key, value, value]
+      [key, encrypted, encrypted]
     );
   } catch (error) {
     console.error('Error setting setting:', error);

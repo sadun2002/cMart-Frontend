@@ -12,12 +12,31 @@ const api = axios.create({
   withCredentials: true,
 });
 
+// Helper to fallback to localStorage if cookie is missing (Tauri WebView2 fix)
+const getLocalToken = (key: 'accessToken' | 'refreshToken' | 'storefrontAccessToken' | 'storefrontRefreshToken') => {
+  let token = getCookie(key);
+  if (!token && typeof window !== 'undefined') {
+    try {
+      const stateStr = localStorage.getItem('cmart-auth');
+      if (stateStr) {
+        const state = JSON.parse(stateStr).state;
+        if (state && state[key]) {
+          token = state[key];
+        }
+      }
+    } catch (e) {
+      // ignore parse errors
+    }
+  }
+  return token;
+};
+
 // ─── Request Interceptor — attach token ───────────────────
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    // Get token from cookie (set by auth store)
+    // Get token from cookie or localStorage (fallback for Tauri)
     if (typeof window !== 'undefined') {
-      const token = getCookie('accessToken');
+      const token = getLocalToken('accessToken');
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
@@ -56,9 +75,8 @@ api.interceptors.response.use(
       originalRequest._retry = true;
       isRefreshing = true;
 
-      const refreshToken = getCookie('refreshToken');
+      const refreshToken = getLocalToken('refreshToken');
       if (!refreshToken) {
-        // No refresh token → logout
         clearAuthCookies();
         if (typeof window !== 'undefined') window.location.href = '/login';
         return Promise.reject(error);
@@ -81,6 +99,89 @@ api.interceptors.response.use(
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
+      }
+    }
+
+    return Promise.reject(error);
+  },
+);
+
+// ─── Storefront Isolated API Instance ──────────────────────
+export const storefrontApi = axios.create({
+  baseURL: API_BASE_URL,
+  headers: { 'Content-Type': 'application/json' },
+  withCredentials: true,
+});
+
+storefrontApi.interceptors.request.use(
+  (config: InternalAxiosRequestConfig) => {
+    if (typeof window !== 'undefined') {
+      const token = getCookie('storefrontAccessToken');
+      console.log('[Storefront Request] Using Token:', token);
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+    }
+    return config;
+  },
+  (error) => Promise.reject(error),
+);
+
+// To prevent infinite refresh loops
+let isStorefrontRefreshing = false;
+let storefrontFailedQueue: any[] = [];
+
+const processStorefrontQueue = (error: any, token: string | null = null) => {
+  storefrontFailedQueue.forEach((p) => (error ? p.reject(error) : p.resolve(token)));
+  storefrontFailedQueue = [];
+};
+
+storefrontApi.interceptors.response.use(
+  (response) => response.data,
+  async (error: AxiosError) => {
+    const originalRequest = error.config as any;
+    console.warn('[Storefront Response] Status:', error.response?.status, 'URL:', originalRequest.url);
+
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      if (isStorefrontRefreshing) {
+        return new Promise((resolve, reject) => {
+          storefrontFailedQueue.push({ resolve, reject });
+        })
+          .then((token) => {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            return storefrontApi(originalRequest);
+          })
+          .catch((err) => Promise.reject(err));
+      }
+
+      originalRequest._retry = true;
+      isStorefrontRefreshing = true;
+
+      const refreshToken = getCookie('storefrontRefreshToken');
+      if (!refreshToken) {
+        deleteCookie('storefrontAccessToken');
+        deleteCookie('storefrontRefreshToken');
+        // Let the UI handle redirect
+        return Promise.reject(error);
+      }
+
+      try {
+        const { data } = await axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken });
+        const { accessToken, refreshToken: newRefreshToken } = data.data || data;
+
+        setCookie('storefrontAccessToken', accessToken, 15 / (24 * 60));
+        setCookie('storefrontRefreshToken', newRefreshToken, 7);
+
+        originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+        processStorefrontQueue(null, accessToken);
+        return storefrontApi(originalRequest);
+      } catch (refreshError) {
+        processStorefrontQueue(refreshError, null);
+        deleteCookie('storefrontAccessToken');
+        deleteCookie('storefrontRefreshToken');
+        return Promise.reject(refreshError);
+      } finally {
+        isStorefrontRefreshing = false;
       }
     }
 
@@ -111,9 +212,20 @@ export function clearAuthCookies() {
   deleteCookie('userType');
 }
 
+export function clearStorefrontAuthCookies() {
+  deleteCookie('storefrontAccessToken');
+  deleteCookie('storefrontRefreshToken');
+}
+
 // ─── API Endpoints (Phase 3) ───────────────────────────────
 
 export const storeOwnerAPI = {
+  // Online Orders & Customers
+  getOnlineOrders: () => api.get('/storefront/admin/orders'),
+  getOnlineCustomers: () => api.get('/storefront/admin/customers'),
+  updateOnlineOrder: (id: number, data: { status?: string; paymentStatus?: string }) => api.patch(`/storefront/admin/orders/${id}`, data),
+  deleteOnlineOrder: (id: number) => api.delete(`/storefront/admin/orders/${id}`),
+
   // Branches
   getBranches: () => api.get('/branches'),
   createBranch: (data: any) => api.post('/branches', data),
@@ -181,6 +293,7 @@ export const employeeAPI = {
 // ─── Super Admin (Company) Endpoints ────────────────────────
 export const userAPI = {
   updatePlan: (plan: string) => api.patch('/auth/plan', { plan }),
+  getBillingHistory: () => api.get('/auth/billing-history'),
 };
 
 export const superAdminAPI = {
@@ -193,12 +306,30 @@ export const superAdminAPI = {
 
   // Themes
   getThemes: () => api.get('/themes/all'),
-  uploadTheme: (data: FormData) => api.post('/themes', data, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-  }),
+  createTheme: (data: any) => api.post('/themes', data),
+  toggleThemeStatus: (id: number | string, isActive: boolean) => api.patch(`/themes/${id}/status`, { isActive }),
   
   // Platform Metrics
   getDashboardMetrics: () => api.get('/admin/metrics'),
+};
+
+export const storefrontAuthAPI = {
+  login: (data: any) => storefrontApi.post('/auth/login', data),
+  registerCustomer: (data: any) => storefrontApi.post('/auth/register-customer', data),
+};
+
+export const storefrontAPI = {
+  getProfile: () => storefrontApi.get('/storefront/profile'),
+  getOrders: () => storefrontApi.get('/storefront/orders'),
+  createOrder: (data: any) => storefrontApi.post('/storefront/orders', data),
+  cancelOrder: (id: number) => storefrontApi.patch(`/storefront/orders/${id}/cancel`),
+  returnOrder: (id: number) => storefrontApi.patch(`/storefront/orders/${id}/return`),
+  getAddresses: () => storefrontApi.get('/storefront/addresses'),
+  addAddress: (data: any) => storefrontApi.post('/storefront/addresses', data),
+  deleteAddress: (id: number) => storefrontApi.delete(`/storefront/addresses/${id}`),
+  getCards: () => storefrontApi.get('/storefront/cards'),
+  addCard: (data: any) => storefrontApi.post('/storefront/cards', data),
+  deleteCard: (id: number) => storefrontApi.delete(`/storefront/cards/${id}`),
 };
 
 export default api;

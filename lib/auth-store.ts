@@ -22,6 +22,8 @@ export interface AuthUser {
     subdomain: string;
     plan: string;
     active: boolean;
+    suspended?: boolean;
+    suspendReason?: string;
     subscription?: {
       plan: string;
       status: string;
@@ -40,8 +42,8 @@ interface AuthState {
   refreshToken: string | null;
   isLoading: boolean;
 
-  login: (email: string, password: string) => Promise<{ redirectTo: string }>;
-  register: (data: RegisterData) => Promise<{ redirectTo: string }>;
+  login: (email: string, password: string) => Promise<{ redirectTo: string; user?: any }>;
+  register: (data: RegisterData) => Promise<{ redirectTo: string; user?: any }>;
   logout: () => void;
   loadMe: () => Promise<void>;
   setTokens: (access: string, refresh: string) => void;
@@ -97,10 +99,10 @@ export const useAuthStore = create<AuthState>()(
 
           // Check if tenant is pending
           if (payload.user.role === 'STORE_OWNER' && payload.user.tenant && payload.user.tenant.active === false) {
-            return { redirectTo: '/pending' };
+            return { redirectTo: '/pending', user: payload.user };
           }
 
-          return { redirectTo: payload.redirectTo };
+          return { redirectTo: payload.redirectTo, user: payload.user };
         } catch (err: any) {
           set({ isLoading: false });
           const message = err.response?.data?.message || 'Login failed';
@@ -128,15 +130,15 @@ export const useAuthStore = create<AuthState>()(
 
           // Redirect to pending for new store registrations (assuming they start as inactive)
           if (payload.user.role === 'STORE_OWNER' && payload.user.tenant && payload.user.tenant.active === false) {
-            return { redirectTo: '/pending' };
+            return { redirectTo: '/pending', user: payload.user };
           }
 
           // Force pending for demo if backend doesn't handle it yet
           if (payload.user.role === 'STORE_OWNER' && payload.user.tenant === undefined) {
-             return { redirectTo: '/pending' };
+             return { redirectTo: '/pending', user: payload.user };
           }
 
-          return { redirectTo: payload.redirectTo || '/pending' };
+          return { redirectTo: payload.redirectTo || '/pending', user: payload.user };
         } catch (err: any) {
           set({ isLoading: false });
           const message = err.response?.data?.message || 'Registration failed';
@@ -207,3 +209,25 @@ export const useAuthStore = create<AuthState>()(
     },
   ),
 );
+
+// ============================================================
+// Cross-Tab Synchronization
+// ============================================================
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (event) => {
+    if (event.key === 'cmart-auth') {
+      // When localStorage changes in another tab, rehydrate the store here
+      const persist = (useAuthStore as any).persist;
+      if (persist && persist.rehydrate) {
+        persist.rehydrate();
+      }
+    }
+  });
+  
+  // Keep cookies in sync if state is cleared (logout)
+  useAuthStore.subscribe((state) => {
+    if (!state.user && !state.accessToken) {
+      clearAuthCookies();
+    }
+  });
+}

@@ -1,4 +1,8 @@
 "use client";
+import { AuraAuth } from "@/components/storefront/themes/aura/pages/AuraAuth";
+import { MarketAuth } from "@/components/storefront/themes/market/pages/MarketAuth";
+
+import { VerdantForgotPassword } from "@/components/storefront/themes/verdant/pages/VerdantAuth";
 
 import { MinimalistHeader } from "@/components/storefront/themes/minimalist/MinimalistHeader";
 import { MinimalistFooter } from "@/components/storefront/themes/minimalist/MinimalistFooter";
@@ -8,11 +12,17 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
-export default function StorefrontForgotPasswordPage(props: { params: Promise<{ domain: string }> }) {
+
+export default function StorefrontForgotPasswordPage(props: { 
+  params: Promise<{ domain: string }>;
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   const params = use(props.params);
+  const searchParams = props.searchParams ? use(props.searchParams) : {};
   const storeName = params.domain.replace("-", " ").toUpperCase() || "My Store";
+  const theme = searchParams?.theme as string;
   const router = useRouter();
-  
+
   const [email, setEmail] = useState("");
   const [isSubmitted, setIsSubmitted] = useState(false);
 
@@ -23,6 +33,18 @@ export default function StorefrontForgotPasswordPage(props: { params: Promise<{ 
       setIsSubmitted(true);
     }
   };
+
+
+  if (theme === 'market') {
+    return <MarketAuth storeName={storeName} domain={params.domain} />;
+  }
+  if (theme === 'aura') {
+    return <AuraAuth storeName={storeName} domain={params.domain} title="Reset Password" subtitle="Enter your email to receive a reset link" children={<form><input type="email" placeholder="Email" className="w-full mb-6 p-3 border border-aura-border bg-transparent font-serif" /><button className="w-full bg-black text-white py-4 text-xs font-semibold uppercase tracking-widest hover:bg-zinc-800 transition-colors">Send Reset Link</button></form>} />;
+  }
+
+  if (theme === 'verdant') {
+    return <VerdantForgotPassword storeName={storeName} domain={params.domain} />;
+  }
 
   return (
     <div className="flex flex-col min-h-screen">

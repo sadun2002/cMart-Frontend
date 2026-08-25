@@ -17,6 +17,11 @@ export default function ApprovalsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [processingId, setProcessingId] = useState<number | null>(null);
   
+  // Reject Modal State
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [storeToReject, setStoreToReject] = useState<number | null>(null);
+  const [rejectReason, setRejectReason] = useState('Your store request was rejected because the business details provided do not meet our criteria. Please re-apply with valid details or contact support.');
+  
   // View & Filter State
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -106,7 +111,7 @@ export default function ApprovalsPage() {
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
-  const handleStatusChange = async (id: number, newStatus: 'Approved' | 'Rejected') => {
+  const handleStatusChange = async (id: number, newStatus: 'Approved' | 'Rejected', customReason?: string) => {
     try {
       setProcessingId(id);
       if (newStatus === 'Approved') {
@@ -114,7 +119,7 @@ export default function ApprovalsPage() {
         toast.success('Store Approved');
         toast.info('Email sent successfully with login details.');
       } else {
-        await superAdminAPI.rejectTenant(id, 'Rejected by super admin');
+        await superAdminAPI.rejectTenant(id, customReason || 'Rejected by super admin');
         toast.success('Store Rejected');
         toast.info('Rejection email sent to the user.');
       }
@@ -138,6 +143,20 @@ export default function ApprovalsPage() {
       toast.error(`Failed to ${newStatus.toLowerCase()} store`);
     } finally {
       setProcessingId(null);
+    }
+  };
+
+  const openRejectModal = (id: number) => {
+    setStoreToReject(id);
+    setRejectReason('Your store request was rejected because the business details provided do not meet our criteria. Please re-apply with valid details or contact support.');
+    setRejectModalOpen(true);
+  };
+
+  const confirmReject = async () => {
+    if (storeToReject) {
+      await handleStatusChange(storeToReject, 'Rejected', rejectReason);
+      setRejectModalOpen(false);
+      setStoreToReject(null);
     }
   };
 
@@ -380,14 +399,14 @@ export default function ApprovalsPage() {
                               <CheckCircle className="w-4 h-4" />
                               <span>Approve</span>
                             </button>
-                            <button onClick={() => handleStatusChange(req.id, 'Rejected')} disabled={processingId !== null} className={`flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20 rounded-xl transition-all text-xs font-bold ${processingId !== null ? 'opacity-50 cursor-not-allowed' : ''}`} title="Reject">
+                            <button onClick={() => openRejectModal(req.id)} disabled={processingId !== null} className={`flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20 rounded-xl transition-all text-xs font-bold ${processingId !== null ? 'opacity-50 cursor-not-allowed' : ''}`} title="Reject">
                               <XCircle className="w-4 h-4" />
                               <span>Reject</span>
                             </button>
                           </>
                         ) : (
-                          <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold ${status === 'Approved' || status === 'Active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400'}`}>
-                            {status === 'Approved' || status === 'Active' ? <CheckCircle className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+                          <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold ${status === 'Approved' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400'}`}>
+                            {status === 'Approved' ? <CheckCircle className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
                             <span>{status}</span>
                           </span>
                         )}
@@ -436,7 +455,7 @@ export default function ApprovalsPage() {
                       </div>
                       <div className="flex flex-col items-end gap-2">
                         {status !== 'Pending' && (
-                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${status === 'Approved' || status === 'Active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400'}`}>
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${status === 'Approved' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400'}`}>
                             {status}
                           </span>
                         )}
@@ -482,7 +501,7 @@ export default function ApprovalsPage() {
                         <button onClick={() => handleStatusChange(req.id, 'Approved')} disabled={processingId !== null} className={`flex-1 py-2.5 flex items-center justify-center gap-1.5 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs font-bold rounded-xl hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-colors ${processingId !== null ? 'opacity-50 cursor-not-allowed' : ''}`}>
                           <CheckCircle className="w-4 h-4" /> Approve
                         </button>
-                        <button onClick={() => handleStatusChange(req.id, 'Rejected')} disabled={processingId !== null} className={`flex-1 py-2.5 flex items-center justify-center gap-1.5 bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 text-xs font-bold rounded-xl hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors ${processingId !== null ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                        <button onClick={() => openRejectModal(req.id)} disabled={processingId !== null} className={`flex-1 py-2.5 flex items-center justify-center gap-1.5 bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 text-xs font-bold rounded-xl hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors ${processingId !== null ? 'opacity-50 cursor-not-allowed' : ''}`}>
                           <XCircle className="w-4 h-4" /> Reject
                         </button>
                       </div>
@@ -501,6 +520,42 @@ export default function ApprovalsPage() {
           </div>
         )}
       </div>
+
+      {/* Reject Reason Modal */}
+      <AnimatePresence>
+        {rejectModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md p-6 shadow-2xl">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Reject Store Request</h3>
+              <p className="text-sm text-gray-500 dark:text-slate-400 mb-4">
+                Please provide a reason for rejecting this store. This will be shown to the user on their pending page.
+              </p>
+              
+              <textarea
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                className="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl p-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 resize-none min-h-[100px] mb-5"
+                placeholder="Enter rejection reason..."
+              />
+              
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setRejectModalOpen(false)}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 rounded-xl transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmReject}
+                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-xl transition-colors"
+                >
+                  Confirm Reject
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

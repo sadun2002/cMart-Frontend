@@ -43,7 +43,66 @@
   --color-sidebar-hover: hsl(var(--sidebar-hover));
   --color-sidebar-active: hsl(var(--sidebar-active));
   --color-sidebar-border: hsl(var(--sidebar-border));
+
+  /* Verdant (Pro Theme) Specific Colors */
+  --color-verdant-surface: #f8f9fa;
+  --color-verdant-surface-dim: #d9dadb;
+  --color-verdant-surface-bright: #f8f9fa;
+  --color-verdant-surface-container-lowest: #ffffff;
+  --color-verdant-surface-container-low: #f3f4f5;
+  --color-verdant-surface-container: #edeeef;
+  --color-verdant-surface-container-high: #e7e8e9;
+  --color-verdant-surface-container-highest: #e1e3e4;
+  --color-verdant-on-surface: #191c1d;
+  --color-verdant-on-surface-variant: #3c4a42;
+  --color-verdant-primary: #006c49;
+  --color-verdant-on-primary: #ffffff;
+  --color-verdant-primary-container: #10b981;
+  --color-verdant-on-primary-container: #00422b;
+  --color-verdant-secondary: #855300;
+  --color-verdant-on-secondary: #ffffff;
+  --color-verdant-secondary-container: #fea619;
+  --color-verdant-on-secondary-container: #684000;
+  --color-verdant-outline: #6c7a71;
+  --color-verdant-error: #ba1a1a;
+  --color-verdant-on-error: #ffffff;
+  
+  /* Verdant Fonts */
+  --font-verdant-heading: 'Montserrat', sans-serif;
+  --font-verdant-body: 'Inter', sans-serif;
+
+  /* ─── Market (Premium Grocery) Theme Colors ──────────────────── */
+  --color-market-bg: #f8f9fa;
+  --color-market-surface: #ffffff;
+  --color-market-surface-low: #f3f4f5;
+  --color-market-surface-mid: #edeeef;
+  --color-market-border: #e7e8e9;
+  --color-market-border-subtle: #f0f0f0;
+  --color-market-on-surface: #191c1d;
+  --color-market-on-surface-muted: #6b7280;
+  --color-market-on-surface-subtle: #9ca3af;
+  /* Primary — Emerald Green */
+  --color-market-primary: #006c49;
+  --color-market-primary-hover: #005236;
+  --color-market-primary-light: #ecfdf5;
+  --color-market-on-primary: #ffffff;
+  /* Secondary — Warm Amber */
+  --color-market-secondary: #855300;
+  --color-market-secondary-hover: #653e00;
+  --color-market-amber: #fea619;
+  --color-market-amber-light: #fff8ed;
+  --color-market-on-amber: #2a1700;
+  /* Accent greens */
+  --color-market-sage: #d1fae5;
+  --color-market-sage-dark: #065f46;
+  /* Status */
+  --color-market-error: #ba1a1a;
+  --color-market-success: #006c49;
+  /* Market Fonts */
+  --font-market-heading: 'Montserrat', sans-serif;
+  --font-market-body: 'Inter', sans-serif;
 }
+
 
 @layer base {
   *, ::before, ::after {
@@ -337,4 +396,30 @@ input::-webkit-contacts-auto-fill-button {
   pointer-events: none;
   height: 0;
   width: 0;
+}
+
+/* ─── Custom Select Arrow ───────────────────────────────── */
+select {
+  padding-right: 2.5rem !important;
+  background-position: right 1rem center !important;
+}
+
+/* ─── Utilities ─────────────────────────────────────────── */
+@utility hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Aura (Pro Theme) Specific Colors */
+@theme {
+  --color-aura-surface: #ffffff;
+  --color-aura-surface-dim: #f4f4f5;
+  --color-aura-surface-bright: #ffffff;
+  --color-aura-on-surface: #09090b;
+  --color-aura-on-surface-variant: #71717a;
+  --color-aura-border: #e4e4e7;
+  --color-aura-gold: #d4af37;
 }

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { storeOwnerAPI } from '@/lib/api';
 import { 
   Search, Filter, CheckCircle, Clock, XCircle, AlertTriangle, 
   Maximize, Minimize, List, LayoutGrid, X, Download, User as UserIcon, 
@@ -77,10 +78,11 @@ const mockOnlineCustomers = [
   },
 ];
 
-const ACCOUNT_STATUSES = ['All', 'Active', 'Inactive', 'Blocked'];
+const ACCOUNT_STATUSES = ['All', 'Active', 'Inactive', 'Suspended'];
 
 export default function OnlineCustomersPage() {
-  const [customers, setCustomers] = useState(mockOnlineCustomers);
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [loadingData, setLoadingData] = useState(true);
   const [search, setSearch] = useState('');
   
   // View & Filter State
@@ -98,37 +100,80 @@ export default function OnlineCustomersPage() {
   
   const [blockConfirmId, setBlockConfirmId] = useState<string | null>(null);
 
+  const fetchCustomers = async () => {
+    try {
+      setLoadingData(true);
+      const res: any = await storeOwnerAPI.getOnlineCustomers();
+      const data = res.data || res;
+      const formatted = data.map((c: any) => {
+        const defaultAddr = c.addresses?.[0];
+        
+        let displayStatus = 'Suspended';
+        if (c.active) {
+          if (c.lastLogin) {
+            const daysSinceLogin = Math.floor((Date.now() - new Date(c.lastLogin).getTime()) / (1000 * 60 * 60 * 24));
+            displayStatus = daysSinceLogin <= 30 ? 'Active' : 'Inactive';
+          } else {
+            const daysSinceReg = Math.floor((Date.now() - new Date(c.createdAt).getTime()) / (1000 * 60 * 60 * 24));
+            displayStatus = daysSinceReg <= 30 ? 'Active' : 'Inactive';
+          }
+        }
+
+        return {
+          realId: c.id,
+          id: `WEB-CUS-${c.id}`,
+          name: c.name,
+          phone: defaultAddr?.phone || c.phone || 'N/A',
+          email: c.email || 'N/A',
+          address: defaultAddr ? `${defaultAddr.street}, ${defaultAddr.city}` : 'N/A',
+          registeredDate: new Date(c.createdAt).toLocaleDateString(),
+          lastLogin: c.lastLogin ? new Date(c.lastLogin).toLocaleString() : 'N/A',
+          totalOrders: c.onlineOrders?.length || 0,
+          totalSpent: c.onlineOrders?.filter((o: any) => o.status !== 'CANCELLED' && o.status !== 'REFUNDED' && o.status !== 'RETURNED').reduce((sum: number, o: any) => sum + Number(o.total), 0) || 0,
+          status: displayStatus
+        };
+      });
+      setCustomers(formatted);
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to fetch customers');
+    } finally {
+      setLoadingData(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCustomers();
+  }, []);
+
   const openCustomerDetails = (customer: any) => {
     setSelectedCustomer(customer);
     setIsDetailsPanelOpen(true);
   };
 
-  const handleToggleBlockStatus = () => {
+  const handleToggleSuspendStatus = (duration?: string) => {
     if (blockConfirmId) {
       setCustomers(customers.map(c => 
         c.id === blockConfirmId 
-          ? { ...c, status: c.status === 'Blocked' ? 'Active' : 'Blocked' } 
+          ? { ...c, status: c.status === 'Suspended' ? 'Active' : 'Suspended' } 
           : c
       ));
-      toast.success('Account status updated successfully');
+      
+      const message = duration 
+        ? `Account suspended for ${duration}` 
+        : 'Account activated successfully';
+      toast.success(message);
       
       // Update selected customer if panel is open
       if (selectedCustomer && selectedCustomer.id === blockConfirmId) {
-        setSelectedCustomer({ ...selectedCustomer, status: selectedCustomer.status === 'Blocked' ? 'Active' : 'Blocked' });
+        setSelectedCustomer({ ...selectedCustomer, status: selectedCustomer.status === 'Suspended' ? 'Active' : 'Suspended' });
       }
       
       setBlockConfirmId(null);
     }
   };
 
-  const handleSendPasswordReset = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setIsUpdating(true);
-    setTimeout(() => {
-      toast.success('Password reset link sent successfully');
-      setIsUpdating(false);
-    }, 800);
-  };
+
 
   const filteredCustomers = useMemo(() => {
     return customers.filter(c => {
@@ -257,7 +302,7 @@ export default function OnlineCustomersPage() {
           <div className="flex justify-between items-center p-4 border-b border-slate-100 dark:border-slate-800">
             <h2 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
               <Users className="w-5 h-5 text-blue-600" />
-              Online Customers Fullscreen View
+              Online Customers
             </h2>
             <button onClick={() => setIsFullscreen(false)} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors">
               <Minimize className="w-5 h-5" />
@@ -345,18 +390,32 @@ export default function OnlineCustomersPage() {
                       <td className="px-5 py-4 text-center">
                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] uppercase tracking-wider font-bold ${
                           customer.status === 'Active' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' :
-                          customer.status === 'Blocked' ? 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400' :
+                          customer.status === 'Suspended' ? 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400' :
                           'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400'
                         }`}>
-                          {customer.status === 'Blocked' ? 'Suspended' : customer.status}
+                          {customer.status}
                         </span>
                       </td>
 
                       <td className="px-5 py-4 text-center">
                         <div className="flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button onClick={(e) => { e.stopPropagation(); setBlockConfirmId(customer.id); }} className={`p-2 rounded-lg transition-colors ${customer.status === 'Blocked' ? 'text-emerald-500 hover:bg-emerald-50' : 'text-red-500 hover:bg-red-50'}`} title={customer.status === 'Blocked' ? 'Activate Account' : 'Suspend Account'}>
-                            <Ban className="w-5 h-5" />
-                          </button>
+                          {customer.status === 'Suspended' ? (
+                            <button onClick={(e) => { e.stopPropagation(); setBlockConfirmId(customer.id); handleToggleSuspendStatus(); }} className={`p-2 rounded-lg transition-colors text-emerald-500 hover:bg-emerald-50`} title="Activate Account">
+                              <CheckCircle className="w-5 h-5" />
+                            </button>
+                          ) : (
+                            <div className="relative group/dropdown">
+                              <button onClick={(e) => { e.stopPropagation(); }} className="p-2 rounded-lg transition-colors text-red-500 hover:bg-red-50" title="Suspend Account">
+                                <Ban className="w-5 h-5" />
+                              </button>
+                              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 opacity-0 invisible group-hover/dropdown:opacity-100 group-hover/dropdown:visible transition-all z-50 overflow-hidden">
+                                <button onClick={(e) => { e.stopPropagation(); setBlockConfirmId(customer.id); setTimeout(() => handleToggleSuspendStatus('7 Days'), 0); }} className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300">Suspend for 7 Days</button>
+                                <button onClick={(e) => { e.stopPropagation(); setBlockConfirmId(customer.id); setTimeout(() => handleToggleSuspendStatus('1 Month'), 0); }} className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300">Suspend for 1 Month</button>
+                                <button onClick={(e) => { e.stopPropagation(); setBlockConfirmId(customer.id); setTimeout(() => handleToggleSuspendStatus('1 Year'), 0); }} className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300">Suspend for 1 Year</button>
+                                <button onClick={(e) => { e.stopPropagation(); setBlockConfirmId(customer.id); setTimeout(() => handleToggleSuspendStatus('Lifetime'), 0); }} className="w-full text-left px-4 py-2 text-sm hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 font-medium">Lifetime Suspend</button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -385,7 +444,7 @@ export default function OnlineCustomersPage() {
                       </div>
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] uppercase tracking-wider font-bold ${
                         customer.status === 'Active' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' :
-                        customer.status === 'Blocked' ? 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400' :
+                        customer.status === 'Suspended' ? 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400' :
                         'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400'
                       }`}>
                         {customer.status}
@@ -411,9 +470,23 @@ export default function OnlineCustomersPage() {
                     </div>
                     
                     <div className="flex items-center mt-auto border-t border-slate-100 dark:border-slate-800 pt-4 opacity-0 group-hover:opacity-100 transition-opacity gap-2">
-                      <button onClick={(e) => { e.stopPropagation(); setBlockConfirmId(customer.id); }} className={`flex-1 py-2 rounded-xl text-xs font-bold transition-colors ${customer.status === 'Blocked' ? 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200' : 'bg-red-100 text-red-600 hover:bg-red-200'}`}>
-                        {customer.status === 'Blocked' ? 'Activate' : 'Suspend'}
-                      </button>
+                      {customer.status === 'Suspended' ? (
+                        <button onClick={(e) => { e.stopPropagation(); setBlockConfirmId(customer.id); handleToggleSuspendStatus(); }} className="flex-1 py-2 rounded-xl text-xs font-bold transition-colors bg-emerald-100 text-emerald-600 hover:bg-emerald-200">
+                          Activate
+                        </button>
+                      ) : (
+                        <div className="flex-1 relative group/dropdown">
+                          <button onClick={(e) => { e.stopPropagation(); }} className="w-full py-2 rounded-xl text-xs font-bold transition-colors bg-red-100 text-red-600 hover:bg-red-200">
+                            Suspend
+                          </button>
+                          <div className="absolute bottom-full left-0 mb-2 w-48 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 opacity-0 invisible group-hover/dropdown:opacity-100 group-hover/dropdown:visible transition-all z-50 overflow-hidden">
+                            <button onClick={(e) => { e.stopPropagation(); setBlockConfirmId(customer.id); setTimeout(() => handleToggleSuspendStatus('7 Days'), 0); }} className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300">7 Days</button>
+                            <button onClick={(e) => { e.stopPropagation(); setBlockConfirmId(customer.id); setTimeout(() => handleToggleSuspendStatus('1 Month'), 0); }} className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300">1 Month</button>
+                            <button onClick={(e) => { e.stopPropagation(); setBlockConfirmId(customer.id); setTimeout(() => handleToggleSuspendStatus('1 Year'), 0); }} className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300">1 Year</button>
+                            <button onClick={(e) => { e.stopPropagation(); setBlockConfirmId(customer.id); setTimeout(() => handleToggleSuspendStatus('Lifetime'), 0); }} className="w-full text-left px-4 py-2 text-sm hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 font-medium">Lifetime</button>
+                          </div>
+                        </div>
+                      )}
                       <button onClick={(e) => { e.stopPropagation(); openCustomerDetails(customer); }} className="flex-1 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold transition-colors">
                         Details
                       </button>
@@ -483,7 +556,7 @@ export default function OnlineCustomersPage() {
                     <h3 className="text-xl font-black text-slate-900 dark:text-white leading-tight">{selectedCustomer.name}</h3>
                     <span className={`mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] uppercase tracking-wider font-bold ${
                       selectedCustomer.status === 'Active' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' :
-                      selectedCustomer.status === 'Blocked' ? 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400' :
+                      selectedCustomer.status === 'Suspended' ? 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400' :
                       'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400'
                     }`}>
                       {selectedCustomer.status}
@@ -538,30 +611,30 @@ export default function OnlineCustomersPage() {
                 {/* Quick Actions */}
                 <div className="space-y-3">
                   <h4 className="text-sm font-black text-slate-900 dark:text-white">Quick Actions</h4>
-                  
-                  <button 
-                    onClick={handleSendPasswordReset}
-                    disabled={isUpdating}
-                    className="w-full flex items-center justify-center gap-2 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-xl font-bold hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
-                  >
-                    {isUpdating ? (
-                      <div className="w-5 h-5 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
-                    ) : (
-                      <><Mail className="w-4 h-4" /> Send Password Reset</>
-                    )}
-                  </button>
-                  
-                  <button 
-                    onClick={() => setBlockConfirmId(selectedCustomer.id)}
-                    className={`w-full flex items-center justify-center gap-2 py-3 border rounded-xl font-bold transition-colors ${
-                      selectedCustomer.status === 'Blocked' 
-                        ? 'border-emerald-200 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-500/10 dark:border-emerald-500/20' 
-                        : 'border-red-200 bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-500/10 dark:border-red-500/20'
-                    }`}
-                  >
-                    <Ban className="w-4 h-4" />
-                    {selectedCustomer.status === 'Blocked' ? 'Activate Account' : 'Suspend Account'}
-                  </button>
+                  {selectedCustomer.status === 'Suspended' ? (
+                    <button 
+                      onClick={() => handleToggleSuspendStatus()}
+                      className="w-full flex items-center justify-center gap-2 py-3 border rounded-xl font-bold transition-colors border-emerald-200 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-500/10 dark:border-emerald-500/20"
+                    >
+                      <CheckCircle className="w-5 h-5" />
+                      Activate Account
+                    </button>
+                  ) : (
+                    <div className="relative group/dropdown w-full">
+                      <button 
+                        className="w-full flex items-center justify-center gap-2 py-3 border rounded-xl font-bold transition-colors border-red-200 bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-500/10 dark:border-red-500/20"
+                      >
+                        <Ban className="w-5 h-5" />
+                        Suspend Account
+                      </button>
+                      <div className="absolute bottom-full left-0 w-full mb-2 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 opacity-0 invisible group-hover/dropdown:opacity-100 group-hover/dropdown:visible transition-all z-50 overflow-hidden">
+                        <button onClick={() => { setBlockConfirmId(selectedCustomer.id); setTimeout(() => handleToggleSuspendStatus('7 Days'), 0); }} className="w-full text-left px-4 py-3 text-sm font-bold hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300">Suspend for 7 Days</button>
+                        <button onClick={() => { setBlockConfirmId(selectedCustomer.id); setTimeout(() => handleToggleSuspendStatus('1 Month'), 0); }} className="w-full text-left px-4 py-3 text-sm font-bold hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300">Suspend for 1 Month</button>
+                        <button onClick={() => { setBlockConfirmId(selectedCustomer.id); setTimeout(() => handleToggleSuspendStatus('1 Year'), 0); }} className="w-full text-left px-4 py-3 text-sm font-bold hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300">Suspend for 1 Year</button>
+                        <button onClick={() => { setBlockConfirmId(selectedCustomer.id); setTimeout(() => handleToggleSuspendStatus('Lifetime'), 0); }} className="w-full text-left px-4 py-3 text-sm hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 font-black border-t border-slate-100 dark:border-slate-700">Lifetime Suspend</button>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 
               </div>
@@ -570,18 +643,6 @@ export default function OnlineCustomersPage() {
         )}
       </AnimatePresence>
 
-      <ConfirmDialog 
-        isOpen={!!blockConfirmId}
-        title={customers.find(c => c.id === blockConfirmId)?.status === 'Blocked' ? "Activate Account" : "Suspend Account"}
-        message={customers.find(c => c.id === blockConfirmId)?.status === 'Blocked' 
-          ? "Are you sure you want to activate this account? The user will be able to log in again." 
-          : "Are you sure you want to suspend this account? The user will no longer be able to log in to the online store."}
-        confirmText={customers.find(c => c.id === blockConfirmId)?.status === 'Blocked' ? "Activate" : "Suspend"}
-        cancelText="Cancel"
-        type={customers.find(c => c.id === blockConfirmId)?.status === 'Blocked' ? "info" : "danger"}
-        onConfirm={handleToggleBlockStatus}
-        onCancel={() => setBlockConfirmId(null)}
-      />
     </div>
   );
 }

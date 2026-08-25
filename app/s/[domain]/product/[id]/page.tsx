@@ -1,4 +1,8 @@
 "use client";
+import { AuraProductDetails } from "@/components/storefront/themes/aura/pages/AuraProductDetails";
+import { MarketProductDetails } from "@/components/storefront/themes/market/pages/MarketProductDetails";
+
+import { VerdantProductDetails } from "@/components/storefront/themes/verdant/pages/VerdantProductDetails";
 
 import { MinimalistHeader } from "@/components/storefront/themes/minimalist/MinimalistHeader";
 import { MinimalistFooter } from "@/components/storefront/themes/minimalist/MinimalistFooter";
@@ -59,200 +63,213 @@ const EXTENDED_PRODUCTS = [
     price: 9500,
     images: [
       "https://images.unsplash.com/photo-1590874103328-eac38a683ce7?w=800&q=80",
-      "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=800&q=80",
-      "https://images.unsplash.com/photo-1566150905458-1bf1fc113f0d?w=800&q=80",
+      "https://images.unsplash.com/photo-1584916201218-f4242ceb4809?w=800&q=80",
+      "https://images.unsplash.com/photo-1591561954557-26941169b49e?w=800&q=80",
     ],
     category: "Accessories",
-    description: "Hand-stitched from full-grain vegetable-tanned leather, this tote develops a unique patina over time. Spacious enough for all your daily essentials.",
-    stock: 10,
-  },
+    description: "Spacious and stylish. Handcrafted from premium full-grain leather, featuring a padded laptop compartment and multiple interior pockets.",
+    stock: 3,
+  }
 ];
 
-export default function StorefrontProductPage(props: { params: Promise<{ domain: string; id: string }> }) {
+export default function StorefrontProductPage(props: { 
+  params: Promise<{ domain: string; id: string }>;
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   const params = use(props.params);
+  // We handle searchParams safely in case it is undefined
+  const searchParams = props.searchParams ? use(props.searchParams) : undefined;
+  
   const storeName = params.domain.replace("-", " ").toUpperCase() || "My Store";
-  const router = useRouter();
-
-  const addItem = useStorefrontCart((state) => state.addItem);
-
-  // Find the product or fall back to first
-  const found = EXTENDED_PRODUCTS.find((p) => p.id.toString() === params.id);
-  const product = found || {
-    id: parseInt(params.id),
-    name: "Essential White Tee",
-    price: 3500,
-    images: ["https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=800&q=80"],
-    category: "Store Items",
-    description: "The perfect everyday item. Crafted for a soft, breathable feel and maximum durability.",
-    stock: 12,
+  const theme = searchParams?.theme as string;
+  const productId = parseInt(params.id);
+  
+  const product = EXTENDED_PRODUCTS.find(p => p.id === productId) || {
+    ...MOCK_PRODUCTS[0],
+    id: productId,
+    images: [MOCK_PRODUCTS[0].image],
+    description: "This is a great product that you will love. It has many features and is very affordable.",
+    stock: 10,
+    category: "General",
   };
 
-  const [selectedImage, setSelectedImage] = useState(0);
-  const images = product.images;
+  const relatedProducts = MOCK_PRODUCTS.filter(p => p.id !== productId).slice(0, 4);
+
+  const [activeImage, setActiveImage] = useState(product.images[0]);
+  const [quantity, setQuantity] = useState(1);
+  const addItem = useStorefrontCart((state) => state.addItem);
+  const router = useRouter();
 
   const handleAddToCart = () => {
     addItem({
-      productId: product.id,
+      productId: typeof product.id === 'string' ? parseInt(product.id) || 0 : product.id,
       name: product.name,
       price: product.price,
-      quantity: 1,
-      image: images[0],
+      quantity,
+      image: activeImage,
     });
-    toast.success(`${product.name} added to cart!`);
+    toast.success(`${quantity}x ${product.name} added to cart`);
   };
 
   const handleBuyNow = () => {
-    addItem({
-      productId: product.id,
-      name: product.name,
-      price: product.price,
-      quantity: 1,
-      image: images[0],
-    });
+    handleAddToCart();
     router.push(`/s/${params.domain}/checkout`);
   };
 
-  // Related products: others in the same category or just others
-  const relatedProducts = EXTENDED_PRODUCTS.filter((p) => p.id !== product.id).slice(0, 4);
+
+  if (theme === 'market') {
+    return <MarketProductDetails storeName={storeName} domain={params.domain} productId={params.id} />;
+  }
+  if (theme === 'aura') {
+    return <AuraProductDetails storeName={storeName} domain={params.domain} productId={params.id} />;
+  }
+
+  if (theme === 'verdant') {
+    return <VerdantProductDetails storeName={storeName} domain={params.domain} product={{ id: parseInt(params.id), name: "Premium Organic Product", price: 1500, compareAtPrice: 1800, image: "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=800", description: "<p>Detailed description for this premium product.</p>", isOrganic: true, category: "Fresh Produce" }} />;
+  }
 
   return (
     <div className="flex flex-col min-h-screen">
       <MinimalistHeader storeName={storeName} domain={params.domain} />
-
+      
       <main className="flex-grow bg-background">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <Link
-            href={`/s/${params.domain}/shop`}
-            className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-foreground mb-8 cursor-pointer transition-colors"
-          >
-            <ArrowLeft className="mr-2 w-4 h-4" /> Back to Shop
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+          
+          <Link href={`/s/${params.domain}/shop`} className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-8 transition-colors">
+            <ArrowLeft className="w-4 h-4 mr-2" /> Back to Shop
           </Link>
 
-          <div className="lg:grid lg:grid-cols-2 lg:gap-x-12 lg:items-start">
-            {/* ── Image Gallery ── */}
-            <div className="flex flex-col gap-4">
-              {/* Main image */}
-              <div className="w-full aspect-square rounded-lg overflow-hidden bg-muted">
-                <img
-                  src={images[selectedImage]}
-                  alt={`${product.name} view ${selectedImage + 1}`}
-                  className="w-full h-full object-center object-cover transition-opacity duration-300"
-                />
-              </div>
-
-              {/* Thumbnail strip */}
-              {images.length > 1 && (
-                <div className="flex gap-3">
-                  {images.map((src, idx) => (
-                    <button
+          <div className="flex flex-col lg:flex-row gap-12 lg:gap-16">
+            {/* Image Gallery */}
+            <div className="lg:w-1/2">
+              <div className="flex flex-col-reverse md:flex-row gap-4">
+                {/* Thumbnails */}
+                <div className="flex md:flex-col gap-4 overflow-x-auto pb-2 md:pb-0">
+                  {product.images.map((img, idx) => (
+                    <button 
                       key={idx}
-                      onClick={() => setSelectedImage(idx)}
-                      className={`w-20 h-20 rounded-md overflow-hidden border-2 flex-shrink-0 transition-all cursor-pointer ${
-                        selectedImage === idx
-                          ? "border-foreground"
-                          : "border-transparent hover:border-border"
+                      onClick={() => setActiveImage(img)}
+                      className={`w-20 h-24 flex-shrink-0 rounded-md overflow-hidden border-2 transition-colors ${
+                        activeImage === img ? "border-primary" : "border-transparent opacity-70 hover:opacity-100"
                       }`}
                     >
-                      <img
-                        src={src}
-                        alt={`Thumbnail ${idx + 1}`}
-                        className="w-full h-full object-cover object-center"
-                      />
+                      <img src={img} alt={`Thumbnail ${idx}`} className="w-full h-full object-cover" />
                     </button>
                   ))}
                 </div>
-              )}
+
+                {/* Main Image */}
+                <div className="flex-grow bg-accent rounded-lg overflow-hidden aspect-[4/5] relative">
+                  <img src={activeImage} alt={product.name} className="w-full h-full object-cover" />
+                </div>
+              </div>
             </div>
 
-            {/* ── Product Info ── */}
-            <div className="mt-10 px-4 sm:px-0 sm:mt-16 lg:mt-0">
-              <p className="text-sm text-muted-foreground uppercase tracking-widest mb-2">{product.category}</p>
-              <h1 className="text-3xl font-extrabold tracking-tight text-foreground">{product.name}</h1>
+            {/* Product Info */}
+            <div className="lg:w-1/2 flex flex-col">
+              {product.category && (
+                <p className="text-sm font-medium text-primary mb-2 uppercase tracking-wider">{product.category}</p>
+              )}
+              
+              <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground mb-4">
+                {product.name}
+              </h1>
 
-              <div className="mt-3">
-                <p className="text-3xl text-foreground font-bold">{formatLKR(product.price)}</p>
-              </div>
-
-              {/* Reviews */}
-              <div className="mt-3 flex items-center gap-2">
-                <div className="flex items-center">
-                  {[0, 1, 2, 3, 4].map((rating) => (
-                    <Star key={rating} className="h-4 w-4 flex-shrink-0 text-yellow-400 fill-current" />
-                  ))}
+              {/* Reviews summary */}
+              <div className="flex items-center gap-4 mb-6">
+                <div className="flex items-center text-yellow-400">
+                  <Star className="w-4 h-4 fill-current" />
+                  <Star className="w-4 h-4 fill-current" />
+                  <Star className="w-4 h-4 fill-current" />
+                  <Star className="w-4 h-4 fill-current" />
+                  <Star className="w-4 h-4 text-muted-foreground" />
                 </div>
-                <span className="text-sm text-muted-foreground">24 reviews</span>
+                <span className="text-sm text-muted-foreground underline cursor-pointer">124 Reviews</span>
               </div>
 
-              <div className="mt-6 text-base text-muted-foreground leading-relaxed">
+              <div className="text-3xl font-bold text-foreground mb-6">
+                {formatLKR(product.price)}
+              </div>
+
+              <div className="prose prose-sm sm:prose-base dark:prose-invert text-muted-foreground mb-8">
                 <p>{product.description}</p>
               </div>
 
-              {/* Stock indicator */}
-              <div className="mt-4">
-                {product.stock > 5 ? (
-                  <span className="inline-flex items-center text-sm text-green-600 font-medium">
-                    <span className="w-2 h-2 rounded-full bg-green-500 mr-2" />
-                    In Stock
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center text-sm text-amber-600 font-medium">
-                    <span className="w-2 h-2 rounded-full bg-amber-500 mr-2" />
-                    Only {product.stock} left!
-                  </span>
-                )}
-              </div>
-
-              {/* Action buttons */}
-              <div className="mt-8 flex gap-3 flex-col sm:flex-row">
-                <button
-                  type="button"
-                  onClick={handleAddToCart}
-                  className="flex-1 flex items-center justify-center gap-2 bg-background border-2 border-foreground text-foreground rounded-md py-3 px-6 text-base font-medium hover:bg-muted focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-ring transition-colors cursor-pointer"
-                >
-                  <ShoppingCart className="w-5 h-5" />
-                  Add to Cart
-                </button>
-                <button
-                  type="button"
-                  onClick={handleBuyNow}
-                  className="flex-1 flex items-center justify-center gap-2 bg-primary text-primary-foreground rounded-md py-3 px-6 text-base font-medium hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-ring transition-colors cursor-pointer"
-                >
-                  <Zap className="w-5 h-5" />
-                  Buy Now
-                </button>
-              </div>
-
-              <div className="mt-8 border-t border-border pt-8 flex gap-6 flex-wrap">
-                <div className="flex items-center text-sm text-muted-foreground">
-                  <Truck className="w-5 h-5 mr-2 text-muted-foreground" />
-                  Free shipping over LKR 10,000
+              <div className="mb-8 p-4 bg-accent/50 rounded-lg border border-border">
+                <div className="flex items-center gap-4 mb-4">
+                  <span className="text-sm font-medium text-foreground">Quantity</span>
+                  <div className="flex items-center border border-border rounded-md">
+                    <button 
+                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                      className="px-3 py-1 text-muted-foreground hover:text-foreground"
+                    >
+                      -
+                    </button>
+                    <span className="px-3 py-1 font-medium min-w-[2.5rem] text-center text-foreground">
+                      {quantity}
+                    </span>
+                    <button 
+                      onClick={() => setQuantity(quantity + 1)}
+                      className="px-3 py-1 text-muted-foreground hover:text-foreground"
+                    >
+                      +
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center text-sm text-muted-foreground">
-                  <ShieldCheck className="w-5 h-5 mr-2 text-muted-foreground" />
-                  Secure checkout
+
+                {/* Stock status */}
+                <div className="text-sm font-medium text-green-600 dark:text-green-500 mb-6 flex items-center">
+                  <span className="w-2 h-2 rounded-full bg-green-600 dark:bg-green-500 mr-2"></span>
+                  In Stock ({product.stock} available)
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button 
+                    onClick={handleAddToCart}
+                    className="flex-1 bg-background border border-foreground text-foreground font-medium py-3 px-6 rounded-md hover:bg-accent transition-colors flex items-center justify-center gap-2"
+                  >
+                    <ShoppingCart className="w-4 h-4" /> Add to Cart
+                  </button>
+                  <button 
+                    onClick={handleBuyNow}
+                    className="flex-1 bg-primary text-primary-foreground font-medium py-3 px-6 rounded-md hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Zap className="w-4 h-4" /> Buy it Now
+                  </button>
                 </div>
               </div>
+
+              {/* Trust badges */}
+              <div className="grid grid-cols-2 gap-4 mt-auto pt-6 border-t border-border">
+                <div className="flex items-center gap-3">
+                  <Truck className="w-5 h-5 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Free Shipping</p>
+                    <p className="text-xs text-muted-foreground">On orders over 10k</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <ShieldCheck className="w-5 h-5 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Secure Checkout</p>
+                    <p className="text-xs text-muted-foreground">100% Protected</p>
+                  </div>
+                </div>
+              </div>
+
             </div>
           </div>
 
-          {/* ── You May Also Like ── */}
-          <div className="mt-24 border-t border-border pt-16">
-            <h2 className="text-2xl font-extrabold tracking-tight text-foreground mb-8">You may also like</h2>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-10 sm:gap-x-6 md:grid-cols-4 lg:gap-x-8">
-              {relatedProducts.map((related) => (
-                <ProductCard 
-                  key={related.id} 
-                  product={{
-                    id: related.id,
-                    name: related.name,
-                    price: related.price,
-                    image: related.images[0]
-                  }} 
-                  domain={params.domain} 
-                />
+          {/* Related Products Section */}
+          <div className="mt-24">
+            <h2 className="text-2xl font-bold text-foreground mb-8">You may also like</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {relatedProducts.map(rp => (
+                <ProductCard key={rp.id} product={rp} domain={params.domain} />
               ))}
             </div>
           </div>
+
         </div>
       </main>
 

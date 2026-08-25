@@ -6,16 +6,18 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Store, CreditCard, DollarSign, Palette,
   TrendingUp, BarChart2, MessageSquare, PanelLeftClose, Settings,
-  ChevronDown, ChevronUp
+  ChevronDown, ChevronUp, DownloadCloud
 } from 'lucide-react';
 import { ADMIN_NAV } from '@/lib/constants';
 
 interface AdminSidebarProps {
   collapsed: boolean;
   onToggle: () => void;
+  isMobileOpen?: boolean;
+  onMobileClose?: () => void;
 }
 
-export default function AdminSidebar({ collapsed, onToggle }: AdminSidebarProps) {
+export default function AdminSidebar({ collapsed, onToggle, isMobileOpen, onMobileClose }: AdminSidebarProps) {
   const pathname = usePathname();
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const collapseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -29,70 +31,17 @@ export default function AdminSidebar({ collapsed, onToggle }: AdminSidebarProps)
     onToggleRef.current = onToggle;
   }, [onToggle]);
 
-  const clearCollapseTimeout = () => {
-    if (collapseTimeoutRef.current) {
-      clearTimeout(collapseTimeoutRef.current);
-      collapseTimeoutRef.current = null;
-    }
-  };
-
-  const startCollapseTimeout = () => {
-    clearCollapseTimeout();
-    collapseTimeoutRef.current = setTimeout(() => {
-      onToggleRef.current();
-    }, 5000);
-  };
-
-  useEffect(() => {
-    if (!collapsed) {
-      // Clear any pending expand timeout if it's already expanded
-      if (hoverTimeoutRef.current) {
-        clearTimeout(hoverTimeoutRef.current);
-        hoverTimeoutRef.current = null;
-      }
-      if (!isHoveringRef.current) {
-        startCollapseTimeout();
-      } else {
-        clearCollapseTimeout();
-      }
-    } else {
-      clearCollapseTimeout();
-    }
-    
-    return () => {
-      clearCollapseTimeout();
-    };
-  }, [collapsed]);
-
-  useEffect(() => {
-    return () => {
-      if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
-      clearCollapseTimeout();
-    };
-  }, []);
-
   const handleMouseEnter = () => {
     isHoveringRef.current = true;
     if (collapsed) {
-      if (hoverTimeoutRef.current) {
-        clearTimeout(hoverTimeoutRef.current);
-      }
-      hoverTimeoutRef.current = setTimeout(() => {
-        onToggleRef.current();
-      }, 2000);
-    } else {
-      clearCollapseTimeout();
+      onToggleRef.current();
     }
   };
 
   const handleMouseLeave = () => {
     isHoveringRef.current = false;
-    if (hoverTimeoutRef.current) {
-      clearTimeout(hoverTimeoutRef.current);
-      hoverTimeoutRef.current = null;
-    }
     if (!collapsed) {
-      startCollapseTimeout();
+      onToggleRef.current();
     }
   };
 
@@ -106,6 +55,7 @@ export default function AdminSidebar({ collapsed, onToggle }: AdminSidebarProps)
       case 'TrendingUp': return TrendingUp;
       case 'BarChart2': return BarChart2;
       case 'MessageSquare': return MessageSquare;
+      case 'DownloadCloud': return DownloadCloud;
       default: return Settings;
     }
   };

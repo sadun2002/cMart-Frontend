@@ -1,10 +1,11 @@
 import Link from 'next/link';
-import { Target, HeartHandshake, MapPin, ArrowRight, Github, Twitter, Linkedin } from 'lucide-react';
+import { ArrowRight, Github, Twitter, Linkedin } from 'lucide-react';
 import type { Metadata } from 'next';
 import { COMPANY_NAME } from '@/lib/constants';
 import { SiteHeader } from '@/components/layout/site-header';
 import { SiteFooter } from '@/components/layout/site-footer';
 import { MotionBlurBackground } from '@/components/ui/motion-blur-background';
+import { AboutValuesSection } from '@/components/sections/about-values-section';
 
 export const metadata: Metadata = {
   title: 'About Us — cMart',
@@ -85,9 +86,9 @@ export default function AboutPage() {
               ].map((stat, i) => (
                 <div 
                   key={stat.label} 
-                  className={`flex flex-col items-center justify-center ${i === 1 || i === 3 ? 'border-l border-white/20' : i === 2 ? 'lg:border-l border-white/20' : ''}`}
+                  className={`flex flex-col items-center justify-center ${i === 1 || i === 3 ? 'border-l border-white/20 pl-2' : i === 2 ? 'lg:border-l border-white/20' : ''}`}
                 >
-                  <div className="text-3xl md:text-4xl font-black mb-2 text-white">{stat.value}</div>
+                  <div className="text-2xl sm:text-3xl md:text-4xl font-black mb-2 text-white break-words w-full px-1">{stat.value}</div>
                   <div className="text-blue-100 font-medium tracking-wide uppercase text-xs md:text-sm">
                     {stat.label}
                   </div>
@@ -99,46 +100,7 @@ export default function AboutPage() {
       </section>
 
       {/* OUR VALUES */}
-      <section className="py-24 relative z-10 bg-transparent transition-colors">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-black text-gray-900 dark:text-white">What We Stand For</h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              {
-                icon: Target,
-                title: 'Simplicity First',
-                desc: "Tools should make life easier, not harder. Every feature we build must pass the 'grandma test'.",
-                color: 'text-blue-600 dark:text-blue-400',
-                bg: 'bg-blue-100/50 dark:bg-blue-900/30',
-              },
-              {
-                icon: HeartHandshake,
-                title: 'Fair Pricing',
-                desc: "Small businesses shouldn't pay enterprise prices. Quality tools for everyone, at fair prices.",
-                color: 'text-emerald-600 dark:text-emerald-400',
-                bg: 'bg-emerald-100/50 dark:bg-emerald-900/30',
-              },
-              {
-                icon: MapPin,
-                title: 'Built for Sri Lanka',
-                desc: "We understand local needs - from Sinhala support to PayHere payments to local currency.",
-                color: 'text-purple-600 dark:text-purple-400',
-                bg: 'bg-purple-100/50 dark:bg-purple-900/30',
-              },
-            ].map(val => (
-              <div key={val.title} className="bg-white dark:bg-slate-900 rounded-3xl p-10 border border-gray-100 dark:border-slate-800 shadow-xl shadow-blue-900/5 dark:shadow-none hover:-translate-y-2 transition-all duration-300">
-                <div className={`w-16 h-16 rounded-2xl ${val.bg} ${val.color} flex items-center justify-center mb-8`}>
-                  <val.icon className="w-8 h-8" strokeWidth={2.5} />
-                </div>
-                <h3 className="font-bold text-2xl text-gray-900 dark:text-white mb-4">{val.title}</h3>
-                <p className="text-gray-500 dark:text-slate-400 text-lg leading-relaxed">{val.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      <AboutValuesSection />
 
       {/* OUR TEAM */}
       <section className="py-24 relative z-10 bg-transparent transition-colors">

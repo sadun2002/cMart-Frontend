@@ -1,4 +1,8 @@
 "use client";
+import { AuraAccount } from "@/components/storefront/themes/aura/pages/AuraAccount";
+import { MarketAccount } from "@/components/storefront/themes/market/pages/MarketAccount";
+
+import { VerdantAccount } from "@/components/storefront/themes/verdant/pages/VerdantAccount";
 
 import { MinimalistHeader } from "@/components/storefront/themes/minimalist/MinimalistHeader";
 import { MinimalistFooter } from "@/components/storefront/themes/minimalist/MinimalistFooter";
@@ -13,38 +17,32 @@ import { formatLKR } from "@/lib/constants";
 import { OrderDetailsPanel, OrderDetails } from "@/components/storefront/themes/minimalist/OrderDetailsPanel";
 import { AddressFormPanel, AddressData } from "@/components/storefront/themes/minimalist/AddressFormPanel";
 import { CardFormPanel, CardData } from "@/components/storefront/themes/minimalist/CardFormPanel";
+import { MinimalistConfirmDialog } from "@/components/storefront/themes/minimalist/MinimalistConfirmDialog";
 
-// Dummy initial data
-const DUMMY_ORDERS: OrderDetails[] = [
-  { id: "ORD-7392", date: "Aug 10, 2026", total: 12500, status: "Processing", items: 2 },
-  { id: "ORD-6218", date: "Aug 02, 2026", total: 8500, status: "Shipped", items: 1 },
-  { id: "ORD-5103", date: "Jul 15, 2026", total: 24000, status: "Delivered", items: 3 },
-];
-
-const INITIAL_ADDRESSES: AddressData[] = [
-  { id: 1, type: "Home", name: "John Doe", street: "123 Galle Road", city: "Colombo 03", country: "Sri Lanka", phone: "+94 77 123 4567", isDefault: true }
-];
-
-const INITIAL_CARDS: CardData[] = [
-  { id: 1, brand: "Visa", last4: "4242", expiry: "12/28", isDefault: true },
-  { id: 2, brand: "Mastercard", last4: "8888", expiry: "05/27", isDefault: false }
-];
-
+import { storefrontAPI } from "@/lib/api";
 import { useThemeCustomizations } from "@/components/storefront/theme-provider";
+import { toast } from "sonner";
 
-export default function StorefrontAccountPage(props: { params: Promise<{ domain: string }> }) {
+export default function StorefrontAccountPage(props: { 
+  params: Promise<{ domain: string }>;
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   const params = use(props.params);
+  const searchParams = props.searchParams ? use(props.searchParams) : {};
   const storeName = params.domain.replace("-", " ").toUpperCase() || "My Store";
+  const theme = searchParams?.theme as string;
   const router = useRouter();
-  
+
   const { user, isAuthenticated, logout } = useStorefrontAuth();
   const { isPreview } = useThemeCustomizations();
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState("orders");
 
-  // State for Lists
-  const [addresses, setAddresses] = useState<AddressData[]>(INITIAL_ADDRESSES);
-  const [cards, setCards] = useState<CardData[]>(INITIAL_CARDS);
+  const [profile, setProfile] = useState<any>(null);
+  const [orders, setOrders] = useState<any[]>([]);
+  const [addresses, setAddresses] = useState<AddressData[]>([]);
+  const [cards, setCards] = useState<CardData[]>([]);
+  const [loadingData, setLoadingData] = useState(false);
 
   // State for Panels
   const [selectedOrder, setSelectedOrder] = useState<OrderDetails | null>(null);
@@ -52,16 +50,137 @@ export default function StorefrontAccountPage(props: { params: Promise<{ domain:
   const [isAddressPanelOpen, setIsAddressPanelOpen] = useState(false);
   const [isCardPanelOpen, setIsCardPanelOpen] = useState(false);
 
+  // State for Confirm Dialog
+  const [deleteItem, setDeleteItem] = useState<{ type: 'address' | 'card', id: number } | null>(null);
+
   useEffect(() => {
     setMounted(true);
     if (mounted && !isAuthenticated && !isPreview) {
       router.push(`/s/${params.domain}/login`);
+    } else if (mounted && isAuthenticated && !isPreview) {
+      fetchAccountData();
     }
   }, [mounted, isAuthenticated, isPreview, router, params.domain]);
+
+  const fetchAccountData = async () => {
+    try {
+      setLoadingData(true);
+      const [profileRes, ordersRes, addressesRes, cardsRes] = await Promise.all([
+        storefrontAPI.getProfile(),
+        storefrontAPI.getOrders(),
+        storefrontAPI.getAddresses(),
+        storefrontAPI.getCards(),
+      ] as any[]);
+      setProfile(profileRes.data || profileRes);
+      setOrders(ordersRes.data || []);
+      setAddresses(addressesRes.data || []);
+      setCards(cardsRes.data || []);
+    } catch (error: any) {
+      console.warn("Failed to fetch account data:", error?.message);
+      if (error?.response?.status === 401) {
+        toast.error("Session expired. Please log in again.");
+        logout();
+        router.push(`/s/${params.domain}/login`);
+      } else {
+        toast.error("Failed to load account data");
+      }
+    } finally {
+      setLoadingData(false);
+    }
+  };
+
+  const fetchOrdersSilent = async () => {
+    try {
+      const ordersRes: any = await storefrontAPI.getOrders();
+      setOrders(ordersRes.data || []);
+    } catch (e) {
+      // Ignore polling errors
+    }
+  };
+
+  useEffect(() => {
+    if (mounted && isAuthenticated && !isPreview && activeTab === "orders") {
+      const interval = setInterval(fetchOrdersSilent, 5000);
+
+  return () => clearInterval(interval);
+    }
+  }, [mounted, isAuthenticated, isPreview, activeTab]);
 
   const handleLogout = () => {
     logout();
     router.push(`/s/${params.domain}`);
+  };
+
+  const handleAddAddress = async (address: any) => {
+    try {
+      const { id, ...addressData } = address;
+      const res: any = await storefrontAPI.addAddress(addressData);
+      const newAddress = res.data || res;
+      setAddresses([...addresses, newAddress]);
+      toast.success("Address added");
+      return newAddress;
+    } catch (e) {
+      toast.error("Failed to add address");
+      throw e;
+    }
+  };
+
+  const handleDeleteAddress = async (id: number) => {
+    try {
+      await storefrontAPI.deleteAddress(id);
+      setAddresses(addresses.filter(a => a.id !== id));
+      toast.success("Address removed");
+    } catch (e) {
+      toast.error("Failed to remove address");
+    }
+  };
+
+  const handleAddCard = async (card: any) => {
+    try {
+      const { id, ...cardData } = card;
+      const res: any = await storefrontAPI.addCard(cardData);
+      const newCard = res.data || res;
+      setCards([...cards, newCard]);
+      toast.success("Card added");
+      return newCard;
+    } catch (e) {
+      toast.error("Failed to add card");
+      throw e;
+    }
+  };
+
+  const handleDeleteCard = async (id: number) => {
+    try {
+      await storefrontAPI.deleteCard(id);
+      setCards(cards.filter(c => c.id !== id));
+      toast.success("Card removed");
+    } catch (e) {
+      toast.error("Failed to remove card");
+    }
+  };
+
+  const handleCancelOrder = async (id: number | string) => {
+    try {
+      await storefrontAPI.cancelOrder(Number(id));
+      toast.success("Order cancelled successfully");
+      setIsOrderPanelOpen(false);
+      // Optimistically update
+      setOrders(orders.map(o => o.id === id ? { ...o, status: 'CANCELLED' } : o));
+    } catch (e) {
+      toast.error("Failed to cancel order");
+    }
+  };
+
+  const handleReturnOrder = async (id: number | string) => {
+    try {
+      await storefrontAPI.returnOrder(Number(id));
+      toast.success("Return requested successfully");
+      setIsOrderPanelOpen(false);
+      // Optimistically update
+      setOrders(orders.map(o => o.id === id ? { ...o, status: 'RETURNED' } : o));
+    } catch (e) {
+      toast.error("Failed to request return");
+    }
   };
 
   if (!mounted || (!isAuthenticated && !isPreview)) {
@@ -69,13 +188,41 @@ export default function StorefrontAccountPage(props: { params: Promise<{ domain:
   }
 
   const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "Processing": return <Clock className="w-4 h-4 text-amber-500 mr-1.5" />;
-      case "Shipped": return <Truck className="w-4 h-4 text-blue-500 mr-1.5" />;
-      case "Delivered": return <CheckCircle className="w-4 h-4 text-green-500 mr-1.5" />;
+    switch (status?.toUpperCase()) {
+      case "PROCESSING": return <Clock className="w-4 h-4 text-amber-500 mr-1.5" />;
+      case "SHIPPED": return <Truck className="w-4 h-4 text-blue-500 mr-1.5" />;
+      case "DELIVERED": return <CheckCircle className="w-4 h-4 text-green-500 mr-1.5" />;
       default: return null;
     }
   };
+
+  const LoadingState = () => (
+    <div className="p-12 flex flex-col items-center justify-center text-muted-foreground animate-in fade-in">
+      <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin mb-4"></div>
+      <p>Loading your data...</p>
+    </div>
+  );
+
+  const EmptyState = ({ icon, title, description }: any) => (
+    <div className="p-12 flex flex-col items-center justify-center text-center animate-in fade-in">
+      <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4 text-muted-foreground">
+        {icon}
+      </div>
+      <h3 className="text-lg font-medium text-foreground">{title}</h3>
+      <p className="mt-1 text-sm text-muted-foreground max-w-sm">{description}</p>
+    </div>
+  );
+
+  if (theme === 'market') {
+    return <MarketAccount storeName={storeName} domain={params.domain} />;
+  }
+  if (theme === 'aura') {
+    return <AuraAccount storeName={storeName} domain={params.domain} />;
+  }
+
+  if (theme === 'verdant') {
+    return <VerdantAccount storeName={storeName} domain={params.domain} />;
+  }
 
   return (
     <>
@@ -89,7 +236,7 @@ export default function StorefrontAccountPage(props: { params: Promise<{ domain:
                 <h2 className="text-2xl font-bold leading-7 text-foreground sm:text-3xl sm:truncate">
                   My Account
                 </h2>
-                <p className="mt-1 text-sm text-muted-foreground">Welcome back, {user?.name || "John"}</p>
+                <p className="mt-1 text-sm text-muted-foreground">Welcome back, {profile?.name || user?.name}</p>
               </div>
               <div className="mt-4 flex md:mt-0 md:ml-4">
                 <button
@@ -148,16 +295,25 @@ export default function StorefrontAccountPage(props: { params: Promise<{ domain:
                       <p className="mt-1 text-sm text-muted-foreground">Check the status of recent orders, manage returns, and discover similar products.</p>
                     </div>
                     <ul role="list" className="divide-y divide-border">
-                      {DUMMY_ORDERS.map((order) => (
+                      {loadingData ? (
+                        <LoadingState />
+                      ) : orders.length === 0 ? (
+                        <EmptyState 
+                          icon={<Package className="w-8 h-8" />}
+                          title="No orders yet"
+                          description="When you place your first order, it will appear here so you can track its progress."
+                        />
+                      ) : (
+                        orders.map((order) => (
                         <li key={order.id} className="p-4 sm:p-6 hover:bg-muted transition-colors">
                           <div className="flex items-center justify-between flex-wrap gap-4">
                             <div>
                               <p className="text-sm font-medium text-foreground">Order number</p>
-                              <p className="mt-1 text-sm text-muted-foreground">{order.id}</p>
+                              <p className="mt-1 text-sm text-muted-foreground">{order.orderNumber || order.id}</p>
                             </div>
                             <div>
                               <p className="text-sm font-medium text-foreground">Date placed</p>
-                              <p className="mt-1 text-sm text-muted-foreground">{order.date}</p>
+                              <p className="mt-1 text-sm text-muted-foreground">{order.createdAt ? new Date(order.createdAt).toLocaleDateString() : order.date}</p>
                             </div>
                             <div>
                               <p className="text-sm font-medium text-foreground">Total amount</p>
@@ -182,7 +338,7 @@ export default function StorefrontAccountPage(props: { params: Promise<{ domain:
                             </div>
                           </div>
                         </li>
-                      ))}
+                      )))}
                     </ul>
                   </div>
                 )}
@@ -198,11 +354,17 @@ export default function StorefrontAccountPage(props: { params: Promise<{ domain:
                       <dl className="grid grid-cols-1 gap-x-4 gap-y-8 sm:grid-cols-2">
                         <div className="sm:col-span-1">
                           <dt className="text-sm font-medium text-muted-foreground">Full name</dt>
-                          <dd className="mt-1 text-sm text-foreground">{user?.name || "John Doe"}</dd>
+                          <dd className="mt-1 text-sm text-foreground">{profile?.name || user?.name}</dd>
                         </div>
                         <div className="sm:col-span-1">
                           <dt className="text-sm font-medium text-muted-foreground">Email address</dt>
-                          <dd className="mt-1 text-sm text-foreground">{user?.email || "john.doe@example.com"}</dd>
+                          <dd className="mt-1 text-sm text-foreground">{profile?.email || user?.email}</dd>
+                        </div>
+                        <div className="sm:col-span-1">
+                          <dt className="text-sm font-medium text-muted-foreground">Phone number</dt>
+                          <dd className="mt-1 text-sm text-foreground">
+                            {profile?.phone || addresses.find(a => a.isDefault)?.phone || addresses[0]?.phone || "Not set"}
+                          </dd>
                         </div>
                       </dl>
                     </div>
@@ -225,8 +387,14 @@ export default function StorefrontAccountPage(props: { params: Promise<{ domain:
                         Add New
                       </button>
                     </div>
-                    {addresses.length === 0 ? (
-                      <div className="p-6 text-center text-muted-foreground">No addresses saved.</div>
+                    {loadingData ? (
+                      <LoadingState />
+                    ) : addresses.length === 0 ? (
+                      <EmptyState 
+                        icon={<MapPin className="w-8 h-8" />}
+                        title="No addresses saved"
+                        description="Add a shipping address to checkout faster next time."
+                      />
                     ) : (
                       <ul role="list" className="divide-y divide-border">
                         {addresses.map((address) => (
@@ -250,7 +418,7 @@ export default function StorefrontAccountPage(props: { params: Promise<{ domain:
                               </div>
                               <div className="flex space-x-3">
                                 <button 
-                                  onClick={() => setAddresses(addresses.filter(a => a.id !== address.id))}
+                                  onClick={() => setDeleteItem({ type: 'address', id: address.id })}
                                   className="text-sm font-medium text-destructive hover:opacity-80 transition-opacity"
                                 >
                                   Delete
@@ -280,8 +448,14 @@ export default function StorefrontAccountPage(props: { params: Promise<{ domain:
                         Add New Card
                       </button>
                     </div>
-                    {cards.length === 0 ? (
-                      <div className="p-6 text-center text-muted-foreground">No payment methods saved.</div>
+                    {loadingData ? (
+                      <LoadingState />
+                    ) : cards.length === 0 ? (
+                      <EmptyState 
+                        icon={<CreditCard className="w-8 h-8" />}
+                        title="No payment methods saved"
+                        description="Save your card details securely for a faster checkout experience."
+                      />
                     ) : (
                       <ul role="list" className="divide-y divide-border">
                         {cards.map((card) => (
@@ -289,7 +463,7 @@ export default function StorefrontAccountPage(props: { params: Promise<{ domain:
                             <div className="flex items-center justify-between">
                               <div className="flex items-center">
                                 <div className="h-8 w-12 bg-muted border border-border rounded flex items-center justify-center text-xs font-bold text-muted-foreground">
-                                  {card.brand}
+                                  CARD
                                 </div>
                                 <div className="ml-4">
                                   <div className="flex items-center">
@@ -305,7 +479,7 @@ export default function StorefrontAccountPage(props: { params: Promise<{ domain:
                               </div>
                               <div className="flex space-x-3">
                                 <button 
-                                  onClick={() => setCards(cards.filter(c => c.id !== card.id))}
+                                  onClick={() => setDeleteItem({ type: 'card', id: card.id })}
                                   className="text-sm font-medium text-destructive hover:opacity-80 transition-opacity"
                                 >
                                   Remove
@@ -332,18 +506,38 @@ export default function StorefrontAccountPage(props: { params: Promise<{ domain:
         isOpen={isOrderPanelOpen} 
         onClose={() => setIsOrderPanelOpen(false)} 
         order={selectedOrder} 
+        onCancelOrder={handleCancelOrder}
+        onReturnOrder={handleReturnOrder}
       />
       
-      <AddressFormPanel 
-        isOpen={isAddressPanelOpen} 
-        onClose={() => setIsAddressPanelOpen(false)} 
-        onAddAddress={(address) => setAddresses([...addresses, address])} 
+      <AddressFormPanel
+        isOpen={isAddressPanelOpen}
+        onClose={() => setIsAddressPanelOpen(false)}
+        onAddAddress={handleAddAddress}
+        initialName={profile?.name || user?.name || ''}
+        isFirstAddress={addresses.length === 0}
       />
       
       <CardFormPanel 
         isOpen={isCardPanelOpen} 
         onClose={() => setIsCardPanelOpen(false)} 
-        onAddCard={(card) => setCards([...cards, card])} 
+        onAddCard={handleAddCard} 
+      />
+
+      <MinimalistConfirmDialog
+        isOpen={deleteItem !== null}
+        title={deleteItem?.type === 'address' ? "Delete Address" : "Remove Payment Method"}
+        message={deleteItem?.type === 'address' 
+          ? "Are you sure you want to delete this address? This action cannot be undone."
+          : "Are you sure you want to remove this payment method? This action cannot be undone."
+        }
+        confirmText={deleteItem?.type === 'address' ? "Delete" : "Remove"}
+        onConfirm={() => {
+          if (deleteItem?.type === 'address') handleDeleteAddress(deleteItem.id);
+          if (deleteItem?.type === 'card') handleDeleteCard(deleteItem.id);
+        }}
+        onClose={() => setDeleteItem(null)}
+        isDestructive={true}
       />
     </>
   );

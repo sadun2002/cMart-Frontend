@@ -1,6 +1,6 @@
 {
-  "name": "cmart-frontend",
-  "version": "0.1.0",
+  "name": "cmart-pos-frontend",
+  "version": "0.1.8",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -13,7 +13,11 @@
     "@base-ui/react": "^1.6.0",
     "@hookform/resolvers": "^5.1.1",
     "@tauri-apps/api": "^2.11.1",
+    "@tauri-apps/plugin-dialog": "^2.7.2",
+    "@tauri-apps/plugin-process": "^2.3.1",
+    "@tauri-apps/plugin-shell": "^2.3.5",
     "@tauri-apps/plugin-sql": "^2.4.0",
+    "@tauri-apps/plugin-updater": "^2.10.1",
     "axios": "^1.10.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
