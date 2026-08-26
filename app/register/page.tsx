@@ -305,7 +305,7 @@ export default function RegisterPage() {
 
         <div className="relative z-10">
           <Link href="/" className="inline-flex items-center gap-3 mb-1 group">
-            <img src="/logo-small.png" alt="cMart Logo" className="w-10 h-10 object-contain rounded-xl shadow-lg group-hover:scale-105 transition-transform" />
+ <img src="/logo-small.png" alt="cMart Logo" className="w-10 h-10 object-contain group-hover:scale-105 transition-transform" />
             <span className="text-2xl font-black tracking-tight">{COMPANY_NAME}</span>
           </Link>
           <p className="text-blue-200 text-sm">The Smart Way to Run Your Store</p>

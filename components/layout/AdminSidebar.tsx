@@ -71,7 +71,7 @@ export default function AdminSidebar({ collapsed, onToggle, isMobileOpen, onMobi
         {!collapsed ? (
           <>
             <Link href="/admin/dashboard" className="flex items-center gap-2.5">
-              <img src="/logo-small.png" alt="cMart Logo" className="w-8 h-8 object-contain rounded-[10px] shadow-sm" />
+ <img src="/logo-small.png" alt="cMart Logo" className="w-8 h-8 object-contain" />
               <div>
                 <span className="text-gray-900 dark:text-white font-black text-2xl tracking-tight block leading-tight">cMart</span>
               </div>
@@ -86,7 +86,7 @@ export default function AdminSidebar({ collapsed, onToggle, isMobileOpen, onMobi
           </>
         ) : (
           <button onClick={onToggle} className="mx-auto transition-transform hover:scale-105" aria-label="Expand sidebar">
-            <img src="/logo-small.png" alt="cMart Logo" className="w-8 h-8 object-contain rounded-[10px] shadow-sm" />
+ <img src="/logo-small.png" alt="cMart Logo" className="w-8 h-8 object-contain" />
           </button>
         )}
       </div>

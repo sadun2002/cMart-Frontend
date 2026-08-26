@@ -47,7 +47,7 @@ export function SiteHeader() {
               </button>
               
               <Link href="/" className="flex items-center gap-2.5">
-                <img src="/logo-small.png" alt="cMart Logo" className="hidden lg:flex w-8 h-8 object-contain rounded-xl shadow-sm" />
+ <img src="/logo-small.png" alt="cMart Logo" className="hidden lg:flex w-8 h-8 object-contain" />
                 <span className="text-xl font-black text-gray-900 dark:text-white transition-colors">{COMPANY_NAME}</span>
               </Link>
             </div>

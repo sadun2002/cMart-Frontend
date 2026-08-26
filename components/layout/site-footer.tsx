@@ -56,7 +56,7 @@ export function SiteFooter() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-10 mb-12">
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <img src="/logo-small.png" alt="cMart Logo" className="w-8 h-8 object-contain rounded-[10px] shadow-sm" />
+ <img src="/logo-small.png" alt="cMart Logo" className="w-8 h-8 object-contain" />
               <span className="font-black text-xl text-gray-900 dark:text-white transition-colors">cMart</span>
             </div>
             <p className="text-gray-500 dark:text-slate-400 text-sm leading-relaxed max-w-xs transition-colors">
