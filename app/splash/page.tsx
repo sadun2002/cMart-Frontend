@@ -60,17 +60,8 @@ export default function SplashScreen() {
         transition={{ duration: 0.8, ease: "easeOut" }}
         className="font-sans flex flex-col items-center relative z-10"
       >
-        <div className="w-24 h-24 bg-white rounded-3xl flex items-center justify-center shadow-2xl mb-6">
-          <span className="text-blue-700 font-black text-5xl">c</span>
-        </div>
-        <motion.h1 
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.4, duration: 0.8 }}
-          className="text-4xl font-black text-white tracking-tight"
-        >
-          {COMPANY_NAME}
-        </motion.h1>
+        <img src="/logo-large.png" alt="cMart" className="w-48 h-auto object-contain mb-4 shadow-2xl rounded-2xl" />
+        
         <motion.p
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
