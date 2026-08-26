@@ -146,9 +146,7 @@ export default function OwnerSidebar({ collapsed: desktopCollapsed, onToggle, is
         {!collapsed ? (
           <>
             <Link href="/owner/dashboard" className="flex items-center gap-2.5">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-500 rounded-lg flex items-center justify-center">
-                <span className="text-white font-black text-base">c</span>
-              </div>
+              <img src="/logo-small.png" alt="cMart Logo" className="w-8 h-8 object-contain rounded-[10px] shadow-sm" />
               <div className="flex items-baseline gap-1">
                 <span className="text-gray-900 dark:text-white font-black text-2xl tracking-tight block leading-tight">cMart</span>
               </div>
@@ -169,9 +167,7 @@ export default function OwnerSidebar({ collapsed: desktopCollapsed, onToggle, is
           </>
         ) : (
           <button onClick={onToggle} className="mx-auto transition-transform hover:scale-105" aria-label="Expand sidebar">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-500 rounded-lg flex items-center justify-center shadow-sm">
-              <span className="text-white font-black text-base">c</span>
-            </div>
+              <img src="/logo-small.png" alt="cMart Logo" className="w-8 h-8 object-contain rounded-[10px] shadow-sm" />
           </button>
         )}
       </div>

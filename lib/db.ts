@@ -21,23 +21,101 @@ export async function getDb() {
     dbInstance = await Database.load('sqlite:cmart.db');
     
     // Initialize tables automatically on first load
+    
+    await dbInstance.execute(`
+      CREATE TABLE IF NOT EXISTS categories (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        tenantId INTEGER,
+        name TEXT NOT NULL,
+        slug TEXT NOT NULL,
+        description TEXT,
+        image TEXT,
+        sortOrder INTEGER DEFAULT 0,
+        offlineId TEXT UNIQUE,
+        parentId INTEGER,
+        active INTEGER DEFAULT 1,
+        createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+        updatedAt TEXT,
+        synced INTEGER DEFAULT 0
+      );
+    `);
+
     await dbInstance.execute(`
       CREATE TABLE IF NOT EXISTS products (
-        id TEXT PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        tenantId INTEGER,
         name TEXT NOT NULL,
+        slug TEXT,
+        description TEXT,
+        barcode TEXT,
         sku TEXT,
-        price REAL NOT NULL,
-        stock INTEGER NOT NULL,
-        category TEXT,
+        offlineId TEXT UNIQUE,
+        price REAL DEFAULT 0,
+        showOnWebsite INTEGER DEFAULT 0,
+        featured INTEGER DEFAULT 0,
+        publishedAt TEXT,
+        categoryId INTEGER,
+        metaTitle TEXT,
+        metaDescription TEXT,
+        weight REAL,
+        length REAL,
+        width REAL,
+        height REAL,
+        active INTEGER DEFAULT 1,
+        createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+        updatedAt TEXT,
         synced INTEGER DEFAULT 0
       );
     `);
 
     await dbInstance.execute(`
       CREATE TABLE IF NOT EXISTS sales (
-        id TEXT PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        tenantId INTEGER,
+        branchId INTEGER,
+        invoiceNo TEXT,
+        offlineId TEXT UNIQUE,
+        subtotal REAL NOT NULL,
+        tax REAL DEFAULT 0,
+        discount REAL DEFAULT 0,
         total REAL NOT NULL,
-        created_at TEXT NOT NULL,
+        paymentMethod TEXT NOT NULL,
+        paymentStatus TEXT DEFAULT 'COMPLETED',
+        cashReceived REAL,
+        changeGiven REAL,
+        customerId INTEGER,
+        userId INTEGER NOT NULL,
+        notes TEXT,
+        createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+        synced INTEGER DEFAULT 0
+      );
+    `);
+
+    await dbInstance.execute(`
+      CREATE TABLE IF NOT EXISTS sale_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        saleId INTEGER NOT NULL,
+        productId INTEGER NOT NULL,
+        productName TEXT NOT NULL,
+        quantity INTEGER NOT NULL,
+        price REAL NOT NULL,
+        cost REAL DEFAULT 0,
+        discount REAL DEFAULT 0,
+        subtotal REAL NOT NULL,
+        synced INTEGER DEFAULT 0
+      );
+    `);
+
+    await dbInstance.execute(`
+      CREATE TABLE IF NOT EXISTS expenses (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        tenantId INTEGER,
+        offlineId TEXT UNIQUE,
+        description TEXT NOT NULL,
+        amount REAL NOT NULL,
+        category TEXT NOT NULL,
+        date TEXT NOT NULL,
+        createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
         synced INTEGER DEFAULT 0
       );
     `);
@@ -46,17 +124,6 @@ export async function getDb() {
       CREATE TABLE IF NOT EXISTS store_settings (
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL
-      );
-    `);
-
-    await dbInstance.execute(`
-      CREATE TABLE IF NOT EXISTS expenses (
-        id TEXT PRIMARY KEY,
-        description TEXT NOT NULL,
-        amount REAL NOT NULL,
-        category TEXT NOT NULL,
-        date TEXT NOT NULL,
-        synced INTEGER DEFAULT 0
       );
     `);
   }

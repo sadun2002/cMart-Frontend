@@ -95,9 +95,7 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="relative z-10">
           <Link href="/" className="inline-flex items-center gap-3 mb-1 group">
-            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform">
-              <span className="text-blue-700 font-black text-lg">c</span>
-            </div>
+            <img src="/logo-small.png" alt="cMart Logo" className="w-10 h-10 object-contain rounded-xl shadow-lg group-hover:scale-105 transition-transform" />
             <span className="text-2xl font-black tracking-tight">{COMPANY_NAME}</span>
           </Link>
           <p className="text-blue-200 text-sm ml-[52px]">{COMPANY_TAGLINE}</p>

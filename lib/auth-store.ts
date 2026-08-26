@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import api, { setCookie, clearAuthCookies } from './api';
 import { userAPI } from './api';
+import { performBulkSync } from './sync-manager';
 
 // ============================================================
 // cMart — Auth Zustand Store
@@ -157,6 +158,11 @@ export const useAuthStore = create<AuthState>()(
           const { data } = await api.get('/auth/me');
           const user = data.data || data;
           set({ user: { ...user, type: user.adminRole ? 'super_admin' : 'user' }, isLoading: false });
+          
+          // Trigger bulk sync if they are on a cloud tier
+          if (user?.tenant?.plan === 'PRO' || user?.tenant?.plan === 'ENTERPRISE') {
+            performBulkSync().catch(err => console.error('Background sync failed:', err));
+          }
         } catch {
           get().logout();
           set({ isLoading: false });

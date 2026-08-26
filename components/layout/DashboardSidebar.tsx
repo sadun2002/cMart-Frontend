@@ -73,16 +73,12 @@ export default function DashboardSidebar({ navItems, role }: DashboardSidebarPro
       <div className="px-4 py-5 border-b border-border flex items-center justify-between">
         {!collapsed && (
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-500 rounded-lg flex items-center justify-center shadow-sm shadow-blue-200">
-              <span className="text-white font-black text-base">c</span>
-            </div>
+            <img src="/logo-small.png" alt="cMart Logo" className="w-8 h-8 object-contain rounded-[10px] shadow-sm shadow-blue-200" />
             <span className="text-foreground font-black text-lg tracking-tight">cMart</span>
           </div>
         )}
         {collapsed && (
-          <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-500 rounded-lg flex items-center justify-center mx-auto shadow-sm shadow-blue-200">
-            <span className="text-white font-black text-base">c</span>
-          </div>
+          <img src="/logo-small.png" alt="cMart Logo" className="w-8 h-8 object-contain mx-auto rounded-[10px] shadow-sm shadow-blue-200" />
         )}
         {!collapsed && (
           <button

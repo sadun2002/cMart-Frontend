@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "cMart POS",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "identifier": "com.cmart.pos",
   "build": {
     "frontendDist": "../out",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "cMart POS - v0.1.8",
+        "title": "cMart POS - v0.1.9",
         "width": 1280,
         "height": 720,
         "minWidth": 1024,
