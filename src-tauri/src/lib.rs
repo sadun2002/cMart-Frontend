@@ -9,6 +9,18 @@ pub fn run() {
             .build(),
         )?;
       }
+      
+      #[cfg(desktop)]
+      {
+        use tauri::Manager;
+        let window = app.get_webview_window("main").unwrap();
+        // Set the native title bar icon to the small 'c' logo
+        let icon_bytes = include_bytes!("../icons/window-icon.png").to_vec();
+        if let Ok(icon) = tauri::image::Image::from_bytes(&icon_bytes) {
+            let _ = window.set_icon(icon);
+        }
+      }
+
       Ok(())
     })
     .plugin(tauri_plugin_process::init())

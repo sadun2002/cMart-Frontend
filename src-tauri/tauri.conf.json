@@ -19,8 +19,7 @@
                                     "minHeight":  600,
                                     "resizable":  true,
                                     "fullscreen":  false,
-                                    "url":  "/splash",
-                                    "icon":  "icons/window-icon.png"
+                                    "url":  "/splash"
                                 }
                             ],
                 "security":  {
