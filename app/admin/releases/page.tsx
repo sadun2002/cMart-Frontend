@@ -140,7 +140,7 @@ export default function AdminReleasesPage() {
                   <td className="p-4 text-gray-500">{release.target}</td>
                   <td className="p-4 text-gray-500">{new Date(release.pub_date).toLocaleDateString()}</td>
                   <td className="p-4">
-                    <a href={release.url} target="_blank" className="text-blue-600 hover:underline flex items-center gap-1"><DownloadCloud className="w-4 h-4"/> Download EXE</a>
+                    <a href={`${api.defaults.baseURL}/api/releases/${release.id}/download`} className="text-blue-600 hover:underline flex items-center gap-1"><DownloadCloud className="w-4 h-4"/> Download EXE</a>
                   </td>
                 </tr>
               ))
