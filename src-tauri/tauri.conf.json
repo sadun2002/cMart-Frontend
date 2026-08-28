@@ -12,7 +12,7 @@
     "app":  {
                 "windows":  [
                                 {
-                                    "title":  "cMart POS - v0.1.25",
+                                    "title":  "cMart POS",
                                     "width":  1280,
                                     "height":  720,
                                     "minWidth":  1024,

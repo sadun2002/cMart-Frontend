@@ -60,7 +60,7 @@ export default function SplashScreen() {
         transition={{ duration: 0.8, ease: "easeOut" }}
         className="font-sans flex flex-col items-center relative z-10"
       >
-        <img src="/logo-large.png" alt="cMart" className="w-48 h-auto object-contain mb-4 shadow-2xl rounded-2xl" />
+        <img src="/logo-large-transparent.png" alt="cMart" className="w-48 h-auto object-contain mb-4" />
         
         <motion.p
           initial={{ y: 20, opacity: 0 }}

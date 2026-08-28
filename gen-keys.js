@@ -6,7 +6,8 @@ child.stdout.on('data', (data) => {
   const str = data.toString();
   console.log(str);
   if (str.includes('Please enter a password')) {
-    child.stdin.write('cmartpassword123\n');
+    // DO NOT HARDCODE PASSWORD HERE
+    child.stdin.write(process.env.TAURI_KEY_PASSWORD + '\n');
   }
 });
 
