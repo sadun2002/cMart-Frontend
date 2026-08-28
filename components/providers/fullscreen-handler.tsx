@@ -28,8 +28,18 @@ export function FullscreenHandler() {
       }
     };
 
+    const handleContextMenu = (e: MouseEvent) => {
+      // Completely disable default browser right-click context menu in the desktop application
+      e.preventDefault();
+    };
+
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener("contextmenu", handleContextMenu);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("contextmenu", handleContextMenu);
+    };
   }, []);
 
   return null;
