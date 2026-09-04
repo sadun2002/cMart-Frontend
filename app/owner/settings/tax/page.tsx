@@ -6,9 +6,7 @@ export default function TaxCurrencyPage() {
   return (
     <div className="font-sans p-6 lg:p-8 max-w-4xl mx-auto space-y-8">
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-500 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200/40">
-          <DollarSign className="w-5 h-5 text-white" />
-        </div>
+        <DollarSign className="w-7 h-7 text-gray-900 dark:text-white" />
         <div>
           <h1 className="text-2xl font-black text-gray-900 dark:text-white">Tax & Currency</h1>
           <p className="text-sm text-gray-500 dark:text-slate-400">Configure tax rates and currency settings</p>

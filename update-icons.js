@@ -20,7 +20,7 @@ async function buildIco() {
   for (const size of icoSizes) {
     const buf = await sharp(trimmedBuffer)
       .resize(size, size, {
-        fit: 'contain',
+        fit: 'fill',
         background: { r: 0, g: 0, b: 0, alpha: 0 }
       })
       .png()
@@ -63,7 +63,7 @@ async function buildIco() {
 
   console.log('4. Generating icon.png (512x512, no padding)...');
   await sharp(trimmedBuffer)
-    .resize(512, 512, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .resize(512, 512, { fit: 'fill', background: { r: 0, g: 0, b: 0, alpha: 0 } })
     .png()
     .toFile(iconPngPath);
   console.log('   ✓ icon.png (512x512)');
@@ -72,7 +72,7 @@ async function buildIco() {
   for (const [name, size] of Object.entries(pngSizes)) {
     const outPath = path.join(__dirname, 'src-tauri', 'icons', `${name}.png`);
     await sharp(trimmedBuffer)
-      .resize(size, size, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+      .resize(size, size, { fit: 'fill', background: { r: 0, g: 0, b: 0, alpha: 0 } })
       .png()
       .toFile(outPath);
     console.log(`   ✓ ${name}.png`);

@@ -203,10 +203,10 @@ export default function BranchesPage() {
                 </div>
               </div>
               
-              <div className="flex justify-end gap-3 pt-4 mt-6 border-t border-slate-100 dark:border-slate-800">
-                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-                <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white">
-                  {editingBranch ? 'Save Changes' : 'Create Branch'}
+              <div className="flex gap-3 pt-4 mt-6 border-t border-slate-100 dark:border-slate-800">
+                <Button type="button" variant="outline" className="flex-1" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+                <Button type="submit" className="flex-[2] bg-blue-600 hover:bg-blue-700 text-white">
+                  {editingBranch ? 'Save Changes' : 'Save Branch'}
                 </Button>
               </div>
             </form>

@@ -1,5 +1,5 @@
 import { getDb } from './db';
-import axios from 'axios';
+import api from './api';
 import { API_BASE_URL } from './constants';
 import { useAuthStore } from './auth-store';
 
@@ -35,13 +35,9 @@ export async function performBulkSync(): Promise<boolean> {
     };
 
     // 2. Send to backend
-    const response = await axios.post(`${API_BASE_URL}/sync/bulk`, payload, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`
-      }
-    });
+    const response = await api.post('/sync/bulk', payload);
 
-    if (response.data?.success) {
+    if ((response as any).success || response.data?.success) {
       // 3. Mark as synced locally
       // For SQLite we need to update each table
       if (categories.length > 0) {

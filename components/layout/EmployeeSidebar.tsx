@@ -134,6 +134,13 @@ export default function EmployeeSidebar({ collapsed: desktopCollapsed, onToggle,
     }
   };
 
+  const navRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (collapsed && navRef.current) {
+      navRef.current.scrollTop = 0;
+    }
+  }, [collapsed]);
+
   return (
     <aside 
       onMouseEnter={isMobileOpen ? undefined : handleMouseEnter}
@@ -172,7 +179,7 @@ export default function EmployeeSidebar({ collapsed: desktopCollapsed, onToggle,
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto no-scrollbar py-2 space-y-0">
+      <nav ref={navRef} className="flex-1 overflow-y-auto no-scrollbar py-2 space-y-0">
         {mainNavItems.map((item, index) => {
           const Icon = item.icon;
           const isActive = pathname.startsWith(item.href);
@@ -183,11 +190,11 @@ export default function EmployeeSidebar({ collapsed: desktopCollapsed, onToggle,
               href={item.href}
               onClick={(e) => handleNavigation(e, item)}
               title={collapsed ? item.label : undefined}
-              className={`${(item as any).hideOnMobile ? 'hidden lg:flex' : 'flex'} items-center gap-3 text-sm transition-colors duration-150 ${
+              className={`${(item as any).hideOnMobile ? 'hidden lg:flex' : 'flex'} items-center gap-3 text-sm transition-all duration-150 rounded-xl mx-2 my-0.5 ${
                 isActive
-                  ? 'text-blue-600 dark:text-blue-400 font-medium'
-                  : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300'
-              } ${collapsed ? 'justify-center py-3' : 'py-3 pl-5 pr-3'}`}
+                  ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-bold'
+                  : 'text-gray-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-gray-900 dark:hover:text-slate-200'
+              } ${collapsed ? 'justify-center py-2.5 px-0' : 'py-2.5 pl-3 pr-3'}`}
             >
               <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-blue-600 dark:text-blue-400' : ''}`} />
               {!collapsed && <span className="truncate">{item.label}</span>}
@@ -201,18 +208,18 @@ export default function EmployeeSidebar({ collapsed: desktopCollapsed, onToggle,
           <button
             onClick={() => {
               if (collapsed) {
-                onToggle();
+                handleToggle();
                 setReportsOpen(true);
               } else {
                 setReportsOpen(!reportsOpen);
               }
             }}
             title={collapsed ? 'Reports' : undefined}
-            className={`w-full flex items-center gap-3 text-sm transition-colors duration-150 ${
+            className={`w-[calc(100%-1rem)] flex items-center gap-3 text-sm transition-all duration-150 rounded-xl mx-2 my-0.5 ${
               isReportsActive
-                ? 'text-blue-600 dark:text-blue-400 font-medium'
-                : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300'
-            } ${collapsed ? 'justify-center py-3' : 'py-3 pl-5 pr-3'}`}
+                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-bold'
+                : 'text-gray-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-gray-900 dark:hover:text-slate-200'
+            } ${collapsed ? 'justify-center py-2.5 px-0' : 'py-2.5 pl-3 pr-3'}`}
           >
             <BarChart3 className={`w-5 h-5 flex-shrink-0 ${isReportsActive ? 'text-blue-600 dark:text-blue-400' : ''}`} />
             {!collapsed && (
@@ -237,10 +244,10 @@ export default function EmployeeSidebar({ collapsed: desktopCollapsed, onToggle,
               key={item.href}
               href={item.href}
               onClick={(e) => handleNavigation(e, item)}
-                    className={`flex items-center gap-3 text-sm py-2 pl-4 pr-3 transition-colors duration-150 ${
+                    className={`flex items-center gap-3 text-sm py-2 pl-3 pr-3 ml-2 mr-2 my-0.5 rounded-lg transition-all duration-150 ${
                       isActive
-                        ? 'text-blue-600 dark:text-blue-400 font-medium'
-                        : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300'
+                        ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-bold'
+                        : 'text-gray-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-gray-900 dark:hover:text-slate-200'
                     }`}
                   >
                     <Icon className="w-4 h-4 flex-shrink-0" />
@@ -270,11 +277,11 @@ export default function EmployeeSidebar({ collapsed: desktopCollapsed, onToggle,
               }
             }}
             title={collapsed ? 'Online Store' : undefined}
-            className={`w-full flex items-center gap-3 text-sm transition-colors duration-150 ${
+            className={`w-[calc(100%-1rem)] flex items-center gap-3 text-sm transition-all duration-150 rounded-xl mx-2 my-0.5 ${
               isOnlineStoreActive
-                ? 'text-blue-600 dark:text-blue-400 font-medium'
-                : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300'
-            } ${collapsed ? 'justify-center py-3' : 'py-3 pl-5 pr-3'}`}
+                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-bold'
+                : 'text-gray-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-gray-900 dark:hover:text-slate-200'
+            } ${collapsed ? 'justify-center py-2.5 px-0' : 'py-2.5 pl-3 pr-3'}`}
           >
             <Globe2 className={`w-5 h-5 flex-shrink-0 ${isOnlineStoreActive ? 'text-blue-600 dark:text-blue-400' : ''}`} />
             {!collapsed && (
@@ -336,11 +343,11 @@ export default function EmployeeSidebar({ collapsed: desktopCollapsed, onToggle,
               }
             }}
             title={collapsed ? 'Employees' : undefined}
-            className={`w-full flex items-center gap-3 text-sm transition-colors duration-150 ${
+            className={`w-[calc(100%-1rem)] flex items-center gap-3 text-sm transition-all duration-150 rounded-xl mx-2 my-0.5 ${
               isEmployeesActive
-                ? 'text-blue-600 dark:text-blue-400 font-medium'
-                : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300'
-            } ${collapsed ? 'justify-center py-3' : 'py-3 pl-5 pr-3'}`}
+                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-bold'
+                : 'text-gray-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-gray-900 dark:hover:text-slate-200'
+            } ${collapsed ? 'justify-center py-2.5 px-0' : 'py-2.5 pl-3 pr-3'}`}
           >
             <UserCheck className={`w-5 h-5 flex-shrink-0 ${isEmployeesActive ? 'text-blue-600 dark:text-blue-400' : ''}`} />
             {!collapsed && (
@@ -398,11 +405,11 @@ export default function EmployeeSidebar({ collapsed: desktopCollapsed, onToggle,
               }
             }}
             title={collapsed ? 'Settings' : undefined}
-            className={`w-full flex items-center gap-3 text-sm transition-colors duration-150 ${
+            className={`w-[calc(100%-1rem)] flex items-center gap-3 text-sm transition-all duration-150 rounded-xl mx-2 my-0.5 ${
               isSettingsActive
-                ? 'text-blue-600 dark:text-blue-400 font-medium'
-                : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300'
-            } ${collapsed ? 'justify-center py-3' : 'py-3 pl-5 pr-3'}`}
+                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-bold'
+                : 'text-gray-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-gray-900 dark:hover:text-slate-200'
+            } ${collapsed ? 'justify-center py-2.5 px-0' : 'py-2.5 pl-3 pr-3'}`}
           >
             <SettingsIcon className={`w-5 h-5 flex-shrink-0 ${isSettingsActive ? 'text-blue-600 dark:text-blue-400' : ''}`} />
             {!collapsed && (

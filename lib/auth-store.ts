@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import api, { setCookie, clearAuthCookies } from './api';
 import { userAPI } from './api';
 import { performBulkSync } from './sync-manager';
+import { saveOfflineUser, authenticateOfflineUser } from './local-db';
 
 // ============================================================
 // cMart — Auth Zustand Store
@@ -16,6 +17,7 @@ export interface AuthUser {
   adminRole?: string;     // SUPER_ADMIN | ADMIN | SUPPORT
   type: 'super_admin' | 'user';
   tenantId?: number;
+  branchId?: number;
   avatar?: string;
   tenant?: {
     id: number;
@@ -76,6 +78,12 @@ export const useAuthStore = create<AuthState>()(
           const { data } = await api.post('/auth/login', { email, password });
           const payload = data.data || data;
 
+          // Save credentials securely for offline use
+          saveOfflineUser(email, password, payload.user, {
+            accessToken: payload.accessToken,
+            refreshToken: payload.refreshToken
+          });
+
           // Persist tokens in cookies (for middleware)
           setCookie('accessToken', payload.accessToken, 15 / (24 * 60));
           setCookie('refreshToken', payload.refreshToken, 7);
@@ -105,8 +113,34 @@ export const useAuthStore = create<AuthState>()(
 
           return { redirectTo: payload.redirectTo, user: payload.user };
         } catch (err: any) {
+          // Handle offline login fallback if there is no response (network error)
+          if (!err.response) {
+            console.log('[Auth] Network error detected, attempting offline login...');
+            const offlineData = await authenticateOfflineUser(email, password);
+            
+            if (offlineData) {
+              setCookie('accessToken', offlineData.tokens.accessToken, 15 / (24 * 60));
+              setCookie('refreshToken', offlineData.tokens.refreshToken, 7);
+              setCookie('userRole', offlineData.user.role, 7);
+              setCookie('userType', offlineData.user.type || (offlineData.user.adminRole ? 'super_admin' : 'user'), 7);
+
+              set({
+                user: { ...offlineData.user, type: offlineData.user.adminRole ? 'super_admin' : 'user' },
+                accessToken: offlineData.tokens.accessToken,
+                refreshToken: offlineData.tokens.refreshToken,
+                isLoading: false,
+              });
+
+              let redirectTo = '/';
+              if (offlineData.user.role === 'STORE_OWNER') redirectTo = '/owner/dashboard';
+              else if (offlineData.user.role === 'EMPLOYEE') redirectTo = '/employee/dashboard';
+
+              return { redirectTo, user: offlineData.user };
+            }
+          }
+
           set({ isLoading: false });
-          const message = err.response?.data?.message || 'Login failed';
+          const message = err.response?.data?.message || 'Login failed. Please check your connection and try again.';
           throw new Error(message);
         }
       },

@@ -13,6 +13,8 @@ import { storeOwnerAPI } from '@/lib/api';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { getLocalProducts, getProductLogs } from '@/lib/local-services';
+import { useAuthStore } from '@/lib/auth-store';
 
 function formatStock(num: number) {
   if (num == null) return '0';
@@ -33,11 +35,31 @@ function dataURLtoFile(dataurl: string, filename: string) {
 }
 
 function ProductHistoryView({ product, onBack }: { product: any, onBack: () => void }) {
-  const history = [
-    { date: new Date().toISOString(), action: 'PRICE_UPDATE', desc: 'Price changed from Rs. 1500 to Rs. 1650', by: 'Admin' },
-    { date: new Date(Date.now() - 86400000).toISOString(), action: 'STOCK_ADD', desc: 'Added 50 units to stock', by: 'Warehouse Mgr' },
-    { date: product.createdAt, action: 'CREATED', desc: 'Product created', by: 'Admin' },
-  ];
+  const [history, setHistory] = useState<any[]>([]);
+  const user = useAuthStore(state => state.user);
+
+  useEffect(() => {
+    async function loadLogs() {
+      if (!product?.id) return;
+      const logs = await getProductLogs(product.id, user?.branchId || 1);
+      
+      if (logs.length === 0) {
+        setHistory([{ date: product.createdAt, action: 'CREATED', desc: 'Product created', by: user?.name || 'System', role: user?.role || '' }]);
+      } else {
+        setHistory(logs.map(l => {
+          const parts = (l.performedBy || `${user?.name || 'System'}|${user?.role || ''}`).split('|');
+          return {
+            date: l.createdAt,
+            action: l.action,
+            desc: l.description,
+            by: parts[0],
+            role: parts[1] || ''
+          };
+        }));
+      }
+    }
+    loadLogs();
+  }, [product, user?.branchId]);
 
   return (
     <div className="flex flex-col h-full w-full">
@@ -72,7 +94,14 @@ function ProductHistoryView({ product, onBack }: { product: any, onBack: () => v
                   }`}>{h.action.replace('_', ' ')}</span>
                 </div>
                 <div className="text-sm font-medium text-slate-700 dark:text-slate-300 truncate">{h.desc}</div>
-                <div className="text-sm font-medium text-slate-500">{h.by}</div>
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{h.by}</span>
+                  {h.role && (
+                    <span className="text-[10px] font-bold text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-500/10 px-1.5 py-0.5 rounded w-max mt-0.5">
+                      {h.role}
+                    </span>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -967,21 +996,30 @@ function StoreProductsPageContent() {
               </div>
 
               <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
-                <button 
-                  type="submit" 
-                  form="productForm"
-                  disabled={isSubmitting}
-                  className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-black text-lg py-4 rounded-xl shadow-lg shadow-blue-600/20 transition-all flex items-center justify-center gap-2"
-                >
-                  {isSubmitting ? (
-                    <div className="w-6 h-6 border-4 border-white border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <>
-                      <Package className="w-5 h-5" />
-                      {editingProduct ? 'Save Changes' : 'Create Product'}
-                    </>
-                  )}
-                </button>
+                <div className="flex gap-3">
+                  <button 
+                    type="button"
+                    onClick={() => setIsAddOpen(false)}
+                    className="flex-1 px-4 py-3 rounded-xl font-bold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit" 
+                    form="productForm"
+                    disabled={isSubmitting}
+                    className="flex-[2] flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-70 transition-colors shadow-lg shadow-blue-500/20"
+                  >
+                    {isSubmitting ? (
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        <Package className="w-5 h-5" />
+                        {editingProduct ? 'Save Changes' : 'Save Product'}
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </motion.div>
           </>

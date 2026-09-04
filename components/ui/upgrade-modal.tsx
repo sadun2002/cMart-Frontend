@@ -18,6 +18,22 @@ export function UpgradeModal({ isOpen, onClose, featureName, requiredTier = 'Pro
     setMounted(true);
   }, []);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+    
+    if (isOpen) {
+      document.addEventListener('keydown', handleKeyDown, true);
+    }
+    
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown, true);
+    };
+  }, [isOpen, onClose]);
+
   if (!mounted) return null;
 
   return createPortal(
@@ -66,10 +82,10 @@ export function UpgradeModal({ isOpen, onClose, featureName, requiredTier = 'Pro
               <div className="mt-4 flex flex-col gap-3 relative z-10">
                 <Button 
                   onClick={async () => {
-                    let domain = 'cmart.lk';
+                    let domain = 'cmart.chathudisa.com';
                     try {
-                      // Attempt to read from env if available (it might be undefined in some contexts)
-                      domain = process.env.NEXT_PUBLIC_PLATFORM_DOMAIN || 'cmart.lk';
+                      const envDomain = process.env.NEXT_PUBLIC_PLATFORM_DOMAIN;
+                      domain = envDomain || 'cmart.chathudisa.com';
                     } catch(e) {}
                     
                     const fullUrl = `https://${domain}/pricing`;

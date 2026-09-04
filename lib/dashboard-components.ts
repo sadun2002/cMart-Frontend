@@ -456,4 +456,88 @@ export const defaultEnabledComponents: DashboardComponentId[] = dashboardCompone
   .filter(c => c.default)
   .map(c => c.id);
 
+export function isComponentLockedForStartup(id: DashboardComponentId): boolean {
+  const c = getComponentById(id);
+  if (!c) return false;
+  
+  // Entire categories locked
+  if (['hr', 'online', 'device', 'customer', 'map'].includes(c.category)) {
+    return true;
+  }
+  
+  // Specific IDs locked
+  const explicitLocked = [
+    'kpi-new-customers',
+    'kpi-online-orders-today',
+    'kpi-pending-online-orders',
+    'kpi-total-employees',
+    'kpi-active-employees',
+    'kpi-total-customers',
+    'chart-sales-by-employee-bar',
+    'chart-online-vs-pos-stacked',
+    'chart-customer-growth',
+    'list-top5-customers',
+    'list-top5-employees',
+    'alert-pending-online-orders',
+    'alert-payment-due',
+    'alert-employee-absent',
+    'alert-late-checkins',
+    'table-recent-customers',
+    'table-employee-attendance',
+    'calendar-employee-shifts',
+    'progress-customer-acquisition',
+    'progress-online-traffic',
+    'progress-employee-performance',
+    'activity-employee-feed',
+    'activity-customer-feed',
+    'misc-supplier-deliveries',
+    'misc-customer-reviews'
+  ];
+  
+  if (explicitLocked.includes(id)) return true;
+  
+  // Word matching for extra safety
+  if (id.includes('employee') || id.includes('customer') || id.includes('supplier') || id.includes('branch') || id.includes('online') || id.includes('app')) {
+    return true;
+  }
+  
+  return false;
+}
+
+export const STARTUP_DEFAULT_COMPONENTS: DashboardComponentId[] = [
+  // 8 KPIs
+  'kpi-today-sales',
+  'kpi-today-orders',
+  'kpi-total-products',
+  'kpi-low-stock-count',
+  'kpi-out-of-stock',
+  'kpi-today-profit',
+  'kpi-month-profit',
+  'kpi-total-sales-all',
+  
+  // 1 from other allowed categories
+  'chart-sales-7d-line',
+  'list-top5-products',
+  'alert-low-stock',
+  'table-recent-sales',
+  'calendar-mini',
+  'progress-monthly-sales-goal',
+  'activity-recent-feed',
+  'quick-actions',
+  'comparison-week-vs-last-week',
+  'financial-payment-breakdown',
+  'inventory-total-value',
+  'system-last-backup',
+  'time-this-hour-vs-last',
+  'promo-active-count',
+  'misc-help-support'
+];
+
+export function getDefaultEnabledComponents(userPlan?: string): DashboardComponentId[] {
+  if (userPlan === 'STARTUP') {
+    return STARTUP_DEFAULT_COMPONENTS;
+  }
+  return defaultEnabledComponents;
+}
+
 export type CategoryKey = typeof componentCategories[number]['key'];

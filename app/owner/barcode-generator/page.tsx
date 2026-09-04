@@ -1,10 +1,14 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Package, Barcode, Download, Printer, Copy, RefreshCcw, ChevronDown, History, Maximize, Minimize } from 'lucide-react';
+import { Package, Barcode, Download, Printer, Copy, RefreshCcw, ChevronDown, History, Maximize, Minimize, Settings } from 'lucide-react';
 import { toast } from 'sonner';
 import JSZip from 'jszip';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { useAuthStore } from '@/lib/auth-store';
+import { getLocalProducts, getBarcodeHistory, saveBarcodeHistory } from '@/lib/local-services';
+import type { Product } from '@/lib/types';
+import { generateSystemBarcode } from '@/lib/barcode-utils';
 
 const BARCODE_TYPES = [
   { value: 'ean13', label: 'EAN-13 (Retail)' },
@@ -15,27 +19,61 @@ const BARCODE_TYPES = [
 ];
 
 export default function BarcodeGeneratorPage() {
-  const generateRandomEAN12 = () => {
-    // Prefix '20' is reserved for In-Store Use (prevents collision with global products)
-    let result = '20';
-    for (let i = 0; i < 10; i++) {
-      result += Math.floor(Math.random() * 10).toString();
+  const { user } = useAuthStore();
+  const [products, setProducts] = useState<Product[]>([]);
+  useEffect(() => {
+    if (user?.tenantId) {
+      getLocalProducts(user.tenantId).then(setProducts).catch(console.error);
     }
-    return result;
-  };
+  }, [user?.tenantId]);
 
-  const [barcodeText, setBarcodeText] = useState(generateRandomEAN12());
+  const [barcodeText, setBarcodeText] = useState('');
+  useEffect(() => {
+    if (!barcodeText && user) {
+      setBarcodeText(generateSystemBarcode(user.tenantId));
+    }
+  }, [user?.tenantId]);
+
   const [symbology, setSymbology] = useState('ean13');
   const [scale, setScale] = useState(3);
   const [height, setHeight] = useState(15);
-  const [showHeader, setShowHeader] = useState(true);
+  
+  const [showStoreName, setShowStoreName] = useState(true);
+  const [showPrice, setShowPrice] = useState(true);
+  const [showDate, setShowDate] = useState(true);
+  const [manualPrice, setManualPrice] = useState('');
+  const [isPriceLocked, setIsPriceLocked] = useState(false);
+
+  useEffect(() => {
+    if (!barcodeText) return;
+    const matchedProduct = products.find(p => p.barcode === barcodeText);
+    if (matchedProduct) {
+      setManualPrice(matchedProduct.price.toString());
+      setIsPriceLocked(true);
+    } else {
+      setIsPriceLocked(false);
+    }
+  }, [barcodeText, products]);
   const [printQuantity, setPrintQuantity] = useState(1);
   const [compositeImageUrl, setCompositeImageUrl] = useState('');
   const [isTypeDropdownOpen, setIsTypeDropdownOpen] = useState(false);
   const [isBarcodeEditable, setIsBarcodeEditable] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   const [isHistoryView, setIsHistoryView] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [historyData, setHistoryData] = useState<any[]>([]);
+
+  const fetchHistory = async () => {
+    if (user?.tenantId) {
+      const data = await getBarcodeHistory(user.tenantId);
+      setHistoryData(data);
+    }
+  };
+
+  useEffect(() => {
+    fetchHistory();
+  }, [user?.tenantId]);
 
   // Barcode Scanner Listener
   useEffect(() => {
@@ -109,42 +147,61 @@ export default function BarcodeGeneratorPage() {
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
-      const paddingTop = showHeader ? 30 * (scale / 3) : 0;
+      const topPadding = (showStoreName || showDate) ? 30 * (scale / 3) : 0;
+      const bottomPadding = showPrice ? 30 * (scale / 3) : 0;
       
       canvas.width = img.width + 40; // padding
-      canvas.height = img.height + paddingTop + 20;
+      canvas.height = img.height + topPadding + bottomPadding + 20;
 
       // Fill white background
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      if (showHeader) {
-        ctx.fillStyle = '#000000';
-        const fontSize = Math.max(12, 12 * (scale / 3));
-        ctx.font = `bold ${fontSize}px sans-serif`;
+      ctx.fillStyle = '#000000';
+      const fontSize = Math.max(12, 12 * (scale / 3));
+      ctx.font = `bold ${fontSize}px sans-serif`;
+
+      if (showStoreName || showDate) {
         ctx.textBaseline = 'top';
         
-        // Top Left: cMart
-        ctx.textAlign = 'left';
-        ctx.fillText('cMart', 20, 10);
+        if (showStoreName) {
+          ctx.textAlign = 'left';
+          ctx.fillText(user?.tenant?.businessName || 'cMart POS', 20, 10);
+        }
         
-        // Top Right: Date
-        const dateStr = new Date().toLocaleDateString('en-GB');
-        ctx.textAlign = 'right';
-        ctx.fillText(dateStr, canvas.width - 20, 10);
+        if (showDate) {
+          const dateStr = new Date().toLocaleDateString('en-GB');
+          ctx.textAlign = 'right';
+          ctx.fillText(dateStr, canvas.width - 20, 10);
+        }
       }
 
       // Draw barcode
       const imgX = (canvas.width - img.width) / 2;
-      const imgY = showHeader ? paddingTop + 10 : 10;
+      const imgY = topPadding + 10;
       
       ctx.drawImage(img, imgX, imgY);
+
+      if (showPrice) {
+         ctx.textBaseline = 'bottom';
+         ctx.textAlign = 'center';
+         const priceStr = `Rs. ${parseFloat(manualPrice || '0').toFixed(2)}`;
+         ctx.fillText(priceStr, canvas.width / 2, canvas.height - 10);
+      }
       
       setCompositeImageUrl(canvas.toDataURL('image/png'));
     };
-  }, [barcodeText, symbology, scale, height, showHeader]);
+  }, [barcodeText, symbology, scale, height, showStoreName, showDate, showPrice, manualPrice, user]);
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
+    if (user?.tenantId) {
+       await saveBarcodeHistory(user.tenantId, {
+         barcode: barcodeText,
+         barcodeType: symbology,
+         quantity: printQuantity
+       });
+       fetchHistory();
+    }
     const printWindow = window.open('', '_blank');
     if (printWindow && compositeImageUrl) {
       const imagesHtml = Array(printQuantity)
@@ -319,26 +376,21 @@ export default function BarcodeGeneratorPage() {
 
               {/* Table Body */}
               <div className="flex-1 overflow-y-auto no-scrollbar">
-                {[
-                  { id: 1, date: new Date().toISOString(), by: 'Admin User', type: 'EAN-13', value: '201234567890', qty: 50 },
-                  { id: 2, date: new Date(Date.now() - 3600000).toISOString(), by: 'John Doe', type: 'Code 128', value: 'PRD-9923', qty: 100 },
-                  { id: 3, date: new Date(Date.now() - 86400000).toISOString(), by: 'Jane Smith', type: 'UPC-A', value: '012345678905', qty: 20 },
-                  { id: 4, date: new Date(Date.now() - 172800000).toISOString(), by: 'Jane Smith', type: 'Code 39', value: 'BCH-8841', qty: 200 },
-                ].map((record) => (
+                {historyData.length > 0 ? historyData.map((record) => (
                   <div key={record.id} className="grid grid-cols-[200px_200px_150px_200px_150px_150px] gap-4 p-5 border-b border-slate-100 dark:border-slate-800/60 items-center hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
                     <div className="text-sm font-bold text-slate-700 dark:text-slate-300">
-                      {new Date(record.date).toLocaleDateString()} {new Date(record.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                      {new Date(record.createdAt).toLocaleDateString()} {new Date(record.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                     </div>
                     <div className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                      {record.by}
+                      {record.performedBy}
                     </div>
                     <div className="text-sm font-bold text-slate-900 dark:text-white">
-                      {record.type}
+                      {record.barcodeType}
                     </div>
                     <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-sm font-mono truncate group/code">
-                      <span className="truncate">{record.value}</span>
+                      <span className="truncate">{record.barcode}</span>
                       <button 
-                        onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(record.value); toast.success('Barcode copied!'); }}
+                        onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(record.barcode); toast.success('Barcode copied!'); }}
                         className="p-1.5 opacity-0 group-hover/code:opacity-100 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-all"
                         title="Copy"
                       >
@@ -346,15 +398,15 @@ export default function BarcodeGeneratorPage() {
                       </button>
                     </div>
                     <div className="text-right font-bold text-emerald-600 dark:text-emerald-400">
-                      {record.qty}
+                      {record.quantity}
                     </div>
                     <div className="flex items-center justify-center">
                       <button 
                         onClick={() => {
-                           setBarcodeText(record.value);
-                           const t = BARCODE_TYPES.find(bt => bt.label.includes(record.type) || bt.label === record.type);
+                           setBarcodeText(record.barcode);
+                           const t = BARCODE_TYPES.find(bt => bt.label.includes(record.barcodeType) || bt.value === record.barcodeType);
                            if (t) setSymbology(t.value);
-                           setPrintQuantity(record.qty);
+                           setPrintQuantity(record.quantity);
                            setIsHistoryView(false);
                            setIsFullscreen(false);
                         }} 
@@ -365,7 +417,11 @@ export default function BarcodeGeneratorPage() {
                       </button>
                     </div>
                   </div>
-                ))}
+                )) : (
+                  <div className="p-8 text-center text-slate-500 dark:text-slate-400 font-medium">
+                    No barcode generation history found.
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -381,7 +437,7 @@ export default function BarcodeGeneratorPage() {
               <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Barcode Data (Auto Generated)</label>
               <button 
                 onClick={() => {
-                  setBarcodeText(generateRandomEAN12());
+                  setBarcodeText(generateSystemBarcode(user?.tenantId || 0));
                   setIsBarcodeEditable(false);
                 }}
                 className="text-xs flex items-center gap-1.5 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-bold bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 px-2 py-1 rounded-md transition-colors"
@@ -405,71 +461,6 @@ export default function BarcodeGeneratorPage() {
             />
           </div>
 
-          <div className="space-y-2 relative">
-            <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Barcode Type</label>
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setIsTypeDropdownOpen(!isTypeDropdownOpen)}
-                className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-900 dark:text-white flex items-center justify-between transition-all hover:bg-slate-100 dark:hover:bg-slate-800"
-              >
-                <span>{BARCODE_TYPES.find(t => t.value === symbology)?.label}</span>
-                <ChevronDown className={`w-5 h-5 text-slate-500 transition-transform duration-200 ${isTypeDropdownOpen ? 'rotate-180' : ''}`} />
-              </button>
-              
-              {isTypeDropdownOpen && (
-                <>
-                  <div 
-                    className="fixed inset-0 z-40" 
-                    onClick={() => setIsTypeDropdownOpen(false)}
-                  />
-                  <div className="absolute z-50 w-full mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl overflow-hidden py-1 animate-in fade-in slide-in-from-top-2">
-                    {BARCODE_TYPES.map((type) => (
-                      <div
-                        key={type.value}
-                        onClick={() => {
-                          setSymbology(type.value);
-                          setIsTypeDropdownOpen(false);
-                        }}
-                        className={`px-4 py-3 cursor-pointer font-bold text-sm transition-colors ${
-                          symbology === type.value 
-                            ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' 
-                            : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50'
-                        }`}
-                      >
-                        {type.label}
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Scale (Size)</label>
-            <input 
-              type="range" 
-              min="1" max="10" 
-              value={scale} 
-              onChange={(e) => setScale(parseInt(e.target.value))}
-              className="w-full accent-blue-600"
-            />
-            <div className="text-right text-xs text-slate-500 font-medium">{scale}x</div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Height</label>
-            <input 
-              type="range" 
-              min="5" max="50" 
-              value={height} 
-              onChange={(e) => setHeight(parseInt(e.target.value))}
-              className="w-full accent-blue-600"
-            />
-            <div className="text-right text-xs text-slate-500 font-medium">{height}mm</div>
-          </div>
-
           <div className="space-y-2">
             <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Print Quantity</label>
             <input 
@@ -481,11 +472,130 @@ export default function BarcodeGeneratorPage() {
             />
           </div>
 
-          <div className="flex items-center gap-3 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer transition-colors hover:bg-slate-100 dark:hover:bg-slate-800/70" onClick={() => setShowHeader(!showHeader)}>
-            <div className={`w-5 h-5 rounded flex items-center justify-center border transition-colors ${showHeader ? 'bg-blue-600 border-blue-600' : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900'}`}>
-              {showHeader && <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+          {showPrice && (
+            <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+              <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Price Field (Rs.)</label>
+              <input 
+                type="number"
+                value={manualPrice}
+                onChange={(e) => setManualPrice(e.target.value)}
+                disabled={isPriceLocked}
+                className={`w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold dark:text-white ${isPriceLocked ? 'opacity-70 cursor-not-allowed bg-slate-100 dark:bg-slate-800' : ''}`}
+                placeholder="Enter price"
+              />
+              {isPriceLocked && <p className="text-[10px] text-blue-500 font-bold">Price locked. To edit, please update the product in the Products or Inventory page.</p>}
             </div>
-            <span className="font-bold text-slate-700 dark:text-slate-300 text-sm select-none">Show text above barcode</span>
+          )}
+
+          <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+            <button
+              onClick={() => setIsAdvancedOpen(!isAdvancedOpen)}
+              className="flex items-center justify-between w-full p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <Settings className="w-4 h-4 text-slate-500" />
+                <span className="font-bold text-slate-700 dark:text-slate-300">Advanced Configuration</span>
+              </div>
+              <ChevronDown className={`w-5 h-5 text-slate-500 transition-transform duration-200 ${isAdvancedOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {isAdvancedOpen && (
+              <div className="mt-4 space-y-6 px-3 pb-3 animate-in fade-in slide-in-from-top-2">
+                <div className="space-y-2 relative">
+                  <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Barcode Type</label>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setIsTypeDropdownOpen(!isTypeDropdownOpen)}
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-900 dark:text-white flex items-center justify-between transition-all hover:bg-slate-100 dark:hover:bg-slate-800"
+                    >
+                      <span>{BARCODE_TYPES.find(t => t.value === symbology)?.label}</span>
+                      <ChevronDown className={`w-5 h-5 text-slate-500 transition-transform duration-200 ${isTypeDropdownOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    
+                    {isTypeDropdownOpen && (
+                      <>
+                        <div 
+                          className="fixed inset-0 z-40" 
+                          onClick={() => setIsTypeDropdownOpen(false)}
+                        />
+                        <div className="absolute z-50 w-full mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl overflow-hidden py-1 animate-in fade-in slide-in-from-top-2">
+                          {BARCODE_TYPES.map((type) => (
+                            <div
+                              key={type.value}
+                              onClick={() => {
+                                setSymbology(type.value);
+                                setIsTypeDropdownOpen(false);
+                              }}
+                              className={`px-4 py-3 cursor-pointer font-bold text-sm transition-colors ${
+                                symbology === type.value 
+                                  ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' 
+                                  : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                              }`}
+                            >
+                              {type.label}
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Scale (Size)</label>
+                  <input 
+                    type="range" 
+                    min="1" max="10" 
+                    value={scale} 
+                    onChange={(e) => setScale(parseInt(e.target.value))}
+                    className="w-full accent-blue-600"
+                  />
+                  <div className="text-right text-xs text-slate-500 font-medium">{scale}x</div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Height</label>
+                  <input 
+                    type="range" 
+                    min="5" max="50" 
+                    value={height} 
+                    onChange={(e) => setHeight(parseInt(e.target.value))}
+                    className="w-full accent-blue-600"
+                  />
+                  <div className="text-right text-xs text-slate-500 font-medium">{height}mm</div>
+                </div>
+
+                <div className="space-y-3">
+                  <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Display Options</label>
+                  <div className="flex flex-col gap-3">
+                    <label className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer transition-colors hover:bg-slate-100 dark:hover:bg-slate-800/70">
+                      <div className={`w-10 h-5 rounded-full relative transition-colors ${showStoreName ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-600'}`}>
+                        <div className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${showStoreName ? 'translate-x-5' : 'translate-x-0'}`} />
+                      </div>
+                      <input type="checkbox" className="hidden" checked={showStoreName} onChange={() => setShowStoreName(!showStoreName)} />
+                      <span className="font-bold text-slate-700 dark:text-slate-300 text-xs">Show Store Name</span>
+                    </label>
+
+                    <label className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer transition-colors hover:bg-slate-100 dark:hover:bg-slate-800/70">
+                      <div className={`w-10 h-5 rounded-full relative transition-colors ${showPrice ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-600'}`}>
+                        <div className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${showPrice ? 'translate-x-5' : 'translate-x-0'}`} />
+                      </div>
+                      <input type="checkbox" className="hidden" checked={showPrice} onChange={() => setShowPrice(!showPrice)} />
+                      <span className="font-bold text-slate-700 dark:text-slate-300 text-xs">Show Price Label</span>
+                    </label>
+
+                    <label className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer transition-colors hover:bg-slate-100 dark:hover:bg-slate-800/70">
+                      <div className={`w-10 h-5 rounded-full relative transition-colors ${showDate ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-600'}`}>
+                        <div className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${showDate ? 'translate-x-5' : 'translate-x-0'}`} />
+                      </div>
+                      <input type="checkbox" className="hidden" checked={showDate} onChange={() => setShowDate(!showDate)} />
+                      <span className="font-bold text-slate-700 dark:text-slate-300 text-xs">Show Date</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -493,11 +603,6 @@ export default function BarcodeGeneratorPage() {
         <div className="w-full lg:w-2/3 bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden">
           <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between flex-shrink-0">
             <h2 className="font-bold text-lg text-slate-900 dark:text-white">Live Preview</h2>
-            <div className="flex items-center gap-2">
-              <button onClick={handleCopyUrl} className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors" title="Copy Image">
-                <Copy className="w-5 h-5" />
-              </button>
-            </div>
           </div>
           
           <div className="flex-1 overflow-y-auto p-8 bg-slate-50/50 dark:bg-slate-900/30 flex flex-col items-center">

@@ -50,7 +50,7 @@ export default function EmployeeTopbar({ collapsed, onToggle, onMobileMenuToggle
   // Auto-hide Topbar logic
   const [isVisible, setIsVisible] = useState(true);
   const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const isAutoHidePage = pathname.includes('/expenses') || pathname === '/employee/pos' || pathname === '/employee/products' || pathname === '/employee/categories' || pathname === '/employee/inventory' || pathname === '/employee/suppliers' || pathname === '/employee/sales' || pathname === '/employee/customers' || pathname === '/employee/employees' || pathname === '/employee/attendance' || pathname === '/employee/barcode-generator' || pathname === '/employee/employees/roles' || pathname === '/employee/employees/leaves' || pathname === '/employee/employees/payrolls' || pathname === '/employee/online-orders' || pathname === '/employee/online-store/customers' || pathname === '/employee/online-store/themes' || pathname === '/employee/online-store/pages' || pathname === '/employee/online-store/banners' || pathname === '/employee/online-store/domain' || pathname === '/employee/online-store/seo' || pathname === '/employee/online-store/settings' || pathname.startsWith('/employee/reports');
+  const isAutoHidePage = pathname !== '/employee/dashboard'; // Auto-hide on all pages except dashboard
 
   const startHideTimer = () => {
     if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
@@ -79,14 +79,19 @@ export default function EmployeeTopbar({ collapsed, onToggle, onMobileMenuToggle
     return () => clearHideTimer();
   }, [isAutoHidePage, isVisible]);
 
-  const currentPage = Object.entries(pageTitles).find(([key]) => pathname.startsWith(key));
-  const title = currentPage?.[1] || 'Settings';
-
   const breadcrumbs = pathname.split('/').filter(Boolean).map((segment, i, arr) => ({
     label: segment.charAt(0).toUpperCase() + segment.slice(1).replace(/-/g, ' '),
     href: '/' + arr.slice(0, i + 1).join('/'),
     isLast: i === arr.length - 1,
   }));
+
+  let title = 'Dashboard';
+  if (breadcrumbs.length > 1) { // > 1 because [0] is 'Employee'
+    title = breadcrumbs[breadcrumbs.length - 1].label;
+    if (pathname.includes('/reports/') && title !== 'Reports') {
+      title += ' Report';
+    }
+  }
 
   return (
     <>
@@ -123,14 +128,16 @@ export default function EmployeeTopbar({ collapsed, onToggle, onMobileMenuToggle
           </div>
           <nav className="hidden md:flex items-center gap-1.5 text-xs text-gray-400 dark:text-slate-500 mt-0.5">
             <Link href="/employee/dashboard" className="hover:text-blue-600 transition-colors">Home</Link>
-            {breadcrumbs.map((crumb) => (
-              <span key={crumb.href} className="flex items-center gap-1.5">
+            {breadcrumbs.map((crumb, idx) => {
+              return (
+                <span key={crumb.href} className="flex items-center gap-1.5">
                 <span>/</span>
                 <span className={crumb.isLast ? 'text-gray-700 dark:text-slate-300 font-medium' : ''}>
                   {crumb.label}
                 </span>
               </span>
-            ))}
+              );
+            })}
           </nav>
         </div>
 

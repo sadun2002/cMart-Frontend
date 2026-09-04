@@ -14,7 +14,7 @@ import {
 } from '@/lib/local-db';
 import { useAuthStore } from '@/lib/auth-store';
 import { WifiOff, Lock, Clock } from 'lucide-react';
-import axios from 'axios';
+import api from '@/lib/api';
 import { toast } from 'sonner';
 
 export function LicenseValidator({ children }: { children: React.ReactNode }) {
@@ -51,11 +51,8 @@ export function LicenseValidator({ children }: { children: React.ReactNode }) {
       try {
         const fingerprint = await getHardwareFingerprint();
 
-        const response = await axios.post(
-          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/auth/sync-device`,
-          { fingerprint },
-          { headers: { Authorization: `Bearer ${accessToken}` } }
-        );
+        // Use api instance to inherit interceptors (automatic token refresh)
+        const response = await api.post('/auth/sync-device', { fingerprint });
 
         // Success! Update local DB with new sync date and subscription end date
         await setLastSyncDate(new Date(now));

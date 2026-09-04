@@ -15,6 +15,7 @@ const pageTitles: Record<string, string> = {
   '/owner/pos': 'POS',
   '/owner/products': 'Products',
   '/owner/categories': 'Categories',
+  '/owner/brands': 'Brands',
   '/owner/inventory': 'Inventory',
   '/owner/suppliers': 'Suppliers',
   '/owner/sales': 'Sales',
@@ -50,7 +51,7 @@ export default function OwnerTopbar({ collapsed, onToggle, onMobileMenuToggle }:
   // Auto-hide Topbar logic
   const [isVisible, setIsVisible] = useState(true);
   const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const isAutoHidePage = pathname.includes('/expenses') || pathname === '/owner/pos' || pathname === '/owner/products' || pathname === '/owner/categories' || pathname === '/owner/inventory' || pathname === '/owner/suppliers' || pathname === '/owner/sales' || pathname === '/owner/customers' || pathname === '/owner/employees' || pathname === '/owner/attendance' || pathname === '/owner/barcode-generator' || pathname === '/owner/employees/roles' || pathname === '/owner/employees/leaves' || pathname === '/owner/employees/payrolls' || pathname === '/owner/online-orders' || pathname === '/owner/online-store/customers' || pathname === '/owner/online-store/themes' || pathname === '/owner/online-store/pages' || pathname === '/owner/online-store/banners' || pathname === '/owner/online-store/domain' || pathname === '/owner/online-store/seo' || pathname === '/owner/online-store/settings' || pathname.startsWith('/owner/reports');
+  const isAutoHidePage = pathname !== '/owner/dashboard'; // Auto-hide on all pages except dashboard
 
   const startHideTimer = () => {
     if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
@@ -79,14 +80,12 @@ export default function OwnerTopbar({ collapsed, onToggle, onMobileMenuToggle }:
     return () => clearHideTimer();
   }, [isAutoHidePage, isVisible]);
 
-  const currentPage = Object.entries(pageTitles).find(([key]) => pathname.startsWith(key));
-  const title = currentPage?.[1] || 'Settings';
-
   const hideBranchSelector = [
     '/owner/dashboard',
     '/owner/products',
     '/owner/barcode-generator',
     '/owner/categories',
+    '/owner/brands',
     '/owner/suppliers',
     '/owner/subscription',
     '/owner/online-store',
@@ -98,6 +97,14 @@ export default function OwnerTopbar({ collapsed, onToggle, onMobileMenuToggle }:
     href: '/' + arr.slice(0, i + 1).join('/'),
     isLast: i === arr.length - 1,
   }));
+
+  let title = 'Dashboard';
+  if (breadcrumbs.length > 1) { // > 1 because [0] is 'Owner'
+    title = breadcrumbs[breadcrumbs.length - 1].label;
+    if (pathname.includes('/reports/') && title !== 'Reports') {
+      title += ' Report';
+    }
+  }
 
   return (
     <>
@@ -131,18 +138,21 @@ export default function OwnerTopbar({ collapsed, onToggle, onMobileMenuToggle }:
               </button>
             )}
             <h1 className="text-xl font-black text-gray-900 dark:text-white truncate">{title}</h1>
-            {!hideBranchSelector && <BranchSelector />}
+            {!hideBranchSelector && (userPlan === 'PRO' || userPlan === 'ENTERPRISE') && <BranchSelector />}
           </div>
           <nav className="hidden md:flex items-center gap-1.5 text-xs text-gray-400 dark:text-slate-500 mt-0.5">
             <Link href="/owner/dashboard" className="hover:text-blue-600 transition-colors">Home</Link>
-            {breadcrumbs.map((crumb) => (
-              <span key={crumb.href} className="flex items-center gap-1.5">
+            {breadcrumbs.map((crumb, idx) => {
+              // Hide 'owner' from breadcrumb display if desired, but user wants 'Home / Owner / Subscription' so we keep it.
+              return (
+                <span key={crumb.href} className="flex items-center gap-1.5">
                 <span>/</span>
                 <span className={crumb.isLast ? 'text-gray-700 dark:text-slate-300 font-medium' : ''}>
                   {crumb.label}
                 </span>
               </span>
-            ))}
+              );
+            })}
           </nav>
         </div>
 

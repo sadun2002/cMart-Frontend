@@ -40,6 +40,17 @@ api.interceptors.request.use(
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
+      console.log(`[API Request] ${config.method?.toUpperCase()} ${config.url}`, {
+        baseURL: config.baseURL,
+        hasToken: !!token,
+        tokenPrefix: token ? token.substring(0, 10) + '...' : 'none',
+        isFormData: config.data instanceof FormData
+      });
+      
+      // Let Axios set the correct Content-Type with boundary for FormData
+      if (config.data instanceof FormData) {
+        delete config.headers['Content-Type'];
+      }
     }
     return config;
   },
@@ -59,6 +70,16 @@ api.interceptors.response.use(
   (response) => response.data,
   async (error: AxiosError) => {
     const originalRequest = error.config as any;
+
+    if (error.response) {
+      if (error.response.status === 401) {
+        console.warn(`[API Auth] 401 on ${originalRequest?.url} - attempting refresh or redirect`);
+      } else {
+        console.error(`[API Error] ${error.response.status} on ${originalRequest?.url}`, error.response.data);
+      }
+    } else {
+      console.error(`[API Network/Unknown Error] Request failed for ${originalRequest?.url}:`, error.message);
+    }
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       if (isRefreshing) {
@@ -88,6 +109,20 @@ api.interceptors.response.use(
 
         setCookie('accessToken', accessToken, 15 / (24 * 60)); // 15 min
         setCookie('refreshToken', newRefreshToken, 7);           // 7 days
+
+        // Sync with local storage for Tauri
+        if (typeof window !== 'undefined') {
+          try {
+            const stateStr = localStorage.getItem('cmart-auth');
+            if (stateStr) {
+              const parsed = JSON.parse(stateStr);
+              parsed.state.accessToken = accessToken;
+              parsed.state.refreshToken = newRefreshToken;
+              localStorage.setItem('cmart-auth', JSON.stringify(parsed));
+              window.dispatchEvent(new Event('storage')); // trigger cross-tab sync just in case
+            }
+          } catch (e) {}
+        }
 
         originalRequest.headers.Authorization = `Bearer ${accessToken}`;
         processQueue(null, accessToken);
@@ -239,22 +274,20 @@ export const storeOwnerAPI = {
   // Categories
   getCategories: () => api.get('/categories'),
   getFlatCategories: () => api.get('/categories/flat'),
-  createCategory: (data: any) => api.post('/categories', data, 
-    data instanceof FormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : {}
-  ),
-  updateCategory: (id: number, data: any) => api.patch(`/categories/${id}`, data, 
-    data instanceof FormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : {}
-  ),
+  createCategory: (data: any) => api.post('/categories', data),
+  updateCategory: (id: number, data: any) => api.patch(`/categories/${id}`, data),
   deleteCategory: (id: number) => api.delete(`/categories/${id}`),
+
+  // Brands
+  getBrands: () => api.get('/brands'),
+  createBrand: (data: any) => api.post('/brands', data),
+  updateBrand: (id: number, data: any) => api.patch(`/brands/${id}`, data),
+  deleteBrand: (id: number) => api.delete(`/brands/${id}`),
 
   // Products
   getProducts: () => api.get('/products'),
-  createProduct: (data: any) => api.post('/products', data, 
-    data instanceof FormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : {}
-  ),
-  updateProduct: (id: number, data: any) => api.patch(`/products/${id}`, data, 
-    data instanceof FormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : {}
-  ),
+  createProduct: (data: any) => api.post('/products', data),
+  updateProduct: (id: number, data: any) => api.patch(`/products/${id}`, data),
   deleteProduct: (id: number) => api.delete(`/products/${id}`),
 
   // Customers

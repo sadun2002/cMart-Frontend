@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import Link from 'next/link';
-import { Plus, Package, Shield, GripVertical, LayoutDashboard } from 'lucide-react';
+import { Plus, Package, Shield, GripVertical, LayoutDashboard, CloudRain, CloudOff } from 'lucide-react';
 import { format } from 'date-fns';
 import { dashboardComponents } from '@/lib/dashboard-components';
 import { useAuthStore } from '@/lib/auth-store';
@@ -222,29 +222,63 @@ export default function StoreOwnerDashboard() {
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-[80px] translate-x-1/2 -translate-y-1/2" />
         <div className="absolute bottom-0 left-1/3 w-48 h-48 bg-white/5 rounded-full blur-[60px]" />
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-          <div className="space-y-2">
-            <h1 className="text-xl md:text-2xl lg:text-3xl font-black text-white truncate">
-              Welcome back, {user?.name || 'User'}! 👋
-            </h1>
-            <p className="text-blue-100 text-sm">
-              {format(currentTime, 'EEEE, MMMM d, yyyy')}
-            </p>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/15 text-white text-xs font-semibold rounded-full backdrop-blur-sm">
-              <Shield className="w-3 h-3" />
-              {user?.tenant?.plan || 'Free'} Plan {renewalDate ? `· Renews ${renewalDate}` : ''}
-            </span>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <h1 className="text-xl md:text-2xl lg:text-3xl font-black text-white truncate">
+                Welcome back, {user?.name || 'User'}! 👋
+              </h1>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                <p className="text-blue-100 text-sm">
+                  {format(currentTime, 'EEEE, MMMM d, yyyy')}
+                </p>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/15 text-white text-xs font-semibold rounded-full backdrop-blur-sm w-fit">
+                  <Shield className="w-3 h-3" />
+                  {user?.tenant?.plan || 'Free'} Plan {renewalDate ? `· Renews ${renewalDate}` : ''}
+                </span>
+              </div>
+            </div>
+            
+            <Link href="/employee/pos" className="inline-flex items-center gap-2 bg-white text-blue-700 font-bold px-5 py-2.5 rounded-xl text-sm shadow-lg shadow-black/10 hover:shadow-xl hover:scale-[1.02] transition-all w-fit mt-2">
+              <Plus className="w-4 h-4" />
+              New Sale
+            </Link>
           </div>
-          <div className="flex flex-col items-start lg:items-end gap-2">
-            <p className="text-blue-200 text-xs font-medium uppercase tracking-wider">Quick Actions</p>
-            <div className="flex gap-3">
-              <Link href="/employee/pos" className="hidden lg:inline-flex items-center gap-2 bg-white text-blue-700 font-bold px-5 py-2.5 rounded-xl text-sm shadow-lg shadow-black/10 hover:shadow-xl hover:scale-[1.02] transition-all">
-                <Plus className="w-4 h-4" />
-                New Sale
-              </Link>
-              <Link href="/employee/products?action=add" className="inline-flex items-center gap-2 bg-white/15 text-white font-semibold px-5 py-2.5 rounded-xl text-sm border border-white/20 hover:bg-white/25 transition-all">
-                <Package className="w-4 h-4" />
-                Add Product
-              </Link>
+
+          <div className="flex items-center justify-between lg:justify-end gap-5 mt-4 lg:mt-0 bg-black/10 p-4 lg:p-5 rounded-2xl backdrop-blur-md border border-white/10 w-full lg:w-auto">
+            <div className="text-left lg:text-right">
+              <p className="text-blue-200 text-[10px] font-bold uppercase tracking-widest mb-1 opacity-80">Local Time</p>
+              <div className="text-3xl lg:text-4xl font-black text-white tracking-tight flex items-baseline">
+                <span>{format(currentTime, 'hh')}</span>
+                <span className="mx-1 animate-pulse opacity-70">:</span>
+                <span>{format(currentTime, 'mm')}</span>
+                <span className="text-lg font-bold ml-2 opacity-90">{format(currentTime, 'a')}</span>
+              </div>
+            </div>
+            
+            <div className="w-px h-12 bg-white/20"></div>
+            
+            <div className="flex items-center gap-3 text-left">
+              {(user?.tenant?.plan === 'PRO' || user?.tenant?.plan === 'ENTERPRISE') ? (
+                <>
+                  <div className="p-2.5 bg-blue-500/30 rounded-xl hidden sm:block">
+                    <CloudRain className="w-7 h-7 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-2xl lg:text-3xl font-black text-white tracking-tight">28°C</p>
+                    <p className="text-blue-200 text-xs font-semibold">Rainy</p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="p-2.5 bg-white/5 rounded-xl hidden sm:block opacity-60">
+                    <CloudOff className="w-7 h-7 text-white/50" />
+                  </div>
+                  <div className="opacity-60">
+                    <p className="text-2xl lg:text-3xl font-black text-white/60 tracking-tight">--°C</p>
+                    <p className="text-white/40 text-xs font-semibold">Unavailable</p>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>

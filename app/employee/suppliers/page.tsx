@@ -961,21 +961,30 @@ export default function SuppliersPage() {
               </div>
 
               <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
-                <button 
-                  type="submit" 
-                  form="supplierForm" 
-                  disabled={isSubmitting} 
-                  className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-black text-lg py-4 rounded-xl shadow-lg shadow-blue-600/20 transition-all flex items-center justify-center gap-2"
-                >
-                  {isSubmitting ? (
-                    <div className="w-6 h-6 border-4 border-white border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <>
-                      <Truck className="w-5 h-5" />
-                      {editingSupplier ? 'Save Changes' : 'Create Supplier'}
-                    </>
-                  )}
-                </button>
+                <div className="flex gap-3">
+                  <button 
+                    type="button"
+                    onClick={() => setIsAddOpen(false)}
+                    className="flex-1 px-4 py-3 rounded-xl font-bold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit" 
+                    form="supplierForm" 
+                    disabled={isSubmitting} 
+                    className="flex-[2] flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-70 transition-colors shadow-lg shadow-blue-500/20"
+                  >
+                    {isSubmitting ? (
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        <Truck className="w-5 h-5" />
+                        {editingSupplier ? 'Save Changes' : 'Save Supplier'}
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </motion.div>
           </>

@@ -7,6 +7,9 @@ import { storeOwnerAPI } from '@/lib/api';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { CustomSelect } from '@/components/ui/custom-select';
+import { useAuthStore } from '@/lib/auth-store';
+import { saveCategoryLocally, markCategorySynced, getLocalCategories } from '@/lib/local-services';
 
 // --- Recursive Category Row Component ---
 const CategoryRow = ({ category, level = 0, onEdit, onDelete, defaultExpanded = false }: any) => {
@@ -105,6 +108,7 @@ export default function CategoriesPage() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [zoomedImage, setZoomedImage] = useState<string | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -113,12 +117,51 @@ export default function CategoriesPage() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [treeRes, flatRes] = await Promise.all([
-        storeOwnerAPI.getCategories(),
-        storeOwnerAPI.getFlatCategories()
-      ]);
-      setCategories(treeRes.data);
-      setFlatCategories(flatRes.data);
+      const user = useAuthStore.getState().user;
+      const isStartup = user?.tenant?.plan === 'STARTUP';
+      
+      let treeData = [];
+      let flatData = [];
+
+      try {
+        if (isStartup) {
+          treeData = await getLocalCategories(user?.tenantId || null);
+          flatData = await getLocalCategories(user?.tenantId || null); // Flat could just be a flat map, but local returns tree. We can flatten it.
+          
+          // Flatten tree
+          const flatten = (nodes: any[]): any[] => {
+            let res: any[] = [];
+            nodes.forEach(n => {
+              res.push(n);
+              if (n.children) res = [...res, ...flatten(n.children)];
+            });
+            return res;
+          };
+          flatData = flatten(treeData);
+        } else {
+          const [treeRes, flatRes] = await Promise.all([
+            storeOwnerAPI.getCategories(),
+            storeOwnerAPI.getFlatCategories()
+          ]);
+          treeData = treeRes.data;
+          flatData = flatRes.data;
+        }
+      } catch(e) {
+         // Fallback to local
+         treeData = await getLocalCategories(user?.tenantId || null);
+         const flatten = (nodes: any[]): any[] => {
+            let res: any[] = [];
+            nodes.forEach(n => {
+              res.push(n);
+              if (n.children) res = [...res, ...flatten(n.children)];
+            });
+            return res;
+          };
+          flatData = flatten(treeData);
+      }
+      
+      setCategories(treeData);
+      setFlatCategories(flatData);
     } catch (err) {
       toast.error('Failed to load categories');
     } finally {
@@ -126,10 +169,22 @@ export default function CategoriesPage() {
     }
   };
 
+  const focusField = (id: string) => {
+    setTimeout(() => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.focus();
+        if (el.tagName === 'BUTTON') el.click();
+      }
+    }, 100);
+  };
+
   const handleSaveCategory = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name) {
-      toast.error('Category name is required');
+    if (!formData.name.trim()) {
+      toast.error('Category Name is required');
+      focusField('field-category-name');
       return;
     }
 
@@ -151,8 +206,31 @@ export default function CategoriesPage() {
         await storeOwnerAPI.updateCategory(editingCategory.id, payload);
         toast.success('Category updated successfully!');
       } else {
-        await storeOwnerAPI.createCategory(payload);
-        toast.success('Category added successfully!');
+        const user = useAuthStore.getState().user;
+        const tenantId = user?.tenantId || null;
+        const isStartup = user?.tenant?.plan === 'STARTUP';
+
+        const localData = {
+          name: formData.name,
+          description: formData.description,
+          parentId: formData.parentId,
+          image: imagePreview // Save base64 preview if available
+        };
+
+        const localRecord = await saveCategoryLocally(localData, tenantId);
+
+        if (!isStartup) {
+          try {
+            const res = await storeOwnerAPI.createCategory(payload);
+            await markCategorySynced(localRecord.id);
+            toast.success('Category added and synced successfully!');
+          } catch(syncErr) {
+            console.error('Sync failed:', syncErr);
+            toast.warning('Category saved locally but failed to sync to server.');
+          }
+        } else {
+           toast.success('Category added successfully to local database!');
+        }
       }
 
       setIsPanelOpen(false);
@@ -422,46 +500,53 @@ export default function CategoriesPage() {
                 <form id="categoryForm" onSubmit={handleSaveCategory} className="font-sans space-y-6">
                   
                   {/* Image Upload */}
-                  <label className="w-full h-40 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 flex flex-col items-center justify-center gap-3 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors overflow-hidden relative group">
-                    <input 
-                      type="file" 
-                      accept="image/*"
-                      className="hidden" 
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          setImageFile(file);
-                          const reader = new FileReader();
-                          reader.onloadend = () => {
-                            setImagePreview(reader.result as string);
-                          };
-                          reader.readAsDataURL(file);
-                        }
-                      }}
-                    />
+                  <div className="w-full h-40 relative group">
                     {imagePreview ? (
-                      <>
-                        <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
-                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                          <span className="text-white font-bold text-sm">Change Image</span>
-                        </div>
-                      </>
+                      <div className="w-full h-full bg-slate-50 dark:bg-slate-800/50 rounded-2xl border-2 border-slate-200 dark:border-slate-700 overflow-hidden relative">
+                        <img 
+                          src={imagePreview} 
+                          alt="Preview" 
+                          className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform" 
+                          onClick={() => setZoomedImage(imagePreview)}
+                        />
+                        <button 
+                          type="button" 
+                          onClick={() => { setImageFile(null); setImagePreview(null); }} 
+                          className="absolute top-2 right-2 p-1.5 bg-white dark:bg-slate-900 rounded-full text-slate-400 hover:text-red-500 shadow hover:shadow-md transition-all z-10"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
                     ) : (
-                      <>
+                      <label className="w-full h-full bg-slate-50 dark:bg-slate-800/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 flex flex-col items-center justify-center gap-3 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                        <input 
+                          type="file" 
+                          accept="image/*"
+                          className="hidden" 
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              setImageFile(file);
+                              const reader = new FileReader();
+                              reader.onloadend = () => setImagePreview(reader.result as string);
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                        />
                         <div className="w-12 h-12 bg-white dark:bg-slate-900 rounded-full shadow-sm flex items-center justify-center text-blue-500">
                           <ImageIcon className="w-6 h-6" />
                         </div>
                         <span className="text-sm font-bold text-slate-500">Upload Cover Image (Optional)</span>
-                      </>
+                      </label>
                     )}
-                  </label>
+                  </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Category Name *</label>
+                    <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Category Name <span className="text-red-500">*</span></label>
                     <input 
-                      required autoFocus
+                      id="field-category-name" required autoFocus
                       value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} 
-                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium dark:text-white"
+                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium dark:text-white"
                       placeholder="e.g. Electronics" 
                     />
                   </div>
@@ -478,39 +563,48 @@ export default function CategoriesPage() {
 
                   <div className="space-y-2">
                     <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Parent Category</label>
-                    <select
-                      value={formData.parentId}
-                      onChange={e => setFormData({...formData, parentId: e.target.value})}
-                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium dark:text-white"
-                    >
-                      <option value="null">None (Root Category)</option>
-                      {flatCategories
-                        .filter(c => c.id !== editingCategory?.id) // Prevent self as parent
-                        .map(c => (
-                          <option key={c.id} value={c.id}>{c.name}</option>
-                        ))
-                      }
-                    </select>
+                    <CustomSelect 
+                      value={formData.parentId} 
+                      onChange={val => setFormData({...formData, parentId: val})}
+                      label="None (Root Category)"
+                      options={[
+                        { value: 'null', label: 'None (Root Category)' },
+                        ...flatCategories
+                          .filter(c => c.id !== editingCategory?.id)
+                          .map(c => ({ value: c.id.toString(), label: c.name }))
+                      ]}
+                    />
                   </div>
+                  {/* Empty space to allow dropdown to expand without being clipped */}
+                  <div className="h-40" aria-hidden="true"></div>
                 </form>
               </div>
 
               <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
-                <button 
-                  type="submit" 
-                  form="categoryForm"
-                  disabled={isSubmitting}
-                  className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-black text-lg py-4 rounded-xl shadow-lg shadow-blue-600/20 transition-all flex items-center justify-center gap-2"
-                >
-                  {isSubmitting ? (
-                    <div className="w-6 h-6 border-4 border-white border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <>
-                      <FolderTree className="w-5 h-5" />
-                      {editingCategory ? 'Save Changes' : 'Create Category'}
-                    </>
-                  )}
-                </button>
+                <div className="flex gap-3">
+                  <button 
+                    type="button"
+                    onClick={() => setIsAddOpen(false)}
+                    className="flex-1 px-4 py-3 rounded-xl font-bold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit" 
+                    form="categoryForm"
+                    disabled={isSubmitting}
+                    className="flex-[2] flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-70 transition-colors shadow-lg shadow-blue-500/20"
+                  >
+                    {isSubmitting ? (
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        <FolderTree className="w-5 h-5" />
+                        {editingCategory ? 'Save Changes' : 'Save Category'}
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </motion.div>
           </>
@@ -526,6 +620,29 @@ export default function CategoriesPage() {
         onCancel={() => setConfirmDialog({ isOpen: false, id: null })}
         isLoading={isDeleting}
       />
+      {zoomedImage && (
+        <div 
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4"
+          onClick={() => setZoomedImage(null)}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ type: "spring", duration: 0.3 }}
+            className="relative max-w-4xl max-h-[90vh] flex items-center justify-center bg-slate-900 p-2 rounded-2xl shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button 
+              onClick={() => setZoomedImage(null)}
+              className="absolute -top-4 -right-4 p-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-full shadow-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors z-10"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <img src={zoomedImage} alt="Zoomed Category" className="max-w-full max-h-[85vh] object-contain rounded-xl" />
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,17 +1,18 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   LayoutDashboard, BarChart3, ListOrdered, AlertTriangle, Table,
   Calendar, Target, Activity, Zap, GitCompare, MapPin, CreditCard,
   Package, Users, Globe, Smartphone, Server, UserCheck, Clock, Gift,
   DollarSign, TrendingUp, ShoppingBag, MoreHorizontal, Search, ChevronDown, ChevronUp, GripVertical,
-  LayoutGrid, List, Save, RotateCcw, Eye, EyeOff,
+  LayoutGrid, List, Save, RotateCcw, Eye, EyeOff, Lock
 } from 'lucide-react';
 import {
   dashboardComponents,
   componentCategories,
-  defaultEnabledComponents,
+  getDefaultEnabledComponents,
+  isComponentLockedForStartup,
   CATEGORY_LIMITS,
   type DashboardComponentId,
   type CategoryKey,
@@ -19,6 +20,8 @@ import {
 import { getIcon } from '@/lib/icon-registry';
 import { ComponentPreview } from './ComponentPreview';
 import { formatLKR } from '@/lib/constants';
+import { useAuthStore } from '@/lib/auth-store';
+import { UpgradeModal } from '@/components/ui/upgrade-modal';
 
 const STORAGE_KEY = 'cMart_dashboard_prefs';
 
@@ -29,20 +32,80 @@ interface DashboardPrefs {
   autoRefresh: boolean;
 }
 
-const defaultPrefs: DashboardPrefs = {
-  enabledComponents: defaultEnabledComponents,
-  layout: 'grid',
-  compactMode: false,
-  autoRefresh: true,
-};
-
 export default function CustomizeDashboardPage() {
-  const [prefs, setPrefs] = useState<DashboardPrefs>(defaultPrefs);
+  const { user } = useAuthStore();
+  const userPlan = user?.tenant?.subscription?.plan;
+  const [prefs, setPrefs] = useState<DashboardPrefs>(() => ({
+    enabledComponents: getDefaultEnabledComponents(userPlan),
+    layout: 'grid',
+    compactMode: false,
+    autoRefresh: true,
+  }));
   const [search, setSearch] = useState('');
   const [expandedCategories, setExpandedCategories] = useState<Set<CategoryKey>>(
     new Set(componentCategories.map(c => c.key))
   );
   const [dragOverId, setDragOverId] = useState<DashboardComponentId | null>(null);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+
+  // Auto-scroll ref
+  const autoScrollRef = useRef<NodeJS.Timeout | null>(null);
+  const autoScrollSpeedRef = useRef<number>(0);
+
+  const stopAutoScroll = useCallback(() => {
+    if (autoScrollRef.current) {
+      clearInterval(autoScrollRef.current);
+      autoScrollRef.current = null;
+    }
+    autoScrollSpeedRef.current = 0;
+  }, []);
+
+  const startAutoScroll = useCallback(() => {
+    if (autoScrollRef.current) return;
+    autoScrollRef.current = setInterval(() => {
+      if (autoScrollSpeedRef.current === 0) return;
+      const container = document.querySelector('main');
+      if (container) {
+        container.scrollBy({ top: autoScrollSpeedRef.current, behavior: 'auto' });
+      } else {
+        window.scrollBy({ top: autoScrollSpeedRef.current, behavior: 'auto' });
+      }
+    }, 16);
+  }, []);
+
+  useEffect(() => {
+    const handleWindowDragOver = (e: DragEvent) => {
+      const THRESHOLD = 150;
+      const MAX_SPEED = 25;
+      
+      if (e.clientY < THRESHOLD) {
+        const distance = THRESHOLD - Math.max(0, e.clientY);
+        autoScrollSpeedRef.current = -(distance / THRESHOLD) * MAX_SPEED;
+        startAutoScroll();
+      } else if (window.innerHeight - e.clientY < THRESHOLD) {
+        const distance = THRESHOLD - Math.max(0, window.innerHeight - e.clientY);
+        autoScrollSpeedRef.current = (distance / THRESHOLD) * MAX_SPEED;
+        startAutoScroll();
+      } else {
+        stopAutoScroll();
+      }
+    };
+
+    const handleWindowDragEnd = () => {
+      stopAutoScroll();
+    };
+
+    window.addEventListener('dragover', handleWindowDragOver);
+    window.addEventListener('dragend', handleWindowDragEnd);
+    window.addEventListener('drop', handleWindowDragEnd);
+
+    return () => {
+      window.removeEventListener('dragover', handleWindowDragOver);
+      window.removeEventListener('dragend', handleWindowDragEnd);
+      window.removeEventListener('drop', handleWindowDragEnd);
+      stopAutoScroll();
+    };
+  }, [startAutoScroll, stopAutoScroll]);
 
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -50,10 +113,10 @@ export default function CustomizeDashboardPage() {
       try {
         setPrefs(JSON.parse(stored));
       } catch {
-        setPrefs(defaultPrefs);
+        setPrefs(prev => ({ ...prev, enabledComponents: getDefaultEnabledComponents(userPlan) }));
       }
     }
-  }, []);
+  }, [userPlan]);
 
   const savePrefs = useCallback((newPrefs: DashboardPrefs) => {
     setPrefs(newPrefs);
@@ -61,6 +124,11 @@ export default function CustomizeDashboardPage() {
   }, []);
 
   const toggleComponent = (id: DashboardComponentId) => {
+    if (userPlan === 'STARTUP' && isComponentLockedForStartup(id)) {
+      setIsUpgradeModalOpen(true);
+      return;
+    }
+
     setPrefs(prev => {
       const isEnabling = !prev.enabledComponents.includes(id);
       if (isEnabling) {
@@ -141,6 +209,7 @@ export default function CustomizeDashboardPage() {
 
   const handleDrop = (e: React.DragEvent, targetId: DashboardComponentId) => {
     e.preventDefault();
+    stopAutoScroll();
     const sourceId = e.dataTransfer.getData('text/plain');
     if (sourceId === targetId) return;
 
@@ -177,9 +246,7 @@ export default function CustomizeDashboardPage() {
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-500 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200/40">
-            <LayoutDashboard className="w-5 h-5 text-white" />
-          </div>
+          <LayoutDashboard className="w-7 h-7 text-gray-900 dark:text-white" />
           <div>
             <h1 className="text-2xl font-black text-gray-900 dark:text-white">Customize Dashboard</h1>
             <p className="text-sm text-gray-500 dark:text-slate-400">Choose which widgets appear on your dashboard</p>
@@ -187,33 +254,11 @@ export default function CustomizeDashboardPage() {
         </div>
         <div className="flex items-center gap-3">
           <button
-            onClick={() => savePrefs({ ...prefs, enabledComponents: defaultEnabledComponents })}
+            onClick={() => savePrefs({ ...prefs, enabledComponents: getDefaultEnabledComponents(userPlan) })}
             className="px-4 py-2 text-sm font-semibold text-gray-600 dark:text-slate-300 border border-gray-200 dark:border-slate-700 rounded-xl hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-2"
           >
             <RotateCcw className="w-4 h-4" />
             Reset to Defaults
-          </button>
-          <button
-            onClick={() => {
-              const newEnabled: DashboardComponentId[] = [];
-              componentCategories.forEach(cat => {
-                const maxAllowed = CATEGORY_LIMITS[cat.key] ?? 3;
-                const catComps = dashboardComponents.filter(c => c.category === cat.key).slice(0, maxAllowed).map(c => c.id);
-                newEnabled.push(...catComps);
-              });
-              savePrefs({ ...prefs, enabledComponents: newEnabled });
-            }}
-            className="px-4 py-2 text-sm font-semibold text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/50 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors flex items-center gap-2"
-          >
-            <LayoutGrid className="w-4 h-4" />
-            Enable All
-          </button>
-          <button
-            onClick={() => savePrefs({ ...prefs, enabledComponents: [] })}
-            className="px-4 py-2 text-sm font-semibold text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800/50 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-2"
-          >
-            <EyeOff className="w-4 h-4" />
-            Disable All
           </button>
         </div>
       </div>
@@ -230,34 +275,6 @@ export default function CustomizeDashboardPage() {
               onChange={e => setSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
             />
-          </div>
-          <div className="flex items-center gap-4 flex-wrap">
-            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-300 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={prefs.compactMode}
-                onChange={e => savePrefs({ ...prefs, compactMode: e.target.checked })}
-                className="w-4 h-4 accent-blue-600 rounded border-gray-300 dark:border-slate-600"
-              />
-              Compact Mode
-            </label>
-            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-300 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={prefs.autoRefresh}
-                onChange={e => savePrefs({ ...prefs, autoRefresh: e.target.checked })}
-                className="w-4 h-4 accent-blue-600 rounded border-gray-300 dark:border-slate-600"
-              />
-              Auto Refresh
-            </label>
-            <select
-              value={prefs.layout}
-              onChange={e => savePrefs({ ...prefs, layout: e.target.value as 'grid' | 'list' })}
-              className="px-3 py-2 text-sm border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-            >
-              <option value="grid">Grid Layout</option>
-              <option value="list">List Layout</option>
-            </select>
           </div>
         </div>
 
@@ -347,6 +364,7 @@ export default function CustomizeDashboardPage() {
                     >
                       {components.map((comp) => {
                         const isEnabled = prefs.enabledComponents.includes(comp.id);
+                        const isLocked = userPlan === 'STARTUP' && isComponentLockedForStartup(comp.id);
                         return (
                           <div
                             key={comp.id}
@@ -364,10 +382,18 @@ export default function CustomizeDashboardPage() {
                                 : 'border-gray-200 dark:border-slate-700 hover:border-blue-200 dark:hover:border-slate-500'
                               }
                               ${dragOverId === comp.id ? 'ring-2 ring-blue-500' : ''}
+                              ${isLocked ? 'opacity-80' : ''}
                             `}
                             role="listitem"
                             aria-selected={isEnabled}
                           >
+                            {/* Lock icon overlay for startup users */}
+                            {isLocked && (
+                              <div className="absolute top-2 right-2 z-10 flex items-center justify-center text-slate-400">
+                                <Lock className="w-4 h-4" />
+                              </div>
+                            )}
+
                             {/* Enable/Disable overlay badge — positioned at bottom-right to avoid title overlap */}
                             <div className={`absolute bottom-1.5 right-1.5 z-10 w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold transition-all shadow-sm ${
                               isEnabled
@@ -400,6 +426,13 @@ export default function CustomizeDashboardPage() {
           </span>
         </div>
       </div>
+
+      {/* Upgrade Modal */}
+      <UpgradeModal 
+        isOpen={isUpgradeModalOpen} 
+        onClose={() => setIsUpgradeModalOpen(false)} 
+        featureName="Premium Feature" 
+      />
     </div>
   );
 }

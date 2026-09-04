@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { getIcon } from '@/lib/icon-registry';
 import { DashboardComponentId } from '@/lib/dashboard-components';
 import { 
@@ -166,6 +167,7 @@ const ALERT_ITEMS: Record<string, { item: string; detail: string; badge: string;
 /* ───────────────────────── Component ───────────────────────── */
 
 export function ComponentPreview({ comp, isEnabled, layout, isDashboardView = false, overrideData }: ComponentPreviewProps) {
+  const router = useRouter();
   const CompIcon = getIcon(comp.icon);
   const [salesGoal, setSalesGoal] = useState<number>(500000);
   const [mounted, setMounted] = useState(false);
@@ -510,17 +512,36 @@ export function ComponentPreview({ comp, isEnabled, layout, isDashboardView = fa
     case 'quickActions':
       return (
         <div className={`bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 shadow-sm p-6 w-full text-left flex flex-col h-[380px] justify-between ${dim}`}>
-          <div>
+          <div className="h-full flex flex-col">
             <h2 className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2 mb-6">
               <CompIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
               {comp.label}
             </h2>
-            <div className="space-y-3 mt-6">
-              <button className="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-xl text-sm shadow-md hover:bg-blue-700 transition-all flex items-center justify-center gap-2">
+            <div className="space-y-3 flex-1 overflow-y-auto pr-1 custom-scrollbar">
+              <button 
+                onClick={() => isDashboardView && router.push('/owner/pos')}
+                className="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-xl text-sm shadow-md hover:bg-blue-700 transition-all flex items-center justify-center gap-2">
                 <span>+ Create New Sale</span>
               </button>
-              <button className="w-full bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 font-semibold py-3 px-4 rounded-xl text-sm border border-gray-200/50 dark:border-slate-700 hover:bg-gray-200 transition-all flex items-center justify-center gap-2">
+              <button 
+                onClick={() => isDashboardView && router.push('/owner/products?action=add')}
+                className="w-full bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 font-semibold py-3 px-4 rounded-xl text-sm border border-gray-200/50 dark:border-slate-700 hover:bg-gray-200 transition-all flex items-center justify-center gap-2">
                 <span>+ Add Product Item</span>
+              </button>
+              <button 
+                onClick={() => isDashboardView && router.push('/owner/categories?action=add')}
+                className="w-full bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 font-semibold py-3 px-4 rounded-xl text-sm border border-gray-200/50 dark:border-slate-700 hover:bg-gray-200 transition-all flex items-center justify-center gap-2">
+                <span>+ Add Category</span>
+              </button>
+              <button 
+                onClick={() => isDashboardView && router.push('/owner/inventory')}
+                className="w-full bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 font-semibold py-3 px-4 rounded-xl text-sm border border-gray-200/50 dark:border-slate-700 hover:bg-gray-200 transition-all flex items-center justify-center gap-2">
+                <span>+ View Inventory</span>
+              </button>
+              <button 
+                onClick={() => isDashboardView && router.push('/owner/reports/sales')}
+                className="w-full bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 font-semibold py-3 px-4 rounded-xl text-sm border border-gray-200/50 dark:border-slate-700 hover:bg-gray-200 transition-all flex items-center justify-center gap-2">
+                <span>+ View Reports</span>
               </button>
             </div>
           </div>

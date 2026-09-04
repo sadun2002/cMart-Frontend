@@ -11,7 +11,7 @@ import {
   CreditCard, Settings as SettingsIcon, ChevronDown, Store, User,
   Database, Bell, DollarSign, Printer, Lock, AlertTriangle,
   PanelLeftClose, PanelLeftOpen, SlidersHorizontal, Barcode, Shield, CalendarDays, Banknote,
-  Palette, FileText, Layout, Search, Image, PieChart, Building2
+  Palette, FileText, Layout, Search, Image, PieChart, Building2, FolderTree
 } from 'lucide-react';
 
 interface OwnerSidebarProps {
@@ -26,7 +26,8 @@ const mainNavItems = [
   { href: '/owner/pos', label: 'POS', icon: ShoppingCart, hideOnMobile: true },
   { href: '/owner/products', label: 'Products', icon: Package },
   { href: '/owner/barcode-generator', label: 'Barcode Generator', icon: Barcode, hideOnMobile: true },
-  { href: '/owner/categories', label: 'Categories', icon: Tag },
+  { href: '/owner/categories', label: 'Categories', icon: FolderTree },
+  { href: '/owner/brands', label: 'Brands', icon: Tag },
   { href: '/owner/inventory', label: 'Inventory', icon: Warehouse },
   { href: '/owner/suppliers', label: 'Suppliers', icon: Truck, tier: 'PRO' },
   { href: '/owner/sales', label: 'Sales', icon: Receipt },
@@ -135,8 +136,15 @@ export default function OwnerSidebar({ collapsed: desktopCollapsed, onToggle, is
     }
   };
 
+  const navRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (collapsed && navRef.current) {
+      navRef.current.scrollTop = 0;
+    }
+  }, [collapsed]);
+
   return (
-    <aside 
+    <aside
       onMouseEnter={isMobileOpen ? undefined : handleMouseEnter}
       onMouseLeave={isMobileOpen ? undefined : handleMouseLeave}
       className={`flex-shrink-0 h-screen flex flex-col bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-slate-800 transition-all duration-300 z-50 ${collapsed ? 'w-[68px]' : 'w-[260px]'}`}
@@ -146,7 +154,7 @@ export default function OwnerSidebar({ collapsed: desktopCollapsed, onToggle, is
         {!collapsed ? (
           <>
             <Link href="/owner/dashboard" className="flex items-center gap-2.5">
- <img src="/logo-small.png" alt="cMart Logo" className="w-8 h-8 object-contain" />
+              <img src="/logo-small.png" alt="cMart Logo" className="w-8 h-8 object-contain" />
               <div className="flex items-baseline gap-1">
                 <span className="text-gray-900 dark:text-white font-black text-2xl tracking-tight block leading-tight">cMart</span>
               </div>
@@ -167,28 +175,27 @@ export default function OwnerSidebar({ collapsed: desktopCollapsed, onToggle, is
           </>
         ) : (
           <button onClick={onToggle} className="mx-auto transition-transform hover:scale-105" aria-label="Expand sidebar">
- <img src="/logo-small.png" alt="cMart Logo" className="w-8 h-8 object-contain" />
+            <img src="/logo-small.png" alt="cMart Logo" className="w-8 h-8 object-contain" />
           </button>
         )}
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto no-scrollbar py-2 space-y-0">
+      <nav ref={navRef} className="flex-1 overflow-y-auto no-scrollbar py-2 space-y-0">
         {mainNavItems.map((item, index) => {
           const Icon = item.icon;
           const isActive = pathname.startsWith(item.href);
-          
+
           return (
             <Link
               key={item.href}
               href={item.href}
               onClick={(e) => handleNavigation(e, item)}
               title={collapsed ? item.label : undefined}
-              className={`${(item as any).hideOnMobile ? 'hidden lg:flex' : 'flex'} items-center gap-3 text-sm transition-colors duration-150 ${
-                isActive
-                  ? 'text-blue-600 dark:text-blue-400 font-medium'
-                  : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300'
-              } ${collapsed ? 'justify-center py-3' : 'py-3 pl-5 pr-3'}`}
+              className={`${(item as any).hideOnMobile ? 'hidden lg:flex' : 'flex'} items-center gap-3 text-sm transition-all duration-150 rounded-xl mx-2 my-0.5 ${isActive
+                  ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-bold'
+                  : 'text-gray-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-gray-900 dark:hover:text-slate-200'
+                } ${collapsed ? 'justify-center py-2.5 px-0' : 'py-2.5 pl-3 pr-3'}`}
             >
               <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-blue-600 dark:text-blue-400' : ''}`} />
               {!collapsed && <span className="truncate">{item.label}</span>}
@@ -209,11 +216,10 @@ export default function OwnerSidebar({ collapsed: desktopCollapsed, onToggle, is
               }
             }}
             title={collapsed ? 'Reports' : undefined}
-            className={`w-full flex items-center gap-3 text-sm transition-colors duration-150 ${
-              isReportsActive
-                ? 'text-blue-600 dark:text-blue-400 font-medium'
-                : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300'
-            } ${collapsed ? 'justify-center py-3' : 'py-3 pl-5 pr-3'}`}
+            className={`w-[calc(100%-1rem)] flex items-center gap-3 text-sm transition-all duration-150 rounded-xl mx-2 my-0.5 ${isReportsActive
+                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-bold'
+                : 'text-gray-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-gray-900 dark:hover:text-slate-200'
+              } ${collapsed ? 'justify-center py-2.5 px-0' : 'py-2.5 pl-3 pr-3'}`}
           >
             <BarChart3 className={`w-5 h-5 flex-shrink-0 ${isReportsActive ? 'text-blue-600 dark:text-blue-400' : ''}`} />
             {!collapsed && (
@@ -225,9 +231,8 @@ export default function OwnerSidebar({ collapsed: desktopCollapsed, onToggle, is
           </button>
 
           <div
-            className={`overflow-hidden transition-all duration-200 ease-in-out ${
-              reportsOpen && !collapsed ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
-            }`}
+            className={`overflow-hidden transition-all duration-200 ease-in-out ${reportsOpen && !collapsed ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
+              }`}
           >
             <div className="ml-5 border-l-2 border-gray-200 dark:border-slate-700 space-y-0">
               {reportsSubItems.map((item) => {
@@ -235,14 +240,13 @@ export default function OwnerSidebar({ collapsed: desktopCollapsed, onToggle, is
                 const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
                 return (
                   <Link
-              key={item.href}
-              href={item.href}
-              onClick={(e) => handleNavigation(e, item)}
-                    className={`flex items-center gap-3 text-sm py-2 pl-4 pr-3 transition-colors duration-150 ${
-                      isActive
-                        ? 'text-blue-600 dark:text-blue-400 font-medium'
-                        : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300'
-                    }`}
+                    key={item.href}
+                    href={item.href}
+                    onClick={(e) => handleNavigation(e, item)}
+                    className={`flex items-center gap-3 text-sm py-2 pl-3 pr-3 ml-2 mr-2 my-0.5 rounded-lg transition-all duration-150 ${isActive
+                        ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-bold'
+                        : 'text-gray-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-gray-900 dark:hover:text-slate-200'
+                      }`}
                   >
                     <Icon className="w-4 h-4 flex-shrink-0" />
                     <span className="truncate">{item.label}</span>
@@ -271,29 +275,27 @@ export default function OwnerSidebar({ collapsed: desktopCollapsed, onToggle, is
               }
             }}
             title={collapsed ? 'Online Store' : undefined}
-            className={`w-full flex items-center gap-3 text-sm transition-colors duration-150 ${
-              isOnlineStoreActive
-                ? 'text-blue-600 dark:text-blue-400 font-medium'
-                : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300'
-            } ${collapsed ? 'justify-center py-3' : 'py-3 pl-5 pr-3'}`}
+            className={`w-[calc(100%-1rem)] flex items-center gap-3 text-sm transition-all duration-150 rounded-xl mx-2 my-0.5 ${isOnlineStoreActive
+                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-bold'
+                : 'text-gray-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-gray-900 dark:hover:text-slate-200'
+              } ${collapsed ? 'justify-center py-2.5 px-0' : 'py-2.5 pl-3 pr-3'}`}
           >
             <Globe2 className={`w-5 h-5 flex-shrink-0 ${isOnlineStoreActive ? 'text-blue-600 dark:text-blue-400' : ''}`} />
             {!collapsed && (
               <>
                 <span className="flex-1 text-left truncate">Online Store</span>
-                 {(userPlan === 'FREE' || userPlan === 'STARTUP') ? (
-                   <Lock className="w-4 h-4 text-slate-400" />
-                 ) : (
-                   <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${onlineStoreOpen ? 'rotate-180' : ''}`} />
-                 )}
+                {(userPlan === 'FREE' || userPlan === 'STARTUP') ? (
+                  <Lock className="w-4 h-4 text-slate-400" />
+                ) : (
+                  <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${onlineStoreOpen ? 'rotate-180' : ''}`} />
+                )}
               </>
             )}
           </button>
 
           <div
-            className={`overflow-hidden transition-all duration-200 ease-in-out ${
-              onlineStoreOpen && !collapsed ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
-            }`}
+            className={`overflow-hidden transition-all duration-200 ease-in-out ${onlineStoreOpen && !collapsed ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
+              }`}
           >
             <div className="ml-5 border-l-2 border-gray-200 dark:border-slate-700 space-y-0">
               {onlineStoreSubItems.map((item) => {
@@ -301,14 +303,13 @@ export default function OwnerSidebar({ collapsed: desktopCollapsed, onToggle, is
                 const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
                 return (
                   <Link
-              key={item.href}
-              href={item.href}
-              onClick={(e) => handleNavigation(e, item)}
-                    className={`flex items-center gap-3 text-sm py-2 pl-4 pr-3 transition-colors duration-150 ${
-                      isActive
-                        ? 'text-blue-600 dark:text-blue-400 font-medium'
-                        : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300'
-                    }`}
+                    key={item.href}
+                    href={item.href}
+                    onClick={(e) => handleNavigation(e, item)}
+                    className={`flex items-center gap-3 text-sm py-2 pl-3 pr-3 ml-2 mr-2 my-0.5 rounded-lg transition-all duration-150 ${isActive
+                        ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-bold'
+                        : 'text-gray-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-gray-900 dark:hover:text-slate-200'
+                      }`}
                   >
                     <Icon className="w-4 h-4 flex-shrink-0" />
                     <span className="truncate">{item.label}</span>
@@ -337,29 +338,27 @@ export default function OwnerSidebar({ collapsed: desktopCollapsed, onToggle, is
               }
             }}
             title={collapsed ? 'Employees' : undefined}
-            className={`w-full flex items-center gap-3 text-sm transition-colors duration-150 ${
-              isEmployeesActive
-                ? 'text-blue-600 dark:text-blue-400 font-medium'
-                : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300'
-            } ${collapsed ? 'justify-center py-3' : 'py-3 pl-5 pr-3'}`}
+            className={`w-[calc(100%-1rem)] flex items-center gap-3 text-sm transition-all duration-150 rounded-xl mx-2 my-0.5 ${isEmployeesActive
+                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-bold'
+                : 'text-gray-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-gray-900 dark:hover:text-slate-200'
+              } ${collapsed ? 'justify-center py-2.5 px-0' : 'py-2.5 pl-3 pr-3'}`}
           >
             <UserCheck className={`w-5 h-5 flex-shrink-0 ${isEmployeesActive ? 'text-blue-600 dark:text-blue-400' : ''}`} />
             {!collapsed && (
               <>
                 <span className="flex-1 text-left truncate">Employees</span>
-                 {(userPlan === 'FREE' || userPlan === 'STARTUP') ? (
-                   <Lock className="w-4 h-4 text-slate-400" />
-                 ) : (
-                   <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${employeesOpen ? 'rotate-180' : ''}`} />
-                 )}
+                {(userPlan === 'FREE' || userPlan === 'STARTUP') ? (
+                  <Lock className="w-4 h-4 text-slate-400" />
+                ) : (
+                  <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${employeesOpen ? 'rotate-180' : ''}`} />
+                )}
               </>
             )}
           </button>
 
           <div
-            className={`overflow-hidden transition-all duration-200 ease-in-out ${
-              employeesOpen && !collapsed ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
-            }`}
+            className={`overflow-hidden transition-all duration-200 ease-in-out ${employeesOpen && !collapsed ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
+              }`}
           >
             <div className="ml-5 border-l-2 border-gray-200 dark:border-slate-700 space-y-0">
               {employeeSubItems.map((item) => {
@@ -369,14 +368,13 @@ export default function OwnerSidebar({ collapsed: desktopCollapsed, onToggle, is
                   : pathname === item.href || pathname.startsWith(item.href + '/');
                 return (
                   <Link
-              key={item.href}
-              href={item.href}
-              onClick={(e) => handleNavigation(e, item)}
-                    className={`flex items-center gap-3 text-sm py-2 pl-4 pr-3 transition-colors duration-150 ${
-                      isActive
-                        ? 'text-blue-600 dark:text-blue-400 font-medium'
-                        : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300'
-                    }`}
+                    key={item.href}
+                    href={item.href}
+                    onClick={(e) => handleNavigation(e, item)}
+                    className={`flex items-center gap-3 text-sm py-2 pl-3 pr-3 ml-2 mr-2 my-0.5 rounded-lg transition-all duration-150 ${isActive
+                        ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-bold'
+                        : 'text-gray-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-gray-900 dark:hover:text-slate-200'
+                      }`}
                   >
                     <Icon className="w-4 h-4 flex-shrink-0" />
                     <span className="truncate">{item.label}</span>
@@ -399,11 +397,10 @@ export default function OwnerSidebar({ collapsed: desktopCollapsed, onToggle, is
               }
             }}
             title={collapsed ? 'Settings' : undefined}
-            className={`w-full flex items-center gap-3 text-sm transition-colors duration-150 ${
-              isSettingsActive
-                ? 'text-blue-600 dark:text-blue-400 font-medium'
-                : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300'
-            } ${collapsed ? 'justify-center py-3' : 'py-3 pl-5 pr-3'}`}
+            className={`w-[calc(100%-1rem)] flex items-center gap-3 text-sm transition-all duration-150 rounded-xl mx-2 my-0.5 ${isSettingsActive
+                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-bold'
+                : 'text-gray-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-gray-900 dark:hover:text-slate-200'
+              } ${collapsed ? 'justify-center py-2.5 px-0' : 'py-2.5 pl-3 pr-3'}`}
           >
             <SettingsIcon className={`w-5 h-5 flex-shrink-0 ${isSettingsActive ? 'text-blue-600 dark:text-blue-400' : ''}`} />
             {!collapsed && (
@@ -415,9 +412,8 @@ export default function OwnerSidebar({ collapsed: desktopCollapsed, onToggle, is
           </button>
 
           <div
-            className={`overflow-hidden transition-all duration-200 ease-in-out ${
-              settingsOpen && !collapsed ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
-            }`}
+            className={`overflow-hidden transition-all duration-200 ease-in-out ${settingsOpen && !collapsed ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
+              }`}
           >
             <div className="ml-5 border-l-2 border-gray-200 dark:border-slate-700 space-y-0">
               {settingsSubItems.map((item) => {
@@ -425,25 +421,23 @@ export default function OwnerSidebar({ collapsed: desktopCollapsed, onToggle, is
                 const isActive = pathname.startsWith(item.href);
                 return (
                   <Link
-              key={item.href}
-              href={item.href}
-              onClick={(e) => handleNavigation(e, item)}
-                    className={`flex items-center gap-3 text-sm py-2 pl-4 pr-3 transition-colors duration-150 ${
-                      isActive
-                        ? 'text-blue-600 dark:text-blue-400 font-medium'
+                    key={item.href}
+                    href={item.href}
+                    onClick={(e) => handleNavigation(e, item)}
+                    className={`flex items-center gap-3 text-sm py-2 pl-3 pr-3 ml-2 mr-2 my-0.5 rounded-lg transition-all duration-150 ${isActive
+                        ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-bold'
                         : item.danger
-                          ? 'text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300'
-                          : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300'
-                    }`}
+                          ? 'text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-300'
+                          : 'text-gray-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-gray-900 dark:hover:text-slate-200'
+                      }`}
                   >
                     <Icon className="w-4 h-4 flex-shrink-0" />
                     <span className="truncate">{item.label}</span>
                     {item.badge && (
-                      <span className={`ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                        item.badge === '3'
+                      <span className={`ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded ${item.badge === '3'
                           ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
                           : 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
-                      }`}>
+                        }`}>
                         {item.badge}
                       </span>
                     )}
@@ -454,11 +448,11 @@ export default function OwnerSidebar({ collapsed: desktopCollapsed, onToggle, is
           </div>
         </div>
       </nav>
-      <UpgradeModal 
-        isOpen={upgradeModalOpen} 
-        onClose={() => setUpgradeModalOpen(false)} 
-        featureName={upgradeFeature} 
-        requiredTier="Pro" 
+      <UpgradeModal
+        isOpen={upgradeModalOpen}
+        onClose={() => setUpgradeModalOpen(false)}
+        featureName={upgradeFeature}
+        requiredTier="Pro"
       />
     </aside>
   );

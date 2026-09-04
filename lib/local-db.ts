@@ -164,3 +164,67 @@ export async function setLastSeenTimestamp(ts: number) {
 export function isTauriEnv() {
   return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 }
+
+// ─────────────────────────────────────────────────────────
+// OFFLINE AUTHENTICATION
+// ─────────────────────────────────────────────────────────
+async function hashPassword(password: string): Promise<string> {
+  const enc = new TextEncoder();
+  const data = enc.encode(password);
+  const hashBuffer = await window.crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+const OFFLINE_USERS_KEY = 'offline_users_v1';
+
+export async function saveOfflineUser(email: string, passwordPlain: string, userData: any, tokens: { accessToken: string; refreshToken: string }) {
+  if (!isTauriEnv()) return;
+  try {
+    const passwordHash = await hashPassword(passwordPlain);
+    let offlineUsers: Record<string, any> = {};
+    const existing = await getSecureConfig(OFFLINE_USERS_KEY);
+    if (existing) {
+      try {
+        offlineUsers = JSON.parse(existing);
+      } catch (e) {}
+    }
+    offlineUsers[email.toLowerCase()] = {
+      passwordHash,
+      userData,
+      tokens,
+    };
+    await setSecureConfig(OFFLINE_USERS_KEY, JSON.stringify(offlineUsers));
+    console.log(`[Offline Auth] Saved secure credentials for ${email}`);
+  } catch (err) {
+    console.error('[Offline Auth] Failed to save offline user', err);
+  }
+}
+
+export async function authenticateOfflineUser(email: string, passwordPlain: string): Promise<{ user: any; tokens: { accessToken: string; refreshToken: string } } | null> {
+  if (!isTauriEnv()) return null;
+  try {
+    const existing = await getSecureConfig(OFFLINE_USERS_KEY);
+    if (!existing) return null;
+
+    const offlineUsers = JSON.parse(existing);
+    const normalizedEmail = email.toLowerCase();
+    const record = offlineUsers[normalizedEmail];
+    
+    if (!record) {
+      console.warn(`[Offline Auth] No offline record found for ${email}`);
+      return null;
+    }
+
+    const hash = await hashPassword(passwordPlain);
+    if (record.passwordHash === hash) {
+      console.log(`[Offline Auth] Successful offline login for ${email}`);
+      return { user: record.userData, tokens: record.tokens };
+    } else {
+      console.warn(`[Offline Auth] Invalid password for ${email}`);
+    }
+  } catch (err) {
+    console.error('[Offline Auth] Failed to authenticate offline user', err);
+  }
+  return null;
+}

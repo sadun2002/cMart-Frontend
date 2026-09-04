@@ -7,7 +7,7 @@ export const COMPANY_NAME = 'cMart';
 export const COMPANY_TAGLINE = 'The Smart Way to Run Your Store';
 export const COMPANY_EMAIL = 'hello@cmart.lk';
 export const COMPANY_SUPPORT_EMAIL = 'support@cmart.lk';
-export const PLATFORM_DOMAIN = process.env.NEXT_PUBLIC_PLATFORM_DOMAIN || 'cmart.lk';
+export const PLATFORM_DOMAIN = process.env.NEXT_PUBLIC_PLATFORM_DOMAIN || 'cmart.chathudisa.com';
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
 
 // The current tier of the application for the offline SaaS model
