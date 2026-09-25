@@ -13,6 +13,8 @@ import {
   componentCategories,
   getDefaultEnabledComponents,
   isComponentLockedForStartup,
+  getCategoryLimit,
+  getGoalCategoryFromComponentId,
   CATEGORY_LIMITS,
   type DashboardComponentId,
   type CategoryKey,
@@ -22,6 +24,9 @@ import { ComponentPreview } from './ComponentPreview';
 import { formatLKR } from '@/lib/constants';
 import { useAuthStore } from '@/lib/auth-store';
 import { UpgradeModal } from '@/components/ui/upgrade-modal';
+import { getSetting } from '@/lib/db';
+import { toast } from 'sonner';
+import { SalesGoal } from '@/components/shared/SetGoalPanel';
 
 const STORAGE_KEY = 'cMart_dashboard_prefs';
 
@@ -47,6 +52,36 @@ export default function CustomizeDashboardPage() {
   );
   const [dragOverId, setDragOverId] = useState<DashboardComponentId | null>(null);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [activeGoals, setActiveGoals] = useState<Record<string, SalesGoal>>({});
+
+  // Load active goals to gate progress widgets
+  useEffect(() => {
+    const loadGoals = async () => {
+      try {
+        const raw = await getSetting('sales_goals', '[]');
+        let parsed: SalesGoal[] = [];
+        try {
+          parsed = JSON.parse(raw);
+        } catch {
+          try {
+            parsed = JSON.parse(localStorage.getItem('sales_goals') || '[]');
+          } catch {}
+        }
+        if (Array.isArray(parsed)) {
+          const map: Record<string, SalesGoal> = {};
+          parsed.forEach(g => {
+            if (g.isActive) {
+              map[g.category] = g;
+            }
+          });
+          setActiveGoals(map);
+        }
+      } catch (e) {
+        console.error('Error loading goals in customize dashboard:', e);
+      }
+    };
+    loadGoals();
+  }, []);
 
   // Auto-scroll ref
   const autoScrollRef = useRef<NodeJS.Timeout | null>(null);
@@ -129,29 +164,38 @@ export default function CustomizeDashboardPage() {
       return;
     }
 
+    const comp = dashboardComponents.find(c => c.id === id);
+    if (!comp) return;
+
+    // Gate progress widgets: can only enable if an active goal has been created!
+    if (comp.category === 'progress') {
+      const goalCat = getGoalCategoryFromComponentId(id);
+      if (goalCat && !activeGoals[goalCat]) {
+        toast.error(`Please create an active ${comp.label} in Sales > Goals before adding it to your dashboard.`);
+        return;
+      }
+    }
+
     setPrefs(prev => {
       const isEnabling = !prev.enabledComponents.includes(id);
       if (isEnabling) {
-        const comp = dashboardComponents.find(c => c.id === id);
-        if (comp) {
-          // Enforce per-category limits
-          const maxAllowed = CATEGORY_LIMITS[comp.category] ?? 3;
-          const enabledInCategory = prev.enabledComponents.filter(eid =>
+        // Enforce per-category limits
+        const maxAllowed = getCategoryLimit(comp.category, userPlan);
+        const enabledInCategory = prev.enabledComponents.filter(eid =>
+          dashboardComponents.find(c => c.id === eid)?.category === comp.category
+        ).length;
+        if (enabledInCategory >= maxAllowed) {
+          // Auto-swap: remove the oldest (first) enabled component in this category
+          const firstEnabled = prev.enabledComponents.find(eid =>
             dashboardComponents.find(c => c.id === eid)?.category === comp.category
-          ).length;
-          if (enabledInCategory >= maxAllowed) {
-            // Auto-swap: remove the oldest (first) enabled component in this category
-            const firstEnabled = prev.enabledComponents.find(eid =>
-              dashboardComponents.find(c => c.id === eid)?.category === comp.category
-            );
-            if (firstEnabled) {
-              const enabled = prev.enabledComponents.filter(c => c !== firstEnabled);
-              const next = { ...prev, enabledComponents: [...enabled, id] };
-              localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-              return next;
-            }
-            return prev;
+          );
+          if (firstEnabled) {
+            const enabled = prev.enabledComponents.filter(c => c !== firstEnabled);
+            const next = { ...prev, enabledComponents: [...enabled, id] };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+            return next;
           }
+          return prev;
         }
       }
       const enabled = prev.enabledComponents.includes(id)
@@ -182,8 +226,14 @@ export default function CustomizeDashboardPage() {
         const nonCategoryIds = enabled.filter(id =>
           dashboardComponents.find(c => c.id === id)?.category !== category
         );
-        const maxAllowed = CATEGORY_LIMITS[category] ?? 3;
-        enabled = [...new Set([...nonCategoryIds, ...categoryIds.slice(0, maxAllowed)])];
+        const maxAllowed = getCategoryLimit(category, userPlan);
+        const validCategoryIds = category === 'progress'
+          ? categoryIds.filter(id => {
+              const cat = getGoalCategoryFromComponentId(id);
+              return cat ? !!activeGoals[cat] : false;
+            })
+          : categoryIds;
+        enabled = [...new Set([...nonCategoryIds, ...validCategoryIds.slice(0, maxAllowed)])];
       } else {
         enabled = enabled.filter(id => !categoryIds.includes(id));
       }
@@ -301,7 +351,7 @@ export default function CustomizeDashboardPage() {
           const enabledInCategory = components.filter(c => prefs.enabledComponents.includes(c.id)).length;
 
           // Per-category max limits
-          const maxAllowed = CATEGORY_LIMITS[categoryId] ?? 3;
+          const maxAllowed = getCategoryLimit(categoryId, userPlan);
           const isAtLimit = enabledInCategory >= maxAllowed;
 
           return (
@@ -365,17 +415,23 @@ export default function CustomizeDashboardPage() {
                       {components.map((comp) => {
                         const isEnabled = prefs.enabledComponents.includes(comp.id);
                         const isLocked = userPlan === 'STARTUP' && isComponentLockedForStartup(comp.id);
+                        
+                        // Check if progress component has an active goal
+                        const goalCat = comp.category === 'progress' ? getGoalCategoryFromComponentId(comp.id) : null;
+                        const isGoalUnset = comp.category === 'progress' && goalCat ? !activeGoals[goalCat] : false;
+
                         return (
                           <div
                             key={comp.id}
-                            draggable
-                            onDragStart={e => handleDragStart(e, comp.id)}
+                            draggable={!isGoalUnset}
+                            onDragStart={e => !isGoalUnset && handleDragStart(e, comp.id)}
                             onDragOver={handleDragOver}
                             onDragLeave={handleDragLeave}
-                            onDrop={e => handleDrop(e, comp.id)}
+                            onDrop={e => !isGoalUnset && handleDrop(e, comp.id)}
                             onClick={() => toggleComponent(comp.id)}
                             className={`
-                              group relative rounded-xl border cursor-pointer transition-all duration-200 overflow-hidden
+                              group relative rounded-xl border transition-all duration-200 overflow-hidden
+                              ${isGoalUnset ? 'cursor-not-allowed opacity-65' : 'cursor-pointer'}
                               ${prefs.layout === 'list' ? 'flex items-center gap-2 p-2' : 'p-0'}
                               ${isEnabled
                                 ? 'border-blue-300 dark:border-blue-700 ring-1 ring-blue-200 dark:ring-blue-800/50 shadow-sm'
@@ -394,13 +450,22 @@ export default function CustomizeDashboardPage() {
                               </div>
                             )}
 
+                            {/* Unset goal warning pill */}
+                            {isGoalUnset && (
+                              <div className="absolute top-2 right-2 z-10 flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-200 text-[10px] font-bold shadow-sm border border-amber-200 dark:border-amber-700">
+                                Goal Not Set
+                              </div>
+                            )}
+
                             {/* Enable/Disable overlay badge — positioned at bottom-right to avoid title overlap */}
-                            <div className={`absolute bottom-1.5 right-1.5 z-10 w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold transition-all shadow-sm ${
+                            <div className={`absolute bottom-1.5 right-1.5 z-10 h-5 px-1.5 rounded-md flex items-center justify-center text-[10px] font-bold transition-all shadow-sm ${
                               isEnabled
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-white/70 dark:bg-slate-800/70 text-gray-400 dark:text-slate-500 border border-gray-200 dark:border-slate-700'
+                                ? 'bg-blue-600 text-white min-w-[20px]'
+                                : isGoalUnset
+                                ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-300 dark:border-slate-700'
+                                : 'bg-white/70 dark:bg-slate-800/70 text-gray-400 dark:text-slate-500 border border-gray-200 dark:border-slate-700 min-w-[20px]'
                             }`}>
-                              {isEnabled ? '✓' : ''}
+                              {isEnabled ? '✓' : isGoalUnset ? 'Disabled' : ''}
                             </div>
 
                             {/* Realistic Component Preview */}

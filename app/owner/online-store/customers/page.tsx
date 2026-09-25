@@ -12,6 +12,7 @@ import { KpiCard } from '@/components/ui/kpi-card';
 import { FilterPanel } from '@/components/ui/filter-panel';
 import { CustomSelect } from '@/components/ui/custom-select';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { TableEmptyState } from '@/components/ui/table-empty-state';
 import { toast } from 'sonner';
 
 // Mock Data for Online Customers
@@ -310,7 +311,26 @@ export default function OnlineCustomersPage() {
           </div>
         )}
 
-        {viewMode === 'list' ? (
+        {filteredCustomers.length === 0 ? (
+          <TableEmptyState
+            icon={Users}
+            title="No online customers found"
+            description={
+              search || statusFilter !== 'All'
+                ? "No online store customers match your current search and filter criteria. Try adjusting or clearing your filters."
+                : "No customer accounts have registered on your online storefront yet. Once customers sign up or place orders online, their profiles will appear here."
+            }
+            actionLabel={search || statusFilter !== 'All' ? "Clear Filters" : undefined}
+            onAction={
+              search || statusFilter !== 'All'
+                ? () => {
+                    setSearch('');
+                    setStatusFilter('All');
+                  }
+                : undefined
+            }
+          />
+        ) : viewMode === 'list' ? (
           <div className="flex-1 overflow-x-auto custom-scrollbar">
             <table className="w-full text-left whitespace-nowrap min-w-[1000px]">
               <thead className="sticky top-0 bg-slate-50/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-100 dark:border-slate-800 text-xs font-bold text-slate-500 uppercase tracking-wider z-10 shadow-sm">
@@ -325,116 +345,97 @@ export default function OnlineCustomersPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                {filteredCustomers.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="px-5 py-20 text-center">
-                      <div className="flex flex-col items-center justify-center text-slate-400 gap-4">
-                        <Users className="w-12 h-12 opacity-20" />
-                        <p className="font-medium text-lg text-slate-500">No online customers found.</p>
+                {filteredCustomers.map((customer) => (
+                  <tr 
+                    key={customer.id} 
+                    onClick={() => openCustomerDetails(customer)}
+                    className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer group"
+                  >
+                    <td className="px-5 py-4 font-bold text-slate-500 text-sm">{customer.id}</td>
+                    
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold shrink-0">
+                          {customer.name.charAt(0)}
+                        </div>
+                        <div className="font-black text-slate-900 dark:text-white text-sm">{customer.name}</div>
+                      </div>
+                    </td>
+
+                    <td className="px-5 py-4">
+                      <div className="flex flex-col gap-1 text-sm">
+                        <div className="flex items-center gap-2 group/copy">
+                          <span className="text-slate-600 dark:text-slate-400 flex items-center gap-1.5"><Mail className="w-3.5 h-3.5" /> {customer.email}</span>
+                          <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(customer.email); toast.success('Email copied'); }} className="opacity-0 group-hover/copy:opacity-100 text-slate-400 hover:text-blue-500 transition-all">
+                            <Copy className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-2 group/copy">
+                          <span className="text-slate-500 font-medium flex items-center gap-1.5"><Phone className="w-3.5 h-3.5" /> {customer.phone}</span>
+                          <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(customer.phone); toast.success('Phone copied'); }} className="opacity-0 group-hover/copy:opacity-100 text-slate-400 hover:text-blue-500 transition-all">
+                            <Copy className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        {customer.address && (
+                          <span className="text-slate-400 text-xs flex items-center gap-1.5 mt-0.5"><MapPin className="w-3.5 h-3.5" /> {customer.address}</span>
+                        )}
+                      </div>
+                    </td>
+
+                    <td className="px-5 py-4">
+                      <div className="flex flex-col gap-1 text-xs font-bold text-slate-500">
+                        <span>Reg: {customer.registeredDate}</span>
+                        <span>Login: {new Date(customer.lastLogin).toLocaleDateString()}</span>
+                      </div>
+                    </td>
+
+                    <td className="px-5 py-4 text-right">
+                      <div className="flex flex-col gap-1 text-sm">
+                        <span className="font-black text-blue-600 dark:text-blue-400">Rs. {customer.totalSpent.toLocaleString()}</span>
+                        <span className="text-xs font-bold text-slate-500">{customer.totalOrders} Orders</span>
+                      </div>
+                    </td>
+                    
+                    <td className="px-5 py-4 text-center">
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] uppercase tracking-wider font-bold ${
+                        customer.status === 'Active' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' :
+                        customer.status === 'Suspended' ? 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400' :
+                        'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400'
+                      }`}>
+                        {customer.status}
+                      </span>
+                    </td>
+
+                    <td className="px-5 py-4 text-center">
+                      <div className="flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        {customer.status === 'Suspended' ? (
+                          <button onClick={(e) => { e.stopPropagation(); setBlockConfirmId(customer.id); handleToggleSuspendStatus(); }} className={`p-2 rounded-lg transition-colors text-emerald-500 hover:bg-emerald-50`} title="Activate Account">
+                            <CheckCircle className="w-5 h-5" />
+                          </button>
+                        ) : (
+                          <div className="relative group/dropdown">
+                            <button onClick={(e) => { e.stopPropagation(); }} className="p-2 rounded-lg transition-colors text-red-500 hover:bg-red-50" title="Suspend Account">
+                              <Ban className="w-5 h-5" />
+                            </button>
+                            <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 opacity-0 invisible group-hover/dropdown:opacity-100 group-hover/dropdown:visible transition-all z-50 overflow-hidden">
+                              <button onClick={(e) => { e.stopPropagation(); setBlockConfirmId(customer.id); setTimeout(() => handleToggleSuspendStatus('7 Days'), 0); }} className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300">Suspend for 7 Days</button>
+                              <button onClick={(e) => { e.stopPropagation(); setBlockConfirmId(customer.id); setTimeout(() => handleToggleSuspendStatus('1 Month'), 0); }} className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300">Suspend for 1 Month</button>
+                              <button onClick={(e) => { e.stopPropagation(); setBlockConfirmId(customer.id); setTimeout(() => handleToggleSuspendStatus('1 Year'), 0); }} className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300">Suspend for 1 Year</button>
+                              <button onClick={(e) => { e.stopPropagation(); setBlockConfirmId(customer.id); setTimeout(() => handleToggleSuspendStatus('Lifetime'), 0); }} className="w-full text-left px-4 py-2 text-sm hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 font-medium">Lifetime Suspend</button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </td>
                   </tr>
-                ) : (
-                  <>
-                  {filteredCustomers.map((customer) => (
-                    <tr 
-                      key={customer.id} 
-                      onClick={() => openCustomerDetails(customer)}
-                      className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer group"
-                    >
-                      <td className="px-5 py-4 font-bold text-slate-500 text-sm">{customer.id}</td>
-                      
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold shrink-0">
-                            {customer.name.charAt(0)}
-                          </div>
-                          <div className="font-black text-slate-900 dark:text-white text-sm">{customer.name}</div>
-                        </div>
-                      </td>
-
-                      <td className="px-5 py-4">
-                        <div className="flex flex-col gap-1 text-sm">
-                          <div className="flex items-center gap-2 group/copy">
-                            <span className="text-slate-600 dark:text-slate-400 flex items-center gap-1.5"><Mail className="w-3.5 h-3.5" /> {customer.email}</span>
-                            <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(customer.email); toast.success('Email copied'); }} className="opacity-0 group-hover/copy:opacity-100 text-slate-400 hover:text-blue-500 transition-all">
-                              <Copy className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                          <div className="flex items-center gap-2 group/copy">
-                            <span className="text-slate-500 font-medium flex items-center gap-1.5"><Phone className="w-3.5 h-3.5" /> {customer.phone}</span>
-                            <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(customer.phone); toast.success('Phone copied'); }} className="opacity-0 group-hover/copy:opacity-100 text-slate-400 hover:text-blue-500 transition-all">
-                              <Copy className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                          {customer.address && (
-                            <span className="text-slate-400 text-xs flex items-center gap-1.5 mt-0.5"><MapPin className="w-3.5 h-3.5" /> {customer.address}</span>
-                          )}
-                        </div>
-                      </td>
-
-                      <td className="px-5 py-4">
-                        <div className="flex flex-col gap-1 text-xs font-bold text-slate-500">
-                          <span>Reg: {customer.registeredDate}</span>
-                          <span>Login: {new Date(customer.lastLogin).toLocaleDateString()}</span>
-                        </div>
-                      </td>
-
-                      <td className="px-5 py-4 text-right">
-                        <div className="flex flex-col gap-1 text-sm">
-                          <span className="font-black text-blue-600 dark:text-blue-400">Rs. {customer.totalSpent.toLocaleString()}</span>
-                          <span className="text-xs font-bold text-slate-500">{customer.totalOrders} Orders</span>
-                        </div>
-                      </td>
-                      
-                      <td className="px-5 py-4 text-center">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] uppercase tracking-wider font-bold ${
-                          customer.status === 'Active' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' :
-                          customer.status === 'Suspended' ? 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400' :
-                          'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400'
-                        }`}>
-                          {customer.status}
-                        </span>
-                      </td>
-
-                      <td className="px-5 py-4 text-center">
-                        <div className="flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                          {customer.status === 'Suspended' ? (
-                            <button onClick={(e) => { e.stopPropagation(); setBlockConfirmId(customer.id); handleToggleSuspendStatus(); }} className={`p-2 rounded-lg transition-colors text-emerald-500 hover:bg-emerald-50`} title="Activate Account">
-                              <CheckCircle className="w-5 h-5" />
-                            </button>
-                          ) : (
-                            <div className="relative group/dropdown">
-                              <button onClick={(e) => { e.stopPropagation(); }} className="p-2 rounded-lg transition-colors text-red-500 hover:bg-red-50" title="Suspend Account">
-                                <Ban className="w-5 h-5" />
-                              </button>
-                              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 opacity-0 invisible group-hover/dropdown:opacity-100 group-hover/dropdown:visible transition-all z-50 overflow-hidden">
-                                <button onClick={(e) => { e.stopPropagation(); setBlockConfirmId(customer.id); setTimeout(() => handleToggleSuspendStatus('7 Days'), 0); }} className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300">Suspend for 7 Days</button>
-                                <button onClick={(e) => { e.stopPropagation(); setBlockConfirmId(customer.id); setTimeout(() => handleToggleSuspendStatus('1 Month'), 0); }} className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300">Suspend for 1 Month</button>
-                                <button onClick={(e) => { e.stopPropagation(); setBlockConfirmId(customer.id); setTimeout(() => handleToggleSuspendStatus('1 Year'), 0); }} className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300">Suspend for 1 Year</button>
-                                <button onClick={(e) => { e.stopPropagation(); setBlockConfirmId(customer.id); setTimeout(() => handleToggleSuspendStatus('Lifetime'), 0); }} className="w-full text-left px-4 py-2 text-sm hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 font-medium">Lifetime Suspend</button>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                  </>
-                )}
+                ))}
               </tbody>
             </table>
           </div>
 
         ) : (
           <div className="flex-1 overflow-y-auto no-scrollbar p-6 bg-slate-50/50 dark:bg-slate-900/50">
-            {filteredCustomers.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-64 text-slate-400 gap-4">
-                <Users className="w-12 h-12 opacity-20" />
-                <p className="font-medium text-lg text-slate-500">No online customers found.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
                 {filteredCustomers.map((customer) => (
                   <div key={customer.id} onClick={() => openCustomerDetails(customer)} className="cursor-pointer bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-sm hover:shadow-md transition-shadow group relative flex flex-col min-h-[260px]">
                     
@@ -494,10 +495,9 @@ export default function OnlineCustomersPage() {
                   </div>
                 ))}
               </div>
-            )}
-          </div>
-        )}
-      </div>
+            </div>
+          )}
+        </div>
 
       {/* ──────────────── FILTERS SLIDE OUT PANEL ──────────────── */}
       <FilterPanel 
@@ -532,12 +532,17 @@ export default function OnlineCustomersPage() {
               className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-white dark:bg-slate-900 shadow-2xl border-l border-slate-200 dark:border-slate-800 flex flex-col"
             >
               {/* Panel Header */}
-              <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-slate-800 shrink-0">
-                <div>
-                  <h2 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-                    Account Details
-                  </h2>
-                  <p className="text-sm font-bold text-slate-500 mt-1 uppercase tracking-wider">{selectedCustomer.id}</p>
+              <div className="flex items-center justify-between h-[89px] px-6 border-b border-slate-100 dark:border-slate-800 shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0">
+                    <UserIcon className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-black text-slate-900 dark:text-white">
+                      Account Details
+                    </h2>
+                    <p className="text-xs text-slate-500 font-medium">{selectedCustomer.id} • Registered Customer Profile</p>
+                  </div>
                 </div>
                 <button onClick={() => setIsDetailsPanelOpen(false)} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors">
                   <X className="w-5 h-5" />

@@ -69,8 +69,15 @@ export async function encryptData(text: string): Promise<string> {
   combined.set(iv, 0);
   combined.set(cipherBytes, iv.length);
   
-  // Base64 encode
-  return btoa(String.fromCharCode(...combined));
+  // Base64 encode in chunks to avoid Maximum Call Stack Size Exceeded
+  let binaryString = '';
+  const chunkSize = 8192;
+  for (let i = 0; i < combined.length; i += chunkSize) {
+    const chunk = combined.subarray(i, i + chunkSize);
+    // @ts-ignore
+    binaryString += String.fromCharCode.apply(null, chunk);
+  }
+  return btoa(binaryString);
 }
 
 export async function decryptData(encryptedBase64: string): Promise<string | null> {

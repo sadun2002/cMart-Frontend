@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { 
   CalendarDays, CalendarCheck, Clock, XCircle, Search, Filter,
-  CheckCircle, MoreHorizontal, FileText, UserCircle, Maximize, Minimize, List, LayoutGrid, X, AlertCircle, Download, User as UserIcon, Trash2, Edit, Plus, ChevronDown, FileUp
+  CheckCircle, MoreHorizontal, FileText, UserCircle, Maximize, Minimize, List, LayoutGrid, X, AlertCircle, Download, User as UserIcon, Trash2, Edit, Plus, ChevronDown, ChevronUp, FileUp
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { KpiCard } from '@/components/ui/kpi-card';
@@ -238,6 +238,27 @@ export default function LeaveManagementPage() {
     reason: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Accordion Sections State
+  const [openSections, setOpenSections] = useState<{ [key: string]: boolean }>({
+    employee: true,
+    leave: false,
+    additional: false,
+  });
+
+  const toggleSection = (section: string) => {
+    setOpenSections(prev => {
+      if (prev[section]) {
+        return { ...prev, [section]: false };
+      }
+      return {
+        employee: false,
+        leave: false,
+        additional: false,
+        [section]: true
+      };
+    });
+  };
 
   const handleApplyLeave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -623,108 +644,168 @@ export default function LeaveManagementPage() {
               initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', bounce: 0, duration: 0.4 }}
               className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-white dark:bg-slate-900 shadow-2xl border-l border-slate-200 dark:border-slate-800 flex flex-col"
             >
-              <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-slate-800">
-                <h2 className="text-2xl font-black text-slate-900 dark:text-white">
-                  Apply Leave for Employee
-                </h2>
+              <div className="flex items-center justify-between h-[89px] px-6 border-b border-slate-100 dark:border-slate-800 shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0">
+                    <CalendarDays className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-black text-slate-900 dark:text-white">
+                      Apply Leave
+                    </h2>
+                    <p className="text-xs text-slate-500 font-medium">Record staff absence and time-off request</p>
+                  </div>
+                </div>
                 <button onClick={() => setIsApplyPanelOpen(false)} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors">
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
               <div className="flex-1 overflow-y-auto p-6">
-                <form id="applyLeaveForm" onSubmit={handleApplyLeave} className="space-y-6">
+                <form id="applyLeaveForm" onSubmit={handleApplyLeave} className="space-y-4">
                   
-                  {/* Employee Selection */}
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                      <UserIcon className="w-4 h-4" /> Employee Details
-                    </h3>
-                    <div>
-                      <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Employee *</label>
-                      <SearchableSelect 
-                        value={applyFormData.employee} 
-                        onChange={v => setApplyFormData({...applyFormData, employee: v})} 
-                        options={EMPLOYEES} 
-                        placeholder="Select Employee" 
-                      />
-                    </div>
-                  </div>
-
-                  <div className="h-px bg-slate-100 dark:bg-slate-800" />
-
-                  {/* Leave Details */}
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                      <CalendarDays className="w-4 h-4" /> Leave Details
-                    </h3>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Leave Type *</label>
-                        <SearchableSelect 
-                          value={applyFormData.type} 
-                          onChange={v => setApplyFormData({...applyFormData, type: v})} 
-                          options={LEAVE_TYPES.filter(t => t !== 'All')} 
-                          placeholder="Select Leave Type" 
-                        />
-                      </div>
-                      
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Start Date *</label>
-                          <input 
-                            required 
-                            type="date" 
-                            value={applyFormData.startDate} 
-                            onChange={e => setApplyFormData({...applyFormData, startDate: e.target.value})} 
-                            className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-white" 
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">End Date *</label>
-                          <input 
-                            required 
-                            type="date" 
-                            value={applyFormData.endDate} 
-                            onChange={e => setApplyFormData({...applyFormData, endDate: e.target.value})} 
-                            className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-white" 
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="h-px bg-slate-100 dark:bg-slate-800" />
-
-                  {/* Additional Info */}
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                      <FileText className="w-4 h-4" /> Additional Info
-                    </h3>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Reason *</label>
-                        <textarea 
-                          required
-                          value={applyFormData.reason} 
-                          onChange={e => setApplyFormData({...applyFormData, reason: e.target.value})} 
-                          className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none resize-none text-slate-900 dark:text-white" 
-                          rows={3} 
-                          placeholder="Please provide a reason for the leave..." 
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Attachments (Optional)</label>
-                        <div className="border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl p-6 flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer group">
-                          <div className="w-10 h-10 bg-white dark:bg-slate-900 rounded-full flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
-                            <FileUp className="w-5 h-5 text-blue-500" />
+                  {/* Section 1: Employee Details */}
+                  <div className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl overflow-hidden">
+                    <button 
+                      type="button" 
+                      onClick={() => toggleSection("employee")}
+                      className={`w-full px-4 py-3 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors outline-none cursor-pointer ${openSections.employee ? "rounded-t-xl" : "rounded-xl"}`}
+                    >
+                      <span className="font-bold text-slate-900 dark:text-white flex items-center gap-2 text-sm">
+                        <UserIcon className="w-4 h-4 text-blue-600" />
+                        Employee Details
+                      </span>
+                      {openSections.employee ? <ChevronUp className="w-5 h-5 text-slate-500" /> : <ChevronDown className="w-5 h-5 text-slate-500" />}
+                    </button>
+                    <AnimatePresence>
+                      {openSections.employee && (
+                        <motion.div 
+                          initial={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                          animate={{ height: 'auto', opacity: 1, transitionEnd: { overflow: 'visible' } }}
+                          exit={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                        >
+                          <div className="p-4 space-y-4 border-t border-slate-300 dark:border-slate-700">
+                            <div>
+                              <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Employee *</label>
+                              <SearchableSelect 
+                                value={applyFormData.employee} 
+                                onChange={v => setApplyFormData({...applyFormData, employee: v})} 
+                                options={EMPLOYEES} 
+                                placeholder="Select Employee" 
+                              />
+                            </div>
                           </div>
-                          <p className="text-sm font-medium text-slate-700 dark:text-slate-300 text-center">Click to upload medical certificate or other documents</p>
-                          <p className="text-xs text-slate-400 mt-1">PNG, JPG, PDF up to 5MB</p>
-                        </div>
-                      </div>
-                    </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+
+                  {/* Section 2: Leave Details */}
+                  <div className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl overflow-hidden">
+                    <button 
+                      type="button" 
+                      onClick={() => toggleSection("leave")}
+                      className={`w-full px-4 py-3 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors outline-none cursor-pointer ${openSections.leave ? "rounded-t-xl" : "rounded-xl"}`}
+                    >
+                      <span className="font-bold text-slate-900 dark:text-white flex items-center gap-2 text-sm">
+                        <CalendarDays className="w-4 h-4 text-blue-600" />
+                        Leave Details
+                      </span>
+                      {openSections.leave ? <ChevronUp className="w-5 h-5 text-slate-500" /> : <ChevronDown className="w-5 h-5 text-slate-500" />}
+                    </button>
+                    <AnimatePresence>
+                      {openSections.leave && (
+                        <motion.div 
+                          initial={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                          animate={{ height: 'auto', opacity: 1, transitionEnd: { overflow: 'visible' } }}
+                          exit={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                        >
+                          <div className="p-4 space-y-4 border-t border-slate-300 dark:border-slate-700">
+                            <div>
+                              <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Leave Type *</label>
+                              <SearchableSelect 
+                                value={applyFormData.type} 
+                                onChange={v => setApplyFormData({...applyFormData, type: v})} 
+                                options={LEAVE_TYPES.filter(t => t !== 'All')} 
+                                placeholder="Select Leave Type" 
+                              />
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Start Date *</label>
+                                <input 
+                                  required 
+                                  type="date" 
+                                  value={applyFormData.startDate} 
+                                  onChange={e => setApplyFormData({...applyFormData, startDate: e.target.value})} 
+                                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-4 h-11 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-white" 
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">End Date *</label>
+                                <input 
+                                  required 
+                                  type="date" 
+                                  value={applyFormData.endDate} 
+                                  onChange={e => setApplyFormData({...applyFormData, endDate: e.target.value})} 
+                                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-4 h-11 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-white" 
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+
+                  {/* Section 3: Additional Info */}
+                  <div className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl overflow-hidden">
+                    <button 
+                      type="button" 
+                      onClick={() => toggleSection("additional")}
+                      className={`w-full px-4 py-3 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors outline-none cursor-pointer ${openSections.additional ? "rounded-t-xl" : "rounded-xl"}`}
+                    >
+                      <span className="font-bold text-slate-900 dark:text-white flex items-center gap-2 text-sm">
+                        <FileText className="w-4 h-4 text-blue-600" />
+                        Additional Info
+                      </span>
+                      {openSections.additional ? <ChevronUp className="w-5 h-5 text-slate-500" /> : <ChevronDown className="w-5 h-5 text-slate-500" />}
+                    </button>
+                    <AnimatePresence>
+                      {openSections.additional && (
+                        <motion.div 
+                          initial={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                          animate={{ height: 'auto', opacity: 1, transitionEnd: { overflow: 'visible' } }}
+                          exit={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                        >
+                          <div className="p-4 space-y-4 border-t border-slate-300 dark:border-slate-700">
+                            <div>
+                              <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Reason *</label>
+                              <textarea 
+                                required
+                                value={applyFormData.reason} 
+                                onChange={e => setApplyFormData({...applyFormData, reason: e.target.value})} 
+                                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none resize-none text-slate-900 dark:text-white" 
+                                rows={3} 
+                                placeholder="Please provide a reason for the leave..." 
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Attachments (Optional)</label>
+                              <div className="border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl p-6 flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer group">
+                                <div className="w-10 h-10 bg-white dark:bg-slate-900 rounded-full flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
+                                  <FileUp className="w-5 h-5 text-blue-600" />
+                                </div>
+                                <p className="text-sm font-medium text-slate-700 dark:text-slate-300 text-center">Click to upload medical certificate or other documents</p>
+                                <p className="text-xs text-slate-400 mt-1">PNG, JPG, PDF up to 5MB</p>
+                              </div>
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                 </form>
               </div>

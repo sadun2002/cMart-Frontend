@@ -146,17 +146,21 @@ export function AddEmployeePanel({ isOpen, onClose, onSave, isSubmitting }: AddE
             className="fixed inset-y-0 right-0 w-full max-w-4xl bg-white dark:bg-slate-900 shadow-2xl z-[210] border-l border-slate-200 dark:border-slate-800 flex flex-col"
           >
             {/* HEADER */}
-            <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-slate-800 shrink-0">
-              <div>
-                <h2 className="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-                  <UserPlus className="w-6 h-6 text-blue-600" />
-                  Add New Employee
-                </h2>
-                <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Complete the profile setup to onboard a new staff member.</p>
+            <div className="flex items-center justify-between h-[89px] px-6 border-b border-slate-100 dark:border-slate-800 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0">
+                  <UserPlus className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-black text-slate-900 dark:text-white">
+                    Add New Employee
+                  </h2>
+                  <p className="text-xs text-slate-500 font-medium">Complete the profile setup to onboard a new staff member</p>
+                </div>
               </div>
               <button 
                 onClick={onClose}
-                className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 rounded-full transition-colors"
+                className="p-2 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>

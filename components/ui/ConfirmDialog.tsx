@@ -46,10 +46,10 @@ export function ConfirmDialog({
         <>
           <motion.div 
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-slate-900/40 backdrop-blur-sm"
+            className="fixed inset-0 z-[9998] bg-slate-900/40 backdrop-blur-sm"
             onClick={onCancel}
           />
-          <div className="fixed inset-0 z-[110] flex items-center justify-center pointer-events-none p-4">
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center pointer-events-none p-4">
             <motion.div 
               initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
               className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6 w-full max-w-sm pointer-events-auto flex flex-col gap-5"

@@ -5,6 +5,7 @@ import { Globe, Download, Printer, Filter, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { FilterPanel } from '@/components/ui/filter-panel';
 import { CustomSelect } from '@/components/ui/custom-select';
+import { TableEmptyState } from '@/components/ui/table-empty-state';
 import { getYearOptions, getMonthOptions, getWeekOptions, getQuarterOptions, getHalfYearOptions } from '@/lib/report-filter-options';
 
 const dailyOrders = [
@@ -113,50 +114,62 @@ export default function OnlineStoreReportPage() {
       </div>
 
       <div className="flex-1 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col">
-        <div className="overflow-x-auto flex-1">
-          <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-slate-50 dark:bg-slate-900/80 text-slate-500 font-bold border-b border-slate-200 dark:border-slate-700 sticky top-0">
-              {reportPeriod === 'daily' ? (
-                <tr><th className="px-6 py-4">Order ID</th><th className="px-6 py-4">Time</th><th className="px-6 py-4">Customer</th><th className="px-6 py-4">City</th><th className="px-6 py-4">Status</th><th className="px-6 py-4 text-right">Total (LKR)</th></tr>
-              ) : (
-                <tr><th className="px-6 py-4">Period / Range</th><th className="px-6 py-4 text-center">Total Orders</th><th className="px-6 py-4 text-center">Delivered</th><th className="px-6 py-4 text-center">Pending</th><th className="px-6 py-4 text-center">Cancelled</th><th className="px-6 py-4 text-right">Revenue (LKR)</th></tr>
-              )}
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50 font-medium">
-              {reportPeriod === 'daily' ? (
-                filtered.map((row: any, i) => (
-                  <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/30 transition-colors">
-                    <td className="px-6 py-4 text-slate-900 dark:text-white font-bold">{row.id}</td>
-                    <td className="px-6 py-4 text-slate-500">{row.time}</td>
-                    <td className="px-6 py-4 text-slate-700 dark:text-slate-300">{row.customer}</td>
-                    <td className="px-6 py-4 text-slate-500">{row.city}</td>
-                    <td className="px-6 py-4"><span className={`inline-flex px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ${row.status === 'Delivered' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' : row.status === 'Pending' ? 'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400' : row.status === 'Processing' ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400' : 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400'}`}>{row.status}</span></td>
-                    <td className="px-6 py-4 text-right text-slate-900 dark:text-white font-black">{row.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                  </tr>
-                ))
-              ) : (
-                filtered.map((row: any, i) => (
-                  <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/30 transition-colors">
-                    <td className="px-6 py-4 text-slate-900 dark:text-white font-bold">{row.period}</td>
-                    <td className="px-6 py-4 text-center text-slate-700 dark:text-slate-300">{row.orderCount}</td>
-                    <td className="px-6 py-4 text-center text-emerald-600 dark:text-emerald-400 font-bold">{row.delivered}</td>
-                    <td className="px-6 py-4 text-center text-amber-600 dark:text-amber-400 font-bold">{row.pending}</td>
-                    <td className="px-6 py-4 text-center text-red-600 dark:text-red-400 font-bold">{row.cancelled}</td>
-                    <td className="px-6 py-4 text-right text-slate-900 dark:text-white font-black">{row.revenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-        <div className="p-4 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between text-sm bg-slate-50/50 dark:bg-slate-900/30">
-          <span className="text-slate-500 dark:text-slate-400 font-medium">Showing {filtered.length} entries</span>
-          <div className="flex gap-1">
-            <button className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-400 cursor-not-allowed font-medium">Prev</button>
-            <button className="px-3 py-1.5 rounded-lg bg-blue-600 text-white font-bold shadow-sm">1</button>
-            <button className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 font-medium transition-colors">Next</button>
-          </div>
-        </div>
+        {filtered.length === 0 ? (
+          <TableEmptyState
+            icon={Globe}
+            title="No online store report data found"
+            description="No online orders match the selected period, search term, or filters. Try adjusting your date range or resetting your filters."
+            actionLabel="Reset Filters"
+            onAction={clearFilters}
+          />
+        ) : (
+          <>
+            <div className="overflow-x-auto flex-1">
+              <table className="w-full text-left text-sm whitespace-nowrap">
+                <thead className="bg-slate-50 dark:bg-slate-900/80 text-slate-500 font-bold border-b border-slate-200 dark:border-slate-700 sticky top-0">
+                  {reportPeriod === 'daily' ? (
+                    <tr><th className="px-6 py-4">Order ID</th><th className="px-6 py-4">Time</th><th className="px-6 py-4">Customer</th><th className="px-6 py-4">City</th><th className="px-6 py-4">Status</th><th className="px-6 py-4 text-right">Total (LKR)</th></tr>
+                  ) : (
+                    <tr><th className="px-6 py-4">Period / Range</th><th className="px-6 py-4 text-center">Total Orders</th><th className="px-6 py-4 text-center">Delivered</th><th className="px-6 py-4 text-center">Pending</th><th className="px-6 py-4 text-center">Cancelled</th><th className="px-6 py-4 text-right">Revenue (LKR)</th></tr>
+                  )}
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50 font-medium">
+                  {reportPeriod === 'daily' ? (
+                    filtered.map((row: any, i) => (
+                      <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/30 transition-colors">
+                        <td className="px-6 py-4 text-slate-900 dark:text-white font-bold">{row.id}</td>
+                        <td className="px-6 py-4 text-slate-500">{row.time}</td>
+                        <td className="px-6 py-4 text-slate-700 dark:text-slate-300">{row.customer}</td>
+                        <td className="px-6 py-4 text-slate-500">{row.city}</td>
+                        <td className="px-6 py-4"><span className={`inline-flex px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ${row.status === 'Delivered' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' : row.status === 'Pending' ? 'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400' : row.status === 'Processing' ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400' : 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400'}`}>{row.status}</span></td>
+                        <td className="px-6 py-4 text-right text-slate-900 dark:text-white font-black">{row.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    filtered.map((row: any, i) => (
+                      <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/30 transition-colors">
+                        <td className="px-6 py-4 text-slate-900 dark:text-white font-bold">{row.period}</td>
+                        <td className="px-6 py-4 text-center text-slate-700 dark:text-slate-300">{row.orderCount}</td>
+                        <td className="px-6 py-4 text-center text-emerald-600 dark:text-emerald-400 font-bold">{row.delivered}</td>
+                        <td className="px-6 py-4 text-center text-amber-600 dark:text-amber-400 font-bold">{row.pending}</td>
+                        <td className="px-6 py-4 text-center text-red-600 dark:text-red-400 font-bold">{row.cancelled}</td>
+                        <td className="px-6 py-4 text-right text-slate-900 dark:text-white font-black">{row.revenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <div className="p-4 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between text-sm bg-slate-50/50 dark:bg-slate-900/30">
+              <span className="text-slate-500 dark:text-slate-400 font-medium">Showing {filtered.length} entries</span>
+              <div className="flex gap-1">
+                <button className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-400 cursor-not-allowed font-medium">Prev</button>
+                <button className="px-3 py-1.5 rounded-lg bg-blue-600 text-white font-bold shadow-sm">1</button>
+                <button className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 font-medium transition-colors">Next</button>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       <FilterPanel isOpen={isFilterOpen} onClose={() => setIsFilterOpen(false)} title="Filter Online Orders" onClear={() => { clearFilters(); setIsFilterOpen(false); }} onApply={() => setIsFilterOpen(false)}>

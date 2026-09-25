@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { KpiCard } from '@/components/ui/kpi-card';
 import { FilterPanel } from '@/components/ui/filter-panel';
 import { CustomSelect } from '@/components/ui/custom-select';
+import { TableEmptyState } from '@/components/ui/table-empty-state';
 
 import { DEFAULT_ROLES } from '@/lib/roles';
 import { AddEmployeePanel } from './components/AddEmployeePanel';
@@ -96,58 +97,62 @@ export default function EmployeesPage() {
   };
 
   return (
-    <div className="font-sans flex flex-col h-full bg-[#F4F7F6] dark:bg-slate-900 p-6 overflow-hidden">
+    <div className={`font-sans flex flex-col bg-slate-50 dark:bg-slate-900/50 overflow-hidden ${isFullscreen ? 'h-full p-2 sm:p-4' : 'h-full p-6'}`}>
       
       {/* ──────────────── HEADER ──────────────── */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
-        <div>
-          <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
-            <Shield className="w-8 h-8 text-blue-600" />
-            Employee Management
-          </h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium">Add, update, and manage your cashier and staff accounts.</p>
+      {!isFullscreen && (
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+          <div>
+            <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
+              <Shield className="w-8 h-8 text-blue-600" />
+              Employee Management
+            </h1>
+            <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium">Add, update, and manage your cashier and staff accounts.</p>
+          </div>
+          
+          <button 
+            onClick={openAddPanel}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5 active:translate-y-0"
+          >
+            <UserPlus className="w-5 h-5" />
+            Add Employee
+          </button>
         </div>
-        
-        <button 
-          onClick={openAddPanel}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5 active:translate-y-0"
-        >
-          <UserPlus className="w-5 h-5" />
-          Add Employee
-        </button>
-      </div>
+      )}
 
       {/* ──────────────── KPI CARDS ──────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <KpiCard 
-          title="Total Employees" 
-          value={kpis.total} 
-          icon={Users} 
-          iconColorClass="text-blue-600" 
-          iconBgClass="bg-blue-50 dark:bg-blue-500/10" 
-        />
-        <KpiCard 
-          title="Active Accounts" 
-          value={kpis.active} 
-          icon={CheckCircle} 
-          iconColorClass="text-emerald-600" 
-          iconBgClass="bg-emerald-50 dark:bg-emerald-500/10" 
-        />
-        <KpiCard 
-          title="Inactive" 
-          value={kpis.inactive} 
-          icon={XCircle} 
-          iconColorClass="text-red-600" 
-          iconBgClass="bg-red-50 dark:bg-red-500/10" 
-        />
-        <KpiCard 
-          title="New (7 Days)" 
-          value={kpis.recent} 
-          icon={UserPlus} 
-          iconColorClass="text-purple-600" 
-          iconBgClass="bg-purple-50 dark:bg-purple-500/10" 
-        />
-      </div>
+      {!isFullscreen && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <KpiCard 
+            title="Total Employees" 
+            value={kpis.total} 
+            icon={Users} 
+            iconColorClass="text-blue-600" 
+            iconBgClass="bg-blue-50 dark:bg-blue-500/10" 
+          />
+          <KpiCard 
+            title="Active Accounts" 
+            value={kpis.active} 
+            icon={CheckCircle} 
+            iconColorClass="text-emerald-600" 
+            iconBgClass="bg-emerald-50 dark:bg-emerald-500/10" 
+          />
+          <KpiCard 
+            title="Inactive" 
+            value={kpis.inactive} 
+            icon={XCircle} 
+            iconColorClass="text-red-600" 
+            iconBgClass="bg-red-50 dark:bg-red-500/10" 
+          />
+          <KpiCard 
+            title="New (7 Days)" 
+            value={kpis.recent} 
+            icon={UserPlus} 
+            iconColorClass="text-purple-600" 
+            iconBgClass="bg-purple-50 dark:bg-purple-500/10" 
+          />
+        </div>
+      )}
 
       {/* ──────────────── SEARCH BAR & FILTERS ──────────────── */}
       <div className="flex flex-col sm:flex-row gap-4 mb-6">
@@ -164,7 +169,7 @@ export default function EmployeesPage() {
           />
         </div>
 
-        <div className="flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm h-12 p-1 overflow-hidden flex-shrink-0 sm:ml-auto">
+        <div className="flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm h-12 p-1 overflow-hidden flex-shrink-0 ml-auto">
           <button 
             onClick={() => setIsFilterOpen(true)}
             className="flex items-center justify-center px-4 h-full rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition-all gap-2 font-bold relative"
@@ -194,28 +199,31 @@ export default function EmployeesPage() {
           </button>
           <div className="w-px h-full bg-slate-200 dark:bg-slate-800 mx-1"></div>
           <button 
-            onClick={() => setIsFullscreen(true)}
+            onClick={() => setIsFullscreen(!isFullscreen)}
             title="Full Screen"
             className={`flex items-center justify-center w-12 h-full rounded-xl transition-all text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800`}
           >
-            <Maximize className="w-5 h-5" />
+            {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
           </button>
         </div>
       </div>
 
       {/* ──────────────── DATA TABLE ──────────────── */}
-      <div className={`flex-1 bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col min-h-[400px] ${isFullscreen ? 'fixed inset-y-0 right-0 left-[68px] z-[100] m-0 rounded-none border-none' : ''}`}>
-        
-        {isFullscreen && (
-          <button 
-            onClick={() => setIsFullscreen(false)} 
-            className="absolute top-4 right-4 z-[110] p-3 bg-slate-900/50 text-white rounded-full hover:bg-slate-900/80 transition-colors backdrop-blur-md shadow-lg"
-          >
-            <Minimize className="w-5 h-5" />
-          </button>
-        )}
-
-        {viewMode === 'list' ? (
+      <div className={`flex-1 bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col min-h-[400px] ${isFullscreen ? 'm-0 rounded-none border-none' : ''}`}>
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-24 text-slate-400 gap-4">
+            <div className="w-8 h-8 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mb-4" />
+            <p className="font-medium text-sm">Loading employees...</p>
+          </div>
+        ) : filteredEmployees.length === 0 ? (
+          <TableEmptyState
+            icon={Shield}
+            title="No employees found"
+            description="You haven't added any staff accounts yet, or none match your search. Click below to add your first employee."
+            actionLabel="Add First Employee"
+            onAction={openAddPanel}
+          />
+        ) : viewMode === 'list' ? (
           <>
             {/* Table Header */}
             <div className="grid grid-cols-12 gap-4 h-16 px-5 items-center border-b border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/50 text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0">
@@ -227,18 +235,7 @@ export default function EmployeesPage() {
 
             {/* Table Body */}
             <div className="overflow-y-auto flex-1 p-2 space-y-1 custom-scrollbar">
-              {loading ? (
-                <div className="flex flex-col items-center justify-center h-40 text-slate-400">
-                  <div className="w-8 h-8 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mb-4" />
-                  <p className="font-medium text-sm">Loading employees...</p>
-                </div>
-              ) : filteredEmployees.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-40 text-slate-400">
-                  <Shield className="w-12 h-12 mb-3 opacity-20" />
-                  <p className="font-medium text-sm">No employees found.</p>
-                </div>
-              ) : (
-                filteredEmployees.map((e) => (
+              {filteredEmployees.map((e) => (
                   <div 
                     key={e.id}
                     className="grid grid-cols-12 gap-4 p-3 items-center hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-2xl transition-colors group cursor-pointer border border-transparent hover:border-slate-100 dark:hover:border-slate-800"
@@ -284,26 +281,14 @@ export default function EmployeesPage() {
                       </div>
                     </div>
                   </div>
-                ))
-              )}
+                ))}
             </div>
           </>
         ) : (
           /* Grid View */
           <div className="overflow-y-auto flex-1 p-6 custom-scrollbar">
-            {loading ? (
-              <div className="flex flex-col items-center justify-center h-40 text-slate-400">
-                <div className="w-8 h-8 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mb-4" />
-                <p className="font-medium text-sm">Loading employees...</p>
-              </div>
-            ) : filteredEmployees.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-40 text-slate-400">
-                <Shield className="w-12 h-12 mb-3 opacity-20" />
-                <p className="font-medium text-sm">No employees found.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {filteredEmployees.map(e => (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {filteredEmployees.map(e => (
                   <div 
                     key={e.id} 
                     className="bg-slate-50 dark:bg-slate-900/50 rounded-3xl p-5 border border-slate-200 dark:border-slate-800 hover:border-blue-300 dark:hover:border-blue-500/50 transition-all hover:shadow-lg hover:shadow-blue-500/5 group cursor-pointer relative"
@@ -347,10 +332,9 @@ export default function EmployeesPage() {
                   </div>
                 ))}
               </div>
-            )}
-          </div>
-        )}
-      </div>
+            </div>
+          )}
+        </div>
 
       {/* ──────────────── SLIDE-OUT PANEL ──────────────── */}
       <AddEmployeePanel 

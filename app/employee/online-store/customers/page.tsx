@@ -11,6 +11,7 @@ import { KpiCard } from '@/components/ui/kpi-card';
 import { FilterPanel } from '@/components/ui/filter-panel';
 import { CustomSelect } from '@/components/ui/custom-select';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { TableEmptyState } from '@/components/ui/table-empty-state';
 import { toast } from 'sonner';
 
 // Mock Data for Online Customers
@@ -265,7 +266,26 @@ export default function OnlineCustomersPage() {
           </div>
         )}
 
-        {viewMode === 'list' ? (
+        {filteredCustomers.length === 0 ? (
+          <TableEmptyState
+            icon={Users}
+            title="No online customers found"
+            description={
+              search || statusFilter !== 'All'
+                ? "No online store customers match your current search and filter criteria. Try adjusting or clearing your filters."
+                : "No customer accounts have registered on your online storefront yet. Once customers sign up or place orders online, their profiles will appear here."
+            }
+            actionLabel={search || statusFilter !== 'All' ? "Clear Filters" : undefined}
+            onAction={
+              search || statusFilter !== 'All'
+                ? () => {
+                    setSearch('');
+                    setStatusFilter('All');
+                  }
+                : undefined
+            }
+          />
+        ) : viewMode === 'list' ? (
           <div className="flex-1 overflow-x-auto custom-scrollbar">
             <table className="w-full text-left whitespace-nowrap min-w-[1000px]">
               <thead className="sticky top-0 bg-slate-50/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-100 dark:border-slate-800 text-xs font-bold text-slate-500 uppercase tracking-wider z-10 shadow-sm">
@@ -280,23 +300,12 @@ export default function OnlineCustomersPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                {filteredCustomers.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="px-5 py-20 text-center">
-                      <div className="flex flex-col items-center justify-center text-slate-400 gap-4">
-                        <Users className="w-12 h-12 opacity-20" />
-                        <p className="font-medium text-lg text-slate-500">No online customers found.</p>
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  <>
-                  {filteredCustomers.map((customer) => (
-                    <tr 
-                      key={customer.id} 
-                      onClick={() => openCustomerDetails(customer)}
-                      className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer group"
-                    >
+                {filteredCustomers.map((customer) => (
+                  <tr 
+                    key={customer.id} 
+                    onClick={() => openCustomerDetails(customer)}
+                    className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer group"
+                  >
                       <td className="px-5 py-4 font-bold text-slate-500 text-sm">{customer.id}</td>
                       
                       <td className="px-5 py-4">
@@ -360,23 +369,14 @@ export default function OnlineCustomersPage() {
                         </div>
                       </td>
                     </tr>
-                  ))}
-                  </>
-                )}
+                ))}
               </tbody>
             </table>
           </div>
-
         ) : (
           <div className="flex-1 overflow-y-auto no-scrollbar p-6 bg-slate-50/50 dark:bg-slate-900/50">
-            {filteredCustomers.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-64 text-slate-400 gap-4">
-                <Users className="w-12 h-12 opacity-20" />
-                <p className="font-medium text-lg text-slate-500">No online customers found.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
-                {filteredCustomers.map((customer) => (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
+              {filteredCustomers.map((customer) => (
                   <div key={customer.id} onClick={() => openCustomerDetails(customer)} className="cursor-pointer bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-sm hover:shadow-md transition-shadow group relative flex flex-col min-h-[260px]">
                     
                     <div className="flex justify-between items-start mb-4">
@@ -421,7 +421,6 @@ export default function OnlineCustomersPage() {
                   </div>
                 ))}
               </div>
-            )}
           </div>
         )}
       </div>

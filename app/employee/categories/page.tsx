@@ -10,6 +10,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { CustomSelect } from '@/components/ui/custom-select';
 import { useAuthStore } from '@/lib/auth-store';
 import { saveCategoryLocally, markCategorySynced, getLocalCategories } from '@/lib/local-services';
+import { isTauriEnv } from '@/lib/local-db';
 
 // --- Recursive Category Row Component ---
 const CategoryRow = ({ category, level = 0, onEdit, onDelete, defaultExpanded = false }: any) => {
@@ -117,13 +118,13 @@ export default function CategoriesPage() {
     try {
       setLoading(true);
       const user = useAuthStore.getState().user;
-      const isStartup = user?.tenant?.plan === 'STARTUP';
+      const isLocalMode = isTauriEnv() || user?.tenant?.plan === 'STARTUP';
       
       let treeData = [];
       let flatData = [];
 
       try {
-        if (isStartup) {
+        if (isLocalMode) {
           treeData = await getLocalCategories(user?.tenantId || null);
           flatData = await getLocalCategories(user?.tenantId || null); // Flat could just be a flat map, but local returns tree. We can flatten it.
           
@@ -195,7 +196,7 @@ export default function CategoriesPage() {
       } else {
         const user = useAuthStore.getState().user;
         const tenantId = user?.tenantId || null;
-        const isStartup = user?.tenant?.plan === 'STARTUP';
+        const isLocalMode = isTauriEnv() || user?.tenant?.plan === 'STARTUP';
 
         const localData = {
           name: formData.name,
@@ -206,7 +207,7 @@ export default function CategoriesPage() {
 
         const localRecord = await saveCategoryLocally(localData, tenantId);
 
-        if (!isStartup) {
+        if (!isLocalMode) {
           try {
             const res = await storeOwnerAPI.createCategory(payload);
             await markCategorySynced(localRecord.id);
@@ -562,7 +563,7 @@ export default function CategoriesPage() {
                 <div className="flex gap-3">
                   <button 
                     type="button"
-                    onClick={() => setIsAddOpen(false)}
+                    onClick={() => setIsPanelOpen(false)}
                     className="flex-1 px-4 py-3 rounded-xl font-bold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
                   >
                     Cancel

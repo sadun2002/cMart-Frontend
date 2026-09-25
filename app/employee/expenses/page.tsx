@@ -10,10 +10,12 @@ import { getDb } from '@/lib/db';
 import { KpiCard } from '@/components/ui/kpi-card';
 import { CustomSelect } from '@/components/ui/custom-select';
 import { UpgradeModal } from '@/components/ui/upgrade-modal';
+import { TableEmptyState } from '@/components/ui/table-empty-state';
 import { encryptData, decryptData } from '@/lib/local-db';
 import { useAuthStore } from '@/lib/auth-store';
 import { useBranchStore } from '@/lib/branch-store';
 import { storeOwnerAPI } from '@/lib/api';
+import { isTauriEnv } from '@/lib/local-db';
 
 // Generate a random UUID
 function uuidv4() {
@@ -50,9 +52,10 @@ function ExpensesPageContent() {
   const [filterBranch, setFilterBranch] = useState('all');
   const [filterVendor, setFilterVendor] = useState('all');
   
-  // Auth & External Data
   const user = useAuthStore(state => state.user);
-  const isStartup = user?.tenant?.plan?.toUpperCase() === 'STARTUP';
+  const plan = user?.tenant?.plan?.toUpperCase() || 'STARTUP';
+  const isStartup = plan === 'STARTUP' || plan === 'FREE';
+  const isLocalMode = isTauriEnv() || isStartup;
   const branches = useBranchStore(state => state.branches);
   const [suppliers, setSuppliers] = useState<any[]>([]);
 
@@ -74,12 +77,22 @@ function ExpensesPageContent() {
   const [attachment, setAttachment] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [openSections, setOpenSections] = useState({ basic: true, payment: true, additional: true });
+  const [openSections, setOpenSections] = useState({ basic: true, payment: false, additional: false });
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [upgradeFeatureName, setUpgradeFeatureName] = useState('');
 
   const toggleSection = (section: keyof typeof openSections) => {
-    setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
+    setOpenSections(prev => {
+      if (prev[section]) {
+        return { ...prev, [section]: false };
+      }
+      return {
+        basic: false,
+        payment: false,
+        additional: false,
+        [section]: true
+      };
+    });
   };
 
   // View Modal State
@@ -87,7 +100,7 @@ function ExpensesPageContent() {
 
   useEffect(() => {
     fetchExpenses();
-    if (!isStartup) {
+    if (!isLocalMode) {
       storeOwnerAPI.getSuppliers().then(res => setSuppliers(res.data || res)).catch(console.error);
     }
   }, [isStartup]);
@@ -419,15 +432,27 @@ function ExpensesPageContent() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
             </div>
           ) : filteredExpenses.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-center p-8">
-              <div className="w-16 h-16 bg-gray-50 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4">
-                <Banknote className="w-8 h-8 text-gray-400" />
-              </div>
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">No expenses found</h3>
-              <p className="text-gray-500 dark:text-slate-400 max-w-sm">
-                You haven't recorded any expenses yet, or none match your search.
-              </p>
-            </div>
+            <TableEmptyState
+              icon={Banknote}
+              title="No expenses found"
+              description={
+                search || filterCategory !== 'all' || filterStatus !== 'all' || filterMethod !== 'all' || filterDateRange !== 'all'
+                  ? "No expenses match your current search and filter criteria. Try adjusting or clearing your filters."
+                  : "You haven't recorded any expenses yet. Record operating expenses, utilities, supplies, or rent to keep accurate financial records."
+              }
+              actionLabel={search || filterCategory !== 'all' || filterStatus !== 'all' || filterMethod !== 'all' || filterDateRange !== 'all' ? "Clear Filters" : "Record First Expense"}
+              onAction={
+                search || filterCategory !== 'all' || filterStatus !== 'all' || filterMethod !== 'all' || filterDateRange !== 'all'
+                  ? () => {
+                      setSearch('');
+                      setFilterCategory('all');
+                      setFilterStatus('all');
+                      setFilterMethod('all');
+                      setFilterDateRange('all');
+                    }
+                  : () => setIsAddOpen(true)
+              }
+            />
           ) : viewMode === 'list' ? (
             <div className="min-w-full inline-block align-middle">
               <table className="w-full text-left whitespace-nowrap min-w-[1000px]">

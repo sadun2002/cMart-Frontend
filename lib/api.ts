@@ -74,6 +74,12 @@ api.interceptors.response.use(
     if (error.response) {
       if (error.response.status === 401) {
         console.warn(`[API Auth] 401 on ${originalRequest?.url} - attempting refresh or redirect`);
+      } else if (error.response.status === 404 && originalRequest?.url?.includes('/brands')) {
+        // Suppress 404 for brands endpoint as it's not implemented on backend yet
+        return Promise.resolve({ fallbackToLocal: true });
+      } else if (error.response.status === 403 && originalRequest?.url?.includes('/sync/bulk')) {
+        // Suppress 403 for bulk sync if user doesn't have required plan
+        return Promise.resolve({ data: { success: false, message: 'Plan does not support bulk sync' } });
       } else {
         console.error(`[API Error] ${error.response.status} on ${originalRequest?.url}`, error.response.data);
       }
@@ -309,6 +315,11 @@ export const storeOwnerAPI = {
   createSupplier: (data: any) => api.post('/suppliers', data),
   updateSupplier: (id: number, data: any) => api.patch(`/suppliers/${id}`, data),
   deleteSupplier: (id: number) => api.delete(`/suppliers/${id}`),
+
+  // Cloud Reset (Calls backend endpoint directly)
+  resetCloudData: async () => {
+    return await api.post('/sync/reset-data');
+  },
 };
 
 export const employeeAPI = {

@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { 
   Users, Search, Plus, Edit, Trash2, 
   MapPin, Phone, Mail, FileText, CheckCircle, XCircle, Building2, UserCircle,
-  Filter, List, LayoutGrid, Maximize, Minimize, Package, X, Truck, Copy, Banknote, CreditCard, ChevronDown, Info
+  Filter, List, LayoutGrid, Maximize, Minimize, Package, X, Truck, Copy, Banknote, CreditCard, ChevronDown, ChevronUp, Info
 } from 'lucide-react';
 import { storeOwnerAPI } from '@/lib/api';
 import { toast } from 'sonner';
@@ -12,6 +12,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { KpiCard } from '@/components/ui/kpi-card';
 import { FilterPanel } from '@/components/ui/filter-panel';
 import { CustomSelect } from '@/components/ui/custom-select';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { MainRightPanel } from '@/components/ui/right-panel';
+import { TableEmptyState } from '@/components/ui/table-empty-state';
+import { ValidationErrorTooltip } from '@/components/ui/validation-error-tooltip';
 
 const PROVINCES = [
   'Western', 'Central', 'Southern', 'North Western', 'Sabaragamuwa', 
@@ -38,58 +42,8 @@ const CATEGORIES = [
   'Tools', 'Lighting', 'Plumbing', 'Paints', 'Textiles', 'Plastics',
   'Packaging', 'Chemicals', 'Cleaning Supplies', 'Office Supplies'
 ];
-
-function SearchableSelect({ value, onChange, options, placeholder }: { value: string, onChange: (val: string) => void, options: string[], placeholder: string }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [search, setSearch] = useState('');
-  
-  const filteredOptions = options.filter(o => o.toLowerCase().includes(search.toLowerCase()));
-
-  return (
-    <div className="relative w-full">
-      <div 
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium cursor-pointer flex justify-between items-center"
-      >
-        <span className={value ? 'text-slate-900 dark:text-white truncate mr-2' : 'text-slate-400 truncate mr-2'}>{value || placeholder}</span>
-        <ChevronDown className="w-4 h-4 text-slate-400 flex-shrink-0" />
-      </div>
       
-      {isOpen && (
-        <>
-          <div className="fixed inset-0 z-[60]" onClick={() => setIsOpen(false)} />
-          <div className="absolute z-[70] w-full mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg max-h-60 flex flex-col overflow-hidden">
-            <div className="p-2 border-b border-slate-100 dark:border-slate-700 shrink-0">
-              <input 
-                autoFocus
-                type="text" 
-                placeholder="Search..." 
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm font-medium outline-none"
-              />
-            </div>
-            <div className="overflow-y-auto p-1 flex-1">
-              {filteredOptions.length === 0 ? (
-                <div className="p-3 text-sm text-slate-400 text-center">No results found</div>
-              ) : (
-                filteredOptions.map(opt => (
-                  <div 
-                    key={opt}
-                    onClick={() => { onChange(opt); setIsOpen(false); setSearch(''); }}
-                    className="px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-blue-500/10 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg cursor-pointer transition-colors"
-                  >
-                    {opt}
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
+
 
 
 
@@ -195,9 +149,59 @@ export default function SuppliersPage() {
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   
+  const [openSections, setOpenSections] = useState({
+    basic: true,
+    location: false,
+    financial: false,
+    bank: false,
+    notes: false
+  });
+
+  const toggleSection = (section: keyof typeof openSections) => {
+    setOpenSections(prev => {
+      if (prev[section]) {
+        return { ...prev, [section]: false };
+      }
+      return {
+        basic: false,
+        location: false,
+        financial: false,
+        bank: false,
+        notes: false,
+        [section]: true
+      };
+    });
+  };
+  
   // Delete Dialog state
   const [confirmDialog, setConfirmDialog] = useState<{isOpen: boolean, id: number | null}>({isOpen: false, id: null});
   const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleClosePanel = () => {
+    setIsPanelOpen(false);
+  };
+
+  const handleDiscardChanges = () => {
+    try {
+      localStorage.removeItem('draft_supplier_form');
+    } catch (e) {}
+    resetForm();
+    setIsPanelOpen(false);
+  };
+
+  // Auto-save draft for new supplier
+  useEffect(() => {
+    if (editingSupplier || !isPanelOpen) return;
+    const hasData = Boolean(
+      formData.name || formData.contactPerson || formData.phone || formData.email ||
+      formData.address || formData.city || formData.category || formData.notes
+    );
+    if (hasData) {
+      try {
+        localStorage.setItem('draft_supplier_form', JSON.stringify(formData));
+      } catch (e) {}
+    }
+  }, [formData, editingSupplier, isPanelOpen]);
 
   useEffect(() => {
     fetchSuppliers();
@@ -215,8 +219,39 @@ export default function SuppliersPage() {
     }
   };
 
+  // Validation Error State
+  const [validationError, setValidationError] = useState<{ field: string; message: string } | null>(null);
+
+  const triggerValidation = (sectionKey: string, fieldId: string, message: string) => {
+    setValidationError({ field: fieldId, message });
+
+    const focus = () => {
+      setTimeout(() => {
+        const el = document.getElementById(fieldId);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          el.focus();
+        }
+      }, 100);
+    };
+
+    if (sectionKey && !openSections[sectionKey as keyof typeof openSections]) {
+      setOpenSections(prev => ({ ...prev, [sectionKey]: true }));
+      setTimeout(focus, 300);
+    } else {
+      focus();
+    }
+
+    setTimeout(() => setValidationError(null), 3500);
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.name.trim()) {
+      triggerValidation('basic', 'field-supplier-name', 'Supplier name is required');
+      return;
+    }
+
     try {
       setIsSubmitting(true);
       if (editingSupplier) {
@@ -227,6 +262,9 @@ export default function SuppliersPage() {
         toast.success('Supplier added successfully!');
       }
       setIsPanelOpen(false);
+      try {
+        localStorage.removeItem('draft_supplier_form');
+      } catch (e) {}
       resetForm();
       fetchSuppliers();
     } catch (err: any) {
@@ -257,14 +295,16 @@ export default function SuppliersPage() {
 
   const openAddPanel = () => {
     setEditingSupplier(null);
-    setFormData({
-      name: '', contactPerson: '', contactPersonPhone: '', phone: '', email: '', 
-      address: '', city: '', country: '', province: '',
-      category: '', brNumber: '',
-      openingBalance: '', creditLimit: '', paymentTerms: 'CASH',
-      bankName: '', accountName: '', accountNumber: '', branch: '',
-      notes: '', active: true
-    });
+    try {
+      const saved = localStorage.getItem('draft_supplier_form');
+      if (saved) {
+        setFormData(JSON.parse(saved));
+      } else {
+        resetForm();
+      }
+    } catch (e) {
+      resetForm();
+    }
     setIsPanelOpen(true);
   };
 
@@ -351,58 +391,62 @@ export default function SuppliersPage() {
   }, [suppliers]);
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900/50 p-6 overflow-hidden">
+    <div className={`flex flex-col bg-slate-50 dark:bg-slate-900/50 overflow-hidden ${isFullscreen ? 'h-full p-2 sm:p-4' : 'h-full p-6'}`}>
       
       {/* ──────────────── HEADER ──────────────── */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
-        <div>
-          <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
-            <Building2 className="w-8 h-8 text-blue-600" />
-            Supplier Management
-          </h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium">Add, update, and manage your store's suppliers efficiently.</p>
+      {!isFullscreen && (
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+          <div>
+            <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
+              <Building2 className="w-8 h-8 text-blue-600" />
+              Supplier Management
+            </h1>
+            <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium">Add, update, and manage your store's suppliers efficiently.</p>
+          </div>
+          
+          <button 
+            onClick={openAddPanel}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5 active:translate-y-0"
+          >
+            <Plus className="w-5 h-5" />
+            Add Supplier
+          </button>
         </div>
-        
-        <button 
-          onClick={openAddPanel}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5 active:translate-y-0"
-        >
-          <Plus className="w-5 h-5" />
-          Add Supplier
-        </button>
-      </div>
+      )}
 
       {/* ──────────────── KPI CARDS ──────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <KpiCard 
-          title="Total Suppliers" 
-          value={kpis.total} 
-          icon={Building2} 
-          iconColorClass="text-blue-600" 
-          iconBgClass="bg-blue-50 dark:bg-blue-500/10" 
-        />
-        <KpiCard 
-          title="Active" 
-          value={kpis.active} 
-          icon={CheckCircle} 
-          iconColorClass="text-emerald-600" 
-          iconBgClass="bg-emerald-50 dark:bg-emerald-500/10" 
-        />
-        <KpiCard 
-          title="Inactive" 
-          value={kpis.inactive} 
-          icon={XCircle} 
-          iconColorClass="text-red-600" 
-          iconBgClass="bg-red-50 dark:bg-red-500/10" 
-        />
-        <KpiCard 
-          title="New (7 Days)" 
-          value={kpis.recent} 
-          icon={Users} 
-          iconColorClass="text-purple-600" 
-          iconBgClass="bg-purple-50 dark:bg-purple-500/10" 
-        />
-      </div>
+      {!isFullscreen && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <KpiCard 
+            title="Total Suppliers" 
+            value={kpis.total} 
+            icon={Building2} 
+            iconColorClass="text-blue-600" 
+            iconBgClass="bg-blue-50 dark:bg-blue-500/10" 
+          />
+          <KpiCard 
+            title="Active" 
+            value={kpis.active} 
+            icon={CheckCircle} 
+            iconColorClass="text-emerald-600" 
+            iconBgClass="bg-emerald-50 dark:bg-emerald-500/10" 
+          />
+          <KpiCard 
+            title="Inactive" 
+            value={kpis.inactive} 
+            icon={XCircle} 
+            iconColorClass="text-red-600" 
+            iconBgClass="bg-red-50 dark:bg-red-500/10" 
+          />
+          <KpiCard 
+            title="New (7 Days)" 
+            value={kpis.recent} 
+            icon={Users} 
+            iconColorClass="text-purple-600" 
+            iconBgClass="bg-purple-50 dark:bg-purple-500/10" 
+          />
+        </div>
+      )}
 
       {/* ──────────────── SEARCH BAR & FILTERS ──────────────── */}
       <div className="flex flex-col sm:flex-row gap-4 mb-6">
@@ -419,7 +463,7 @@ export default function SuppliersPage() {
           />
         </div>
 
-        <div className="flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm h-12 p-1 overflow-hidden flex-shrink-0 sm:ml-auto">
+        <div className="flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm h-12 p-1 overflow-hidden flex-shrink-0 ml-auto">
           <button 
             onClick={() => setIsFilterOpen(true)}
             className="flex items-center justify-center px-4 h-full rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition-all gap-2 font-bold relative"
@@ -449,29 +493,33 @@ export default function SuppliersPage() {
           </button>
           <div className="w-px h-full bg-slate-200 dark:bg-slate-800 mx-1"></div>
           <button 
-            onClick={() => setIsFullscreen(true)}
+            onClick={() => setIsFullscreen(!isFullscreen)}
             title="Full Screen"
             className={`flex items-center justify-center w-12 h-full rounded-xl transition-all text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800`}
           >
-            <Maximize className="w-5 h-5" />
+            {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
           </button>
         </div>
       </div>
 
       {/* ──────────────── DATA TABLE ──────────────── */}
-      <div className={`flex-1 bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col min-h-[400px] ${isFullscreen ? 'fixed inset-y-0 right-0 left-[68px] z-[100] m-0 rounded-none border-none' : ''}`}>
-        
-        {isFullscreen && (
-          <button 
-            onClick={() => setIsFullscreen(false)} 
-            className="absolute top-4 right-4 z-[110] p-3 bg-slate-900/50 text-white rounded-full hover:bg-slate-900/80 transition-colors backdrop-blur-md shadow-lg"
-          >
-            <Minimize className="w-5 h-5" />
-          </button>
-        )}
+      <div className={`flex-1 bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col min-h-[400px] ${isFullscreen ? 'm-0 rounded-none border-none' : ''}`}>
 
         {viewingSupplier ? (
           <TransactionHistoryView supplier={viewingSupplier} onBack={() => setViewingSupplier(null)} />
+        ) : loading ? (
+          <div className="flex flex-col items-center justify-center h-64 text-slate-400 gap-4">
+            <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            <p className="font-medium">Loading suppliers...</p>
+          </div>
+        ) : filteredSuppliers.length === 0 ? (
+          <TableEmptyState
+            icon={Building2}
+            title="No suppliers found"
+            description="You haven't added any suppliers yet, or none match your search. Click below to add your first supplier."
+            actionLabel="Create First Supplier"
+            onAction={openAddPanel}
+          />
         ) : viewMode === 'list' ? (
           <div className="flex-1 overflow-x-auto">
             <div className="min-w-max h-full flex flex-col">
@@ -490,19 +538,7 @@ export default function SuppliersPage() {
 
             {/* Table Body */}
             <div className="flex-1 overflow-y-auto no-scrollbar">
-              {loading ? (
-                <div className="flex flex-col items-center justify-center h-64 text-slate-400 gap-4">
-                  <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                  <p className="font-medium">Loading suppliers...</p>
-                </div>
-              ) : filteredSuppliers.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-64 text-slate-400 gap-4">
-                  <Building2 className="w-12 h-12 opacity-20" />
-                  <p className="font-medium text-lg text-slate-500">No suppliers found.</p>
-                </div>
-              ) : (
-                <>
-                {filteredSuppliers.map((s) => (
+              {filteredSuppliers.map((s) => (
                   <div key={s.id} onClick={() => setViewingSupplier(s)} className="cursor-pointer grid grid-cols-[250px_150px_250px_200px_150px_150px_150px_100px_100px] gap-4 p-5 border-b border-slate-100 dark:border-slate-800/60 items-center hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group">
                     
                     {/* Supplier Name */}
@@ -608,26 +644,13 @@ export default function SuppliersPage() {
                     </div>
                   </div>
                 ))}
-                </>
-              )}
             </div>
           </div>
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto no-scrollbar p-6 bg-slate-50/50 dark:bg-slate-900/50">
-            {loading ? (
-              <div className="flex flex-col items-center justify-center h-64 text-slate-400 gap-4">
-                <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                <p className="font-medium">Loading suppliers...</p>
-              </div>
-            ) : filteredSuppliers.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-64 text-slate-400 gap-4">
-                <Building2 className="w-12 h-12 opacity-20" />
-                <p className="font-medium text-lg text-slate-500">No suppliers found.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
-                {filteredSuppliers.map((s) => (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
+              {filteredSuppliers.map((s) => (
                   <div key={s.id} onClick={() => setViewingSupplier(s)} className="cursor-pointer bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-sm hover:shadow-md transition-shadow group relative flex flex-col min-h-[240px]">
                     
                     <div className="flex justify-between items-start mb-4">
@@ -700,8 +723,7 @@ export default function SuppliersPage() {
                   </div>
                 ))}
               </div>
-            )}
-          </div>
+            </div>
         )}
       </div>
 
@@ -753,261 +775,320 @@ export default function SuppliersPage() {
       </FilterPanel>
 
       {/* ──────────────── SLIDE OUT PANEL FOR ADD/EDIT ──────────────── */}
-      <AnimatePresence>
-        {isPanelOpen && (
-          <>
-            <motion.div 
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => setIsPanelOpen(false)}
-              className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm"
-            />
-            <motion.div 
-              initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', bounce: 0, duration: 0.4 }}
-              className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-white dark:bg-slate-900 shadow-2xl border-l border-slate-200 dark:border-slate-800 flex flex-col"
-            >
-              <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-slate-800">
-                <h2 className="text-2xl font-black text-slate-900 dark:text-white">
-                  {editingSupplier ? 'Edit Supplier' : 'Add New Supplier'}
-                </h2>
-                <button onClick={() => setIsPanelOpen(false)} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-6">
-                <form id="supplierForm" onSubmit={handleSave} className="font-sans space-y-6">
+      <MainRightPanel
+        isOpen={isPanelOpen}
+        onClose={handleClosePanel}
+        onDiscard={handleDiscardChanges}
+        title={editingSupplier ? 'Edit Supplier' : 'Add New Supplier'}
+        subtitle={editingSupplier ? 'Update supplier profile and terms' : 'Register a new vendor contact'}
+        icon={Truck}
+        formId="supplierForm"
+        isSubmitting={isSubmitting}
+        saveText={editingSupplier ? 'Save Changes' : 'Save Supplier'}
+      >
+        <form id="supplierForm" onSubmit={handleSave} className="font-sans space-y-4">
                   
-                  {/* Basic Info */}
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                      <FileText className="w-4 h-4" /> Basic Details
-                    </h3>
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="col-span-2">
-                          <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Supplier Name *</label>
-                          <input required type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none" placeholder="e.g. Acme Corporation" />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Category</label>
-                          <SearchableSelect 
-                            value={formData.category} 
-                            onChange={v => setFormData({...formData, category: v})} 
-                            options={CATEGORIES} 
-                            placeholder="e.g. Electronics" 
-                          />
-                        </div>
-                        <div>
-                          <label className="flex items-center gap-2 text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                            BR Number
-                            <div className="relative group flex items-center">
-                              <Info className="w-4 h-4 text-slate-400 cursor-help" />
-                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
-                                Business Registration
+                  {/* 1. Basic Details */}
+                  <div className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl overflow-hidden">
+                    <button 
+                      type="button" 
+                      onClick={() => toggleSection("basic")}
+                      className={`w-full px-4 py-3 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors outline-none cursor-pointer ${openSections.basic ? "rounded-t-xl" : "rounded-xl"}`}
+                    >
+                      <span className="font-bold text-slate-900 dark:text-white flex items-center gap-2 text-sm">
+                        <FileText className="w-4 h-4 text-blue-600" />
+                        Basic Details
+                      </span>
+                      {openSections.basic ? <ChevronUp className="w-5 h-5 text-slate-500" /> : <ChevronDown className="w-5 h-5 text-slate-500" />}
+                    </button>
+                    <AnimatePresence>
+                      {openSections.basic && (
+                        <motion.div 
+                          initial={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                          animate={{ height: 'auto', opacity: 1, transitionEnd: { overflow: 'visible' } }}
+                          exit={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                        >
+                          <div className="p-4 space-y-4 border-t border-slate-300 dark:border-slate-700">
+                            <div className="space-y-2">
+                              <label className="block text-sm font-bold text-slate-700 dark:text-slate-300">
+                                Supplier Name <span className="text-red-500">*</span>
+                              </label>
+                              <div className="relative">
+                                <input 
+                                  id="field-supplier-name"
+                                  type="text" 
+                                  value={formData.name} 
+                                  onChange={e => {
+                                    if (validationError?.field === 'field-supplier-name') setValidationError(null);
+                                    setFormData({...formData, name: e.target.value});
+                                  }} 
+                                  className="w-full px-4 h-11 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl font-medium text-sm text-slate-900 dark:text-white transition-all outline-none" 
+                                  placeholder="e.g. Acme Corporation" 
+                                />
+                                <ValidationErrorTooltip error={validationError} fieldId="field-supplier-name" />
                               </div>
                             </div>
-                          </label>
-                          <input type="text" value={formData.brNumber} onChange={e => setFormData({...formData, brNumber: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none" placeholder="e.g. PV012345" />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Supplier Phone Number</label>
-                          <input type="text" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none" placeholder="e.g. 011 234 5678" />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Email Address</label>
-                          <input type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none" placeholder="e.g. contact@acme.com" />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Contact Person</label>
-                          <input type="text" value={formData.contactPerson} onChange={e => setFormData({...formData, contactPerson: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none" placeholder="e.g. John Smith" />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Contact Person Phone</label>
-                          <input type="text" value={formData.contactPersonPhone} onChange={e => setFormData({...formData, contactPersonPhone: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none" placeholder="e.g. 077 123 4567" />
-                        </div>
-                      </div>
-                    </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300">Category</label>
+                                <CustomSelect 
+                                  value={formData.category} 
+                                  onChange={v => setFormData({...formData, category: v})} 
+                                  options={CATEGORIES.map(c => ({ value: c, label: c }))} 
+                                  label="Select Category" 
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <label className="flex items-center gap-2 text-sm font-bold text-slate-700 dark:text-slate-300">
+                                  BR Number
+                                  <div className="relative group flex items-center">
+                                    <Info className="w-4 h-4 text-slate-400 cursor-help" />
+                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
+                                      Business Registration
+                                    </div>
+                                  </div>
+                                </label>
+                                <input type="text" value={formData.brNumber} onChange={e => setFormData({...formData, brNumber: e.target.value})} className="w-full px-4 h-11 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl font-medium text-sm text-slate-900 dark:text-white transition-all outline-none" placeholder="e.g. PV012345" />
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300">Supplier Phone</label>
+                                <input type="text" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} className="w-full px-4 h-11 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl font-medium text-sm text-slate-900 dark:text-white transition-all outline-none" placeholder="e.g. 011 234 5678" />
+                              </div>
+                              <div className="space-y-2">
+                                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300">Email Address</label>
+                                <input type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full px-4 h-11 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl font-medium text-sm text-slate-900 dark:text-white transition-all outline-none" placeholder="e.g. contact@acme.com" />
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300">Contact Person</label>
+                                <input type="text" value={formData.contactPerson} onChange={e => setFormData({...formData, contactPerson: e.target.value})} className="w-full px-4 h-11 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl font-medium text-sm text-slate-900 dark:text-white transition-all outline-none" placeholder="e.g. John Smith" />
+                              </div>
+                              <div className="space-y-2">
+                                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300">Contact Person Phone</label>
+                                <input type="text" value={formData.contactPersonPhone} onChange={e => setFormData({...formData, contactPersonPhone: e.target.value})} className="w-full px-4 h-11 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl font-medium text-sm text-slate-900 dark:text-white transition-all outline-none" placeholder="e.g. 077 123 4567" />
+                              </div>
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
 
-                  <div className="h-px bg-slate-100 dark:bg-slate-800" />
-
-                  {/* Location Info */}
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                      <MapPin className="w-4 h-4" /> Location
-                    </h3>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Address</label>
-                        <textarea value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none resize-none" rows={2} placeholder="Street address" />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Province</label>
-                          <SearchableSelect 
-                            value={formData.province} 
-                            onChange={v => setFormData({...formData, province: v, city: ''})} 
-                            options={PROVINCES} 
-                            placeholder="Select Province" 
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">City</label>
-                          <SearchableSelect 
-                            value={formData.city} 
-                            onChange={v => setFormData({...formData, city: v})} 
-                            options={formData.province ? CITIES_BY_PROVINCE[formData.province] || [] : Object.values(CITIES_BY_PROVINCE).flat()} 
-                            placeholder="Select City" 
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Country</label>
-                        <input readOnly type="text" value={formData.country} className="w-full bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium text-slate-500 outline-none cursor-not-allowed" placeholder="e.g. Sri Lanka" />
-                      </div>
-                    </div>
+                  {/* 2. Location Information */}
+                  <div className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl overflow-hidden">
+                    <button 
+                      type="button" 
+                      onClick={() => toggleSection("location")}
+                      className={`w-full px-4 py-3 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors outline-none cursor-pointer ${openSections.location ? "rounded-t-xl" : "rounded-xl"}`}
+                    >
+                      <span className="font-bold text-slate-900 dark:text-white flex items-center gap-2 text-sm">
+                        <MapPin className="w-4 h-4 text-blue-600" />
+                        Location Information
+                      </span>
+                      {openSections.location ? <ChevronUp className="w-5 h-5 text-slate-500" /> : <ChevronDown className="w-5 h-5 text-slate-500" />}
+                    </button>
+                    <AnimatePresence>
+                      {openSections.location && (
+                        <motion.div 
+                          initial={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                          animate={{ height: 'auto', opacity: 1, transitionEnd: { overflow: 'visible' } }}
+                          exit={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                        >
+                          <div className="p-4 space-y-4 border-t border-slate-300 dark:border-slate-700">
+                            <div className="space-y-2">
+                              <label className="block text-sm font-bold text-slate-700 dark:text-slate-300">Address</label>
+                              <textarea value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} className="w-full p-4 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl font-medium text-sm text-slate-900 dark:text-white transition-all outline-none resize-none" rows={2} placeholder="Street address" />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300">Province</label>
+                                <CustomSelect 
+                                  value={formData.province} 
+                                  onChange={v => setFormData({...formData, province: v, city: ''})} 
+                                  options={PROVINCES.map(p => ({ value: p, label: p }))} 
+                                  label="Select Province" 
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300">City</label>
+                                <CustomSelect 
+                                  value={formData.city} 
+                                  onChange={v => setFormData({...formData, city: v})} 
+                                  options={(formData.province ? CITIES_BY_PROVINCE[formData.province] || [] : Object.values(CITIES_BY_PROVINCE).flat()).map(c => ({ value: c, label: c }))} 
+                                  label="Select City" 
+                                />
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <label className="block text-sm font-bold text-slate-700 dark:text-slate-300">Country</label>
+                              <input readOnly type="text" value={formData.country} className="w-full px-4 h-11 bg-slate-100 dark:bg-slate-800/50 border border-slate-300 dark:border-slate-700 rounded-xl font-medium text-sm text-slate-500 outline-none cursor-not-allowed" placeholder="e.g. Sri Lanka" />
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
 
-                  <div className="h-px bg-slate-100 dark:bg-slate-800" />
-
-                  {/* Financial Info */}
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                      <Banknote className="w-4 h-4" /> Financial Info
-                    </h3>
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Opening Balance</label>
-                          <input type="number" value={formData.openingBalance} onChange={e => setFormData({...formData, openingBalance: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none" placeholder="Default 0.00" />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Credit Limit</label>
-                          <input type="number" value={formData.creditLimit} onChange={e => setFormData({...formData, creditLimit: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none" placeholder="0.00" />
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Payment Terms</label>
-                        <CustomSelect 
-                          value={formData.paymentTerms} 
-                          onChange={v => setFormData({...formData, paymentTerms: v})} 
-                          options={[
-                            { value: 'CASH', label: 'Cash (Immediate)' },
-                            { value: '7_DAYS', label: '7 Days' },
-                            { value: '15_DAYS', label: '15 Days' },
-                            { value: '30_DAYS', label: '30 Days' },
-                            { value: '60_DAYS', label: '60 Days' },
-                            { value: 'AFTER_SELL', label: 'After Sell' }
-                          ]} 
-                          label="Select Terms" 
-                        />
-                      </div>
-                    </div>
+                  {/* 3. Financial Settings */}
+                  <div className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl overflow-hidden">
+                    <button 
+                      type="button" 
+                      onClick={() => toggleSection("financial")}
+                      className={`w-full px-4 py-3 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors outline-none cursor-pointer ${openSections.financial ? "rounded-t-xl" : "rounded-xl"}`}
+                    >
+                      <span className="font-bold text-slate-900 dark:text-white flex items-center gap-2 text-sm">
+                        <Banknote className="w-4 h-4 text-blue-600" />
+                        Financial Settings
+                      </span>
+                      {openSections.financial ? <ChevronUp className="w-5 h-5 text-slate-500" /> : <ChevronDown className="w-5 h-5 text-slate-500" />}
+                    </button>
+                    <AnimatePresence>
+                      {openSections.financial && (
+                        <motion.div 
+                          initial={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                          animate={{ height: 'auto', opacity: 1, transitionEnd: { overflow: 'visible' } }}
+                          exit={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                        >
+                          <div className="p-4 space-y-4 border-t border-slate-300 dark:border-slate-700">
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300">Opening Balance</label>
+                                <input type="number" value={formData.openingBalance} onChange={e => setFormData({...formData, openingBalance: e.target.value})} className="w-full px-4 h-11 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl font-medium text-sm text-slate-900 dark:text-white transition-all outline-none" placeholder="Default 0.00" />
+                              </div>
+                              <div className="space-y-2">
+                                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300">Credit Limit</label>
+                                <input type="number" value={formData.creditLimit} onChange={e => setFormData({...formData, creditLimit: e.target.value})} className="w-full px-4 h-11 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl font-medium text-sm text-slate-900 dark:text-white transition-all outline-none" placeholder="0.00" />
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <label className="block text-sm font-bold text-slate-700 dark:text-slate-300">Payment Terms</label>
+                              <CustomSelect 
+                                value={formData.paymentTerms} 
+                                onChange={v => setFormData({...formData, paymentTerms: v})} 
+                                options={[
+                                  { value: 'CASH', label: 'Cash (Immediate)' },
+                                  { value: '7_DAYS', label: '7 Days' },
+                                  { value: '15_DAYS', label: '15 Days' },
+                                  { value: '30_DAYS', label: '30 Days' },
+                                  { value: '60_DAYS', label: '60 Days' },
+                                  { value: 'AFTER_SELL', label: 'After Sell' }
+                                ]} 
+                                label="Select Terms" 
+                              />
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
 
-                  <div className="h-px bg-slate-100 dark:bg-slate-800" />
-
-                  {/* Bank Details */}
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                      <Building2 className="w-4 h-4" /> Bank Details
-                    </h3>
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="col-span-2">
-                          <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Bank Name</label>
-                          <input type="text" value={formData.bankName} onChange={e => setFormData({...formData, bankName: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none" placeholder="e.g. Commercial Bank" />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Account Name</label>
-                          <input type="text" value={formData.accountName} onChange={e => setFormData({...formData, accountName: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none" placeholder="e.g. John Smith" />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Account Number</label>
-                          <input type="text" value={formData.accountNumber} onChange={e => setFormData({...formData, accountNumber: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none" placeholder="e.g. 1234567890" />
-                        </div>
-                        <div className="col-span-2">
-                          <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Branch</label>
-                          <input type="text" value={formData.branch} onChange={e => setFormData({...formData, branch: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none" placeholder="e.g. Colombo 03" />
-                        </div>
-                      </div>
-                    </div>
+                  {/* 4. Bank & Settlement Details */}
+                  <div className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl overflow-hidden">
+                    <button 
+                      type="button" 
+                      onClick={() => toggleSection("bank")}
+                      className={`w-full px-4 py-3 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors outline-none cursor-pointer ${openSections.bank ? "rounded-t-xl" : "rounded-xl"}`}
+                    >
+                      <span className="font-bold text-slate-900 dark:text-white flex items-center gap-2 text-sm">
+                        <Building2 className="w-4 h-4 text-blue-600" />
+                        Bank & Settlement Details
+                      </span>
+                      {openSections.bank ? <ChevronUp className="w-5 h-5 text-slate-500" /> : <ChevronDown className="w-5 h-5 text-slate-500" />}
+                    </button>
+                    <AnimatePresence>
+                      {openSections.bank && (
+                        <motion.div 
+                          initial={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                          animate={{ height: 'auto', opacity: 1, transitionEnd: { overflow: 'visible' } }}
+                          exit={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                        >
+                          <div className="p-4 space-y-4 border-t border-slate-300 dark:border-slate-700">
+                            <div className="space-y-2">
+                              <label className="block text-sm font-bold text-slate-700 dark:text-slate-300">Bank Name</label>
+                              <input type="text" value={formData.bankName} onChange={e => setFormData({...formData, bankName: e.target.value})} className="w-full px-4 h-11 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl font-medium text-sm text-slate-900 dark:text-white transition-all outline-none" placeholder="e.g. Commercial Bank" />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300">Account Name</label>
+                                <input type="text" value={formData.accountName} onChange={e => setFormData({...formData, accountName: e.target.value})} className="w-full px-4 h-11 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl font-medium text-sm text-slate-900 dark:text-white transition-all outline-none" placeholder="e.g. John Smith" />
+                              </div>
+                              <div className="space-y-2">
+                                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300">Account Number</label>
+                                <input type="text" value={formData.accountNumber} onChange={e => setFormData({...formData, accountNumber: e.target.value})} className="w-full px-4 h-11 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl font-medium text-sm text-slate-900 dark:text-white transition-all outline-none" placeholder="e.g. 1234567890" />
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <label className="block text-sm font-bold text-slate-700 dark:text-slate-300">Branch</label>
+                              <input type="text" value={formData.branch} onChange={e => setFormData({...formData, branch: e.target.value})} className="w-full px-4 h-11 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl font-medium text-sm text-slate-900 dark:text-white transition-all outline-none" placeholder="e.g. Colombo 03" />
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
 
-                  <div className="h-px bg-slate-100 dark:bg-slate-800" />
-
-                  {/* Other Info */}
-                  <div className="space-y-4">
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Notes / Remarks</label>
-                        <textarea value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none resize-none" rows={3} placeholder="Any additional details..." />
-                      </div>
-                      <label className="flex items-center gap-3 p-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl cursor-pointer">
-                        <input type="checkbox" checked={formData.active} onChange={e => setFormData({...formData, active: e.target.checked})} className="w-5 h-5 text-blue-600 border-slate-300 rounded focus:ring-blue-500" />
-                        <div>
-                          <span className="block text-sm font-bold text-slate-900 dark:text-white">Active Supplier</span>
-                          <span className="block text-xs font-medium text-slate-500">Toggle whether this supplier is currently active.</span>
-                        </div>
-                      </label>
-                    </div>
+                  {/* 5. Internal Notes & Status */}
+                  <div className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl overflow-hidden">
+                    <button 
+                      type="button" 
+                      onClick={() => toggleSection("notes")}
+                      className={`w-full px-4 py-3 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors outline-none cursor-pointer ${openSections.notes ? "rounded-t-xl" : "rounded-xl"}`}
+                    >
+                      <span className="font-bold text-slate-900 dark:text-white flex items-center gap-2 text-sm">
+                        <Info className="w-4 h-4 text-blue-600" />
+                        Internal Notes & Status
+                      </span>
+                      {openSections.notes ? <ChevronUp className="w-5 h-5 text-slate-500" /> : <ChevronDown className="w-5 h-5 text-slate-500" />}
+                    </button>
+                    <AnimatePresence>
+                      {openSections.notes && (
+                        <motion.div 
+                          initial={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                          animate={{ height: 'auto', opacity: 1, transitionEnd: { overflow: 'visible' } }}
+                          exit={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                        >
+                          <div className="p-4 space-y-4 border-t border-slate-300 dark:border-slate-700">
+                            <div className="space-y-2">
+                              <label className="block text-sm font-bold text-slate-700 dark:text-slate-300">Notes / Remarks</label>
+                              <textarea value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} className="w-full p-4 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl font-medium text-sm text-slate-900 dark:text-white transition-all outline-none resize-none" rows={3} placeholder="Any additional details..." />
+                            </div>
+                            <label className="flex justify-between items-center cursor-pointer p-4 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                              <div>
+                                <span className="block text-sm font-bold text-slate-900 dark:text-white">Active Supplier</span>
+                                <span className="block text-xs font-medium text-slate-500 mt-0.5">Toggle whether this supplier is currently active.</span>
+                              </div>
+                              <div className={`w-10 h-5 rounded-full relative transition-colors shrink-0 ml-4 ${formData.active ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-600'}`}>
+                                <div className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${formData.active ? 'translate-x-5' : 'translate-x-0'}`} />
+                              </div>
+                              <input type="checkbox" className="hidden" checked={formData.active} onChange={e => setFormData({...formData, active: e.target.checked})} />
+                            </label>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
 
-                </form>
-              </div>
-
-              <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
-                <div className="flex gap-3">
-                  <button 
-                    type="button"
-                    onClick={() => setIsAddOpen(false)}
-                    className="flex-1 px-4 py-3 rounded-xl font-bold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button 
-                    type="submit" 
-                    form="supplierForm" 
-                    disabled={isSubmitting} 
-                    className="flex-[2] flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-70 transition-colors shadow-lg shadow-blue-500/20"
-                  >
-                    {isSubmitting ? (
-                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    ) : (
-                      <>
-                        <Truck className="w-5 h-5" />
-                        {editingSupplier ? 'Save Changes' : 'Save Supplier'}
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+        </form>
+      </MainRightPanel>
 
       {/* ──────────────── DELETE CONFIRMATION ──────────────── */}
-      {confirmDialog.isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-          <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 max-w-sm w-full">
-            <h3 className="text-xl font-black text-slate-900 dark:text-white mb-2">Delete Supplier?</h3>
-            <p className="text-sm font-medium text-slate-500 mb-6">This action cannot be undone. Are you sure you want to proceed?</p>
-            <div className="flex gap-3">
-              <button onClick={() => setConfirmDialog({isOpen: false, id: null})} className="flex-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold py-2.5 rounded-xl transition-colors">
-                Cancel
-              </button>
-              <button onClick={executeDelete} disabled={isDeleting} className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 rounded-xl shadow-lg shadow-red-600/20 transition-all disabled:opacity-50">
-                {isDeleting ? 'Deleting...' : 'Yes, Delete'}
-              </button>
-            </div>
-          </motion.div>
-        </div>
-      )}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title="Delete Supplier?"
+        message="Are you sure you want to permanently delete this supplier? This action cannot be undone."
+        confirmText="Delete Supplier"
+        cancelText="Cancel"
+        onConfirm={executeDelete}
+        onCancel={() => setConfirmDialog({ isOpen: false, id: null })}
+        isLoading={isDeleting}
+      />
+
     </div>
   );
 }

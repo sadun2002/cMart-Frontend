@@ -67,7 +67,8 @@ export function DesktopUpdater() {
       setIsUpdateOpen(true);
     } catch (error: any) {
       console.warn('[Updater] Update check failed:', error);
-      toast.error('Updater Error: ' + (error?.message || String(error)), { duration: 10000 });
+      // Suppress toast errors for background checks, especially network/offline errors
+      // toast.error('Updater Error: ' + (error?.message || String(error)), { duration: 10000 });
     }
   }, []);
 

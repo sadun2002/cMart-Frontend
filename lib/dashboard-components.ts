@@ -72,6 +72,12 @@ export type DashboardComponentId =
   | 'calendar-upcoming-events'
   | 'calendar-delivery-schedule'
   | 'calendar-restock-schedule'
+  | 'progress-sales-revenue'
+  | 'progress-sales-products'
+  | 'progress-customers'
+  | 'progress-suppliers'
+  | 'progress-expenses'
+  | 'progress-employees'
   | 'progress-monthly-sales-goal'
   | 'progress-daily-sales-goal'
   | 'progress-quarterly-target'
@@ -189,7 +195,7 @@ export const CATEGORY_LIMITS: Record<string, number> = {
   alerts: 1,
   tables: 1,
   calendar: 1,
-  progress: 1,
+  progress: 6,
   activity: 1,
   quickActions: 1,
   comparison: 1,
@@ -205,6 +211,25 @@ export const CATEGORY_LIMITS: Record<string, number> = {
   promo: 1,
   misc: 1,
 };
+
+export function getCategoryLimit(category: string, plan?: string): number {
+  if (category === 'progress') {
+    const p = (plan || '').toUpperCase();
+    if (p === 'PRO' || p === 'ENTERPRISE') return 6;
+    return 1;
+  }
+  return CATEGORY_LIMITS[category] ?? 3;
+}
+
+export function getGoalCategoryFromComponentId(id: string): string | null {
+  if (id === 'progress-sales-revenue' || id === 'progress-monthly-sales-goal') return 'sales_revenue';
+  if (id === 'progress-sales-products' || id === 'progress-product-target') return 'sales_products';
+  if (id === 'progress-customers' || id === 'progress-customer-acquisition') return 'customers';
+  if (id === 'progress-suppliers') return 'suppliers';
+  if (id === 'progress-expenses') return 'expenses';
+  if (id === 'progress-employees' || id === 'progress-employee-performance') return 'employees';
+  return null;
+}
 
 export const componentCategories = [
   { key: 'kpi', label: 'KPI Cards (Metric Cards)', icon: 'LayoutDashboard', color: 'blue', bgClass: 'bg-blue-100 dark:bg-blue-900/30', textClass: 'text-blue-600 dark:text-blue-400' },
@@ -314,16 +339,13 @@ export const dashboardComponents: DashboardComponent[] = [
   { id: 'calendar-delivery-schedule', label: 'Delivery Schedule', description: 'Online order delivery timeline', category: 'calendar', icon: 'Truck', default: false, size: 'medium' },
   { id: 'calendar-restock-schedule', label: 'Restock Schedule', description: 'Planned inventory replenishment', category: 'calendar', icon: 'RotateCcw', default: false, size: 'medium' },
 
-  // Progress / Goals
-  { id: 'progress-monthly-sales-goal', label: 'Monthly Sales Goal', description: 'Progress toward monthly revenue target', category: 'progress', icon: 'Target', default: true, size: 'large' },
-  { id: 'progress-daily-sales-goal', label: 'Daily Sales Goal', description: 'Progress toward daily revenue target', category: 'progress', icon: 'Target', default: false, size: 'medium' },
-  { id: 'progress-quarterly-target', label: 'Quarterly Target', description: 'Quarterly revenue progress', category: 'progress', icon: 'Target', default: false, size: 'medium' },
-  { id: 'progress-annual-goal', label: 'Annual Goal', description: 'Yearly revenue progress', category: 'progress', icon: 'Target', default: false, size: 'medium' },
-  { id: 'progress-product-target', label: 'Product Sales Target', description: 'Per-product sales goals', category: 'progress', icon: 'Target', default: false, size: 'medium' },
-  { id: 'progress-customer-acquisition', label: 'Customer Acquisition Goal', description: 'New customer target progress', category: 'progress', icon: 'Target', default: false, size: 'medium' },
-  { id: 'progress-online-traffic', label: 'Online Traffic Goal', description: 'Website visitor target', category: 'progress', icon: 'Target', default: false, size: 'medium' },
-  { id: 'progress-employee-performance', label: 'Employee Performance Goals', description: 'Individual employee targets', category: 'progress', icon: 'Target', default: false, size: 'medium' },
-  { id: 'progress-inventory-turnover', label: 'Inventory Turnover Goal', description: 'Stock rotation target', category: 'progress', icon: 'Target', default: false, size: 'medium' },
+  // Progress / Goals (6 Goal Categories)
+  { id: 'progress-sales-revenue', label: 'Sales Revenue Goal', description: 'Track revenue progress against sales targets', category: 'progress', icon: 'DollarSign', default: true, size: 'large' },
+  { id: 'progress-sales-products', label: 'Product Sales Quantity Goal', description: 'Track product units sold against target', category: 'progress', icon: 'Package', default: false, size: 'large' },
+  { id: 'progress-customers', label: 'Customer Acquisition Goal', description: 'Track new customer registrations and client growth', category: 'progress', icon: 'Users', default: false, size: 'large' },
+  { id: 'progress-suppliers', label: 'Supplier Acquisition Goal', description: 'Track vendor partnerships and supplier onboarding', category: 'progress', icon: 'Truck', default: false, size: 'large' },
+  { id: 'progress-expenses', label: 'Expense Budget Goal', description: 'Track store operational expenses within budget limit', category: 'progress', icon: 'Receipt', default: false, size: 'large' },
+  { id: 'progress-employees', label: 'Staff Hiring Goal', description: 'Track team growth and employee recruitment targets', category: 'progress', icon: 'UserCheck', default: false, size: 'large' },
 
   // Activity / Feed
   { id: 'activity-recent-feed', label: 'Recent Activity Feed', description: 'Timeline of recent system events', category: 'activity', icon: 'Activity', default: true, size: 'large' },
@@ -460,6 +482,11 @@ export function isComponentLockedForStartup(id: DashboardComponentId): boolean {
   const c = getComponentById(id);
   if (!c) return false;
   
+  // Progress widgets are gated by category limits (1 for Startup, 6 for Pro/Enterprise) and active goal creation
+  if (id.startsWith('progress-')) {
+    return false;
+  }
+
   // Entire categories locked
   if (['hr', 'online', 'device', 'customer', 'map'].includes(c.category)) {
     return true;
@@ -521,7 +548,7 @@ export const STARTUP_DEFAULT_COMPONENTS: DashboardComponentId[] = [
   'alert-low-stock',
   'table-recent-sales',
   'calendar-mini',
-  'progress-monthly-sales-goal',
+  'progress-sales-revenue',
   'activity-recent-feed',
   'quick-actions',
   'comparison-week-vs-last-week',

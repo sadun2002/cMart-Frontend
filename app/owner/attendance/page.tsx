@@ -8,6 +8,7 @@ import {
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { KpiCard } from '@/components/ui/kpi-card';
+import { TableEmptyState } from '@/components/ui/table-empty-state';
 
 // Dummy data for initial employees and punches
 const DUMMY_EMPLOYEES = [
@@ -111,7 +112,7 @@ export default function AttendancePage() {
   const dateString = time.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
   return (
-    <div ref={containerRef} className="flex flex-col h-full bg-[#F4F7F6] dark:bg-slate-900 p-6 overflow-hidden relative">
+    <div ref={containerRef} className="flex flex-col bg-slate-50 dark:bg-slate-900/50 p-6 overflow-hidden relative h-full">
       
       {/* ──────────────── KIOSK MODE OVERLAY ──────────────── */}
       <AnimatePresence>
@@ -273,15 +274,13 @@ export default function AttendancePage() {
             
             <div className="flex-1 overflow-auto">
               {punches.length === 0 ? (
-                <div className="font-sans h-full flex flex-col items-center justify-center text-center p-8">
-                  <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4">
-                    <History className="w-8 h-8 text-slate-400" />
-                  </div>
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">No punches yet</h3>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm">
-                    Employees haven't checked in or out today.
-                  </p>
-                </div>
+                <TableEmptyState
+                  icon={Fingerprint}
+                  title="No attendance records today"
+                  description="Employees haven't checked in or out yet today. Check-ins made via terminal, kiosk, or biometric punch will appear here in real time."
+                  actionLabel="Simulate Check-In"
+                  onAction={simulatePunch}
+                />
               ) : (
                 <table className="w-full text-left border-collapse">
                   <thead className="bg-slate-50 dark:bg-slate-900/50 sticky top-0 z-10 backdrop-blur-sm">

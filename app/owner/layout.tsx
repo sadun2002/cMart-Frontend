@@ -5,13 +5,18 @@ import OwnerSidebar from '@/components/layout/OwnerSidebar';
 import OwnerTopbar from '@/components/layout/OwnerTopbar';
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 import { useAuthStore } from '@/lib/auth-store';
+import { getSubscriptionStatus } from '@/lib/subscription-utils';
 import { useRouter } from 'next/navigation';
+import { AlertTriangle, ArrowRight } from 'lucide-react';
+import Link from 'next/link';
 
 export default function OwnerLayout({ children }: { children: React.ReactNode }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { user, isLoading } = useAuthStore();
   const router = useRouter();
+
+  const subStatus = getSubscriptionStatus(user);
 
   useEffect(() => {
     if (!isLoading) {
@@ -79,6 +84,22 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
       
       <div className="flex-1 flex flex-col overflow-hidden">
         <OwnerTopbar onMobileMenuToggle={() => setMobileMenuOpen(true)} />
+        {subStatus.isExpired && (
+          <div className="bg-gradient-to-r from-red-600 via-rose-600 to-red-700 text-white px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 shadow-md z-30 relative shrink-0">
+            <div className="flex items-center gap-2.5">
+              <AlertTriangle className="w-4 h-4 shrink-0 text-white animate-pulse" />
+              <span className="text-xs sm:text-sm font-bold">
+                Subscription Expired: Your POS package has ended{subStatus.formattedEndDate ? ` on ${subStatus.formattedEndDate}` : ''}. Renew your subscription to maintain full operational access and cloud sync.
+              </span>
+            </div>
+            <Link 
+              href="/owner/subscription" 
+              className="px-3.5 py-1.5 bg-white text-red-700 hover:bg-red-50 text-xs font-black rounded-lg transition-all flex items-center gap-1 shadow-sm whitespace-nowrap hover:scale-105"
+            >
+              Renew Package <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        )}
         <main className="flex-1 overflow-auto relative z-10 flex flex-col min-h-0 pb-16 md:pb-0">
           <div className="fixed inset-0 pointer-events-none z-0">
             <div className="absolute top-20 right-0 w-72 h-72 bg-blue-500/5 rounded-full blur-[100px]" />

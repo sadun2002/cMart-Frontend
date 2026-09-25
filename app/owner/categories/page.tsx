@@ -1,15 +1,21 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, Search, Trash2, FolderTree, Edit, X, Image as ImageIcon, ChevronRight, ChevronDown, List, LayoutGrid, Package, Maximize, Minimize } from 'lucide-react';
+import { Plus, Search, Trash2, FolderTree, Edit, X, Image as ImageIcon, ChevronRight, ChevronDown, ChevronUp, List, LayoutGrid, Package, Maximize, Minimize, Layers, Info } from 'lucide-react';
 import { storeOwnerAPI } from '@/lib/api';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { CustomSelect } from '@/components/ui/custom-select';
+import { TableEmptyState } from '@/components/ui/table-empty-state';
+import { MainRightPanel } from '@/components/ui/right-panel';
+import { ValidationErrorTooltip } from '@/components/ui/validation-error-tooltip';
 import { useAuthStore } from '@/lib/auth-store';
-import { saveCategoryLocally, markCategorySynced, getLocalCategories } from '@/lib/local-services';
+import { saveCategoryLocally, markCategorySynced, getLocalCategories, deleteCategoryLocally } from '@/lib/local-services';
+import { isTauriEnv } from '@/lib/local-db';
 
 // --- Recursive Category Row Component ---
 const CategoryRow = ({ category, level = 0, onEdit, onDelete, defaultExpanded = false }: any) => {
@@ -83,7 +89,7 @@ const CategoryRow = ({ category, level = 0, onEdit, onDelete, defaultExpanded = 
   );
 };
 
-export default function CategoriesPage() {
+function CategoriesPageContent() {
   const [categories, setCategories] = useState<any[]>([]);
   const [flatCategories, setFlatCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -96,6 +102,10 @@ export default function CategoriesPage() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<{isOpen: boolean, id: number | null}>({isOpen: false, id: null});
   const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleClosePanel = () => {
+    setIsPanelOpen(false);
+  };
 
   // Form State
   const [formData, setFormData] = useState({ 
@@ -110,21 +120,46 @@ export default function CategoriesPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
 
+  const [openSections, setOpenSections] = useState({
+    basic: true,
+    hierarchy: false
+  });
+
+  const toggleSection = (section: keyof typeof openSections) => {
+    setOpenSections(prev => {
+      if (prev[section]) {
+        return { ...prev, [section]: false };
+      }
+      return {
+        basic: false,
+        hierarchy: false,
+        [section]: true
+      };
+    });
+  };
+
   useEffect(() => {
     fetchData();
   }, []);
+
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get('action') === 'add' || searchParams.get('action') === 'add-sub') {
+      setIsPanelOpen(true);
+    }
+  }, [searchParams]);
 
   const fetchData = async () => {
     try {
       setLoading(true);
       const user = useAuthStore.getState().user;
-      const isStartup = user?.tenant?.plan === 'STARTUP';
+      const isLocalMode = isTauriEnv() || user?.tenant?.plan === 'STARTUP';
       
       let treeData = [];
       let flatData = [];
 
       try {
-        if (isStartup) {
+        if (isLocalMode) {
           treeData = await getLocalCategories(user?.tenantId || null);
           flatData = await getLocalCategories(user?.tenantId || null); // Flat could just be a flat map, but local returns tree. We can flatten it.
           
@@ -169,22 +204,36 @@ export default function CategoriesPage() {
     }
   };
 
-  const focusField = (id: string) => {
-    setTimeout(() => {
-      const el = document.getElementById(id);
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        el.focus();
-        if (el.tagName === 'BUTTON') el.click();
-      }
-    }, 100);
+  // Validation Error State
+  const [validationError, setValidationError] = useState<{ field: string; message: string } | null>(null);
+
+  const triggerValidation = (sectionKey: string, fieldId: string, message: string) => {
+    setValidationError({ field: fieldId, message });
+
+    const focus = () => {
+      setTimeout(() => {
+        const el = document.getElementById(fieldId);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          el.focus();
+        }
+      }, 100);
+    };
+
+    if (sectionKey && !openSections[sectionKey as keyof typeof openSections]) {
+      setOpenSections(prev => ({ ...prev, [sectionKey]: true }));
+      setTimeout(focus, 300);
+    } else {
+      focus();
+    }
+
+    setTimeout(() => setValidationError(null), 3500);
   };
 
   const handleSaveCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim()) {
-      toast.error('Category Name is required');
-      focusField('field-category-name');
+      triggerValidation('basic', 'field-category-name', 'Category name is required');
       return;
     }
 
@@ -208,7 +257,7 @@ export default function CategoriesPage() {
       } else {
         const user = useAuthStore.getState().user;
         const tenantId = user?.tenantId || null;
-        const isStartup = user?.tenant?.plan === 'STARTUP';
+        const isLocalMode = isTauriEnv() || user?.tenant?.plan === 'STARTUP';
 
         const localData = {
           name: formData.name,
@@ -219,7 +268,7 @@ export default function CategoriesPage() {
 
         const localRecord = await saveCategoryLocally(localData, tenantId);
 
-        if (!isStartup) {
+        if (!isLocalMode) {
           try {
             const res = await storeOwnerAPI.createCategory(payload);
             await markCategorySynced(localRecord.id);
@@ -251,12 +300,30 @@ export default function CategoriesPage() {
     if (!confirmDialog.id) return;
     try {
       setIsDeleting(true);
-      await storeOwnerAPI.deleteCategory(confirmDialog.id);
-      toast.success('Category deleted');
+      
+      const user = useAuthStore.getState().user;
+      const tenantId = user?.tenantId || null;
+      const isLocalMode = isTauriEnv() || user?.tenant?.plan === 'STARTUP';
+
+      // Always delete locally first
+      await deleteCategoryLocally(confirmDialog.id, tenantId);
+
+      if (!isLocalMode) {
+        try {
+          await storeOwnerAPI.deleteCategory(confirmDialog.id);
+          toast.success('Category deleted and synced');
+        } catch (syncErr: any) {
+          console.error('Failed to sync deletion:', syncErr);
+          toast.warning('Deleted locally but cloud sync failed (offline)');
+        }
+      } else {
+        toast.success('Category deleted locally');
+      }
+
       fetchData();
       setConfirmDialog({ isOpen: false, id: null });
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to delete category');
+      toast.error('Failed to delete category');
     } finally {
       setIsDeleting(false);
     }
@@ -319,25 +386,28 @@ export default function CategoriesPage() {
   const totalSubcategories = categories.reduce((sum, c) => sum + (c.children?.length || 0), 0);
 
   return (
-    <div className="flex flex-col h-full max-w-7xl mx-auto w-full p-4 sm:p-8">
+    <div className={`flex flex-col bg-slate-50 dark:bg-slate-900/50 overflow-hidden ${isFullscreen ? 'h-full p-2 sm:p-4' : 'h-full p-6'}`}>
+      
       {/* ──────────────── HEADER ──────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-        <div>
-          <h1 className="text-3xl font-black text-slate-900 dark:text-white flex items-center gap-3">
-            <FolderTree className="w-8 h-8 text-blue-600" />
-            Categories
-          </h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium">Organize your products into categories and subcategories.</p>
+      {!isFullscreen && (
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+          <div>
+            <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
+              <FolderTree className="w-8 h-8 text-blue-600" />
+              Categories
+            </h1>
+            <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium">Organize your products into categories and subcategories.</p>
+          </div>
+          
+          <button 
+            onClick={openAddPanel}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5 active:translate-y-0"
+          >
+            <Plus className="w-5 h-5" />
+            Add Category
+          </button>
         </div>
-        
-        <button 
-          onClick={openAddPanel}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5 active:translate-y-0"
-        >
-          <Plus className="w-5 h-5" />
-          Add Category
-        </button>
-      </div>
+      )}
 
       {/* ──────────────── SEARCH BAR & KPIs ──────────────── */}
       <div className="flex flex-col sm:flex-row gap-4 mb-6">
@@ -353,7 +423,6 @@ export default function CategoriesPage() {
             className="w-full pl-12 pr-4 h-12 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-2xl shadow-sm text-slate-900 dark:text-white font-bold placeholder:text-slate-400 placeholder:font-medium transition-all outline-none"
           />
         </div>
-
 
         <div className="flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm h-12 p-1 overflow-hidden flex-shrink-0 ml-auto">
           <button 
@@ -373,26 +442,31 @@ export default function CategoriesPage() {
           </button>
           <div className="w-px h-full bg-slate-200 dark:bg-slate-800 mx-1"></div>
           <button 
-            onClick={() => setIsFullscreen(true)}
+            onClick={() => setIsFullscreen(!isFullscreen)}
             title="Full Screen"
             className={`flex items-center justify-center w-12 h-full rounded-xl transition-all text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800`}
           >
-            <Maximize className="w-5 h-5" />
+            {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
           </button>
         </div>
       </div>
 
       {/* ──────────────── DATA TABLE ──────────────── */}
-      <div className={`flex-1 bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col min-h-[400px] ${isFullscreen ? 'fixed inset-y-0 right-0 left-[68px] z-[100] m-0 rounded-none border-none' : ''}`}>
-        {isFullscreen && (
-          <button 
-            onClick={() => setIsFullscreen(false)} 
-            className="absolute top-4 right-4 z-[110] p-3 bg-slate-900/50 text-white rounded-full hover:bg-slate-900/80 transition-colors backdrop-blur-md shadow-lg"
-          >
-            <Minimize className="w-5 h-5" />
-          </button>
-        )}
-        {viewMode === 'list' ? (
+      <div className={`flex-1 bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col min-h-[400px] ${isFullscreen ? 'm-0 rounded-none border-none' : ''}`}>
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-24 text-slate-400 gap-4">
+            <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            <p className="font-medium">Loading categories...</p>
+          </div>
+        ) : filteredCategories.length === 0 ? (
+          <TableEmptyState
+            icon={FolderTree}
+            title="No categories found"
+            description="You haven't created any categories yet, or none match your search. Click below to add your first category."
+            actionLabel="Create First Category"
+            onAction={openAddPanel}
+          />
+        ) : viewMode === 'list' ? (
           <>
             {/* Table Header */}
             <div className="grid grid-cols-12 gap-4 h-16 px-5 pl-9 items-center border-b border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/50 text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0">
@@ -404,38 +478,15 @@ export default function CategoriesPage() {
 
             {/* Table Body */}
             <div className="flex-1 overflow-y-auto no-scrollbar">
-              {loading ? (
-                <div className="flex flex-col items-center justify-center h-64 text-slate-400 gap-4">
-                  <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                  <p className="font-medium">Loading categories...</p>
-                </div>
-              ) : filteredCategories.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-64 text-slate-400 gap-4">
-                  <FolderTree className="w-12 h-12 opacity-20" />
-                  <p className="font-medium text-lg text-slate-500">No categories found.</p>
-                </div>
-              ) : (
-                filteredCategories.map((c) => (
-                  <CategoryRow key={c.id} category={c} onEdit={openEditPanel} onDelete={handleDelete} defaultExpanded={!!search} />
-                ))
-              )}
+              {filteredCategories.map((c) => (
+                <CategoryRow key={c.id} category={c} onEdit={openEditPanel} onDelete={handleDelete} defaultExpanded={!!search} />
+              ))}
             </div>
           </>
         ) : (
           <div className="flex-1 overflow-y-auto no-scrollbar p-6 bg-slate-50/30 dark:bg-slate-900/20">
-            {loading ? (
-              <div className="flex flex-col items-center justify-center h-64 text-slate-400 gap-4">
-                <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                <p className="font-medium">Loading categories...</p>
-              </div>
-            ) : filteredCategories.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-64 text-slate-400 gap-4">
-                <FolderTree className="w-12 h-12 opacity-20" />
-                <p className="font-medium text-lg text-slate-500">No categories found.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 xl:gap-6">
-                {filteredCategories.map(c => (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 xl:gap-6">
+              {filteredCategories.map(c => (
                   <div key={c.id} className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all group flex flex-col">
                       <div className="relative aspect-square bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 overflow-hidden">
                          {c.image ? <img src={c.image} alt={c.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" /> : <FolderTree className="w-12 h-12 opacity-50" />}
@@ -469,147 +520,190 @@ export default function CategoriesPage() {
                   </div>
                 ))}
               </div>
-            )}
-          </div>
-        )}
-      </div>
+            </div>
+          )}
+        </div>
 
-      {/* ──────────────── SLIDE OUT PANEL ──────────────── */}
-      <AnimatePresence>
-        {isPanelOpen && (
-          <>
-            <motion.div 
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => setIsPanelOpen(false)}
-              className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm"
-            />
-            <motion.div 
-              initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', bounce: 0, duration: 0.4 }}
-              className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-white dark:bg-slate-900 shadow-2xl border-l border-slate-200 dark:border-slate-800 flex flex-col"
+      {/* ──────────────── SLIDE OUT PANEL: CATEGORY ──────────────── */}
+      <MainRightPanel
+        isOpen={isPanelOpen}
+        onClose={handleClosePanel}
+        onDiscard={handleClosePanel}
+        title={editingCategory ? 'Edit Category' : 'Add New Category'}
+        subtitle={editingCategory ? 'Modify category hierarchy and details' : 'Organize your products with categories and subcategories'}
+        icon={FolderTree}
+        formId="categoryForm"
+        isSubmitting={isSubmitting}
+        saveText={editingCategory ? 'Save Changes' : 'Save Category'}
+      >
+        <form id="categoryForm" onSubmit={handleSaveCategory} className="font-sans space-y-4">
+          
+          {/* 1. Basic Information */}
+          <div className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl overflow-hidden">
+            <button 
+              type="button" 
+              onClick={() => toggleSection("basic")}
+              className={`w-full px-4 py-3 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors outline-none cursor-pointer ${openSections.basic ? "rounded-t-xl" : "rounded-xl"}`}
             >
-              <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-slate-800">
-                <h2 className="text-2xl font-black text-slate-900 dark:text-white">
-                  {editingCategory ? 'Edit Category' : 'Add New Category'}
-                </h2>
-                <button onClick={() => setIsPanelOpen(false)} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-6">
-                <form id="categoryForm" onSubmit={handleSaveCategory} className="font-sans space-y-6">
-                  
-                  {/* Image Upload */}
-                  <div className="w-full h-40 relative group">
-                    {imagePreview ? (
-                      <div className="w-full h-full bg-slate-50 dark:bg-slate-800/50 rounded-2xl border-2 border-slate-200 dark:border-slate-700 overflow-hidden relative">
-                        <img 
-                          src={imagePreview} 
-                          alt="Preview" 
-                          className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform" 
-                          onClick={() => setZoomedImage(imagePreview)}
-                        />
-                        <button 
-                          type="button" 
-                          onClick={() => { setImageFile(null); setImagePreview(null); }} 
-                          className="absolute top-2 right-2 p-1.5 bg-white dark:bg-slate-900 rounded-full text-slate-400 hover:text-red-500 shadow hover:shadow-md transition-all z-10"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ) : (
-                      <label className="w-full h-full bg-slate-50 dark:bg-slate-800/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 flex flex-col items-center justify-center gap-3 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-                        <input 
-                          type="file" 
-                          accept="image/*"
-                          className="hidden" 
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              setImageFile(file);
-                              const reader = new FileReader();
-                              reader.onloadend = () => setImagePreview(reader.result as string);
-                              reader.readAsDataURL(file);
-                            }
-                          }}
-                        />
-                        <div className="w-12 h-12 bg-white dark:bg-slate-900 rounded-full shadow-sm flex items-center justify-center text-blue-500">
-                          <ImageIcon className="w-6 h-6" />
-                        </div>
-                        <span className="text-sm font-bold text-slate-500">Upload Cover Image (Optional)</span>
+              <span className="font-bold text-slate-900 dark:text-white flex items-center gap-2 text-sm">
+                <Info className="w-4 h-4 text-blue-600" />
+                Basic Information
+              </span>
+              {openSections.basic ? <ChevronUp className="w-5 h-5 text-slate-500" /> : <ChevronDown className="w-5 h-5 text-slate-500" />}
+            </button>
+            <AnimatePresence>
+              {openSections.basic && (
+                <motion.div 
+                  initial={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                  animate={{ height: 'auto', opacity: 1, transitionEnd: { overflow: 'visible' } }}
+                  exit={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                >
+                  <div className="p-4 space-y-4 border-t border-slate-300 dark:border-slate-700">
+                    {/* Image Upload */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-bold text-slate-700 dark:text-slate-300">
+                        Cover Image <span className="text-xs font-medium text-slate-400">(Optional)</span>
                       </label>
-                    )}
-                  </div>
+                      <div className="w-full relative">
+                        {imagePreview ? (
+                          <div className="relative group w-full h-36 rounded-xl border border-slate-300 dark:border-slate-600 overflow-hidden bg-slate-50 dark:bg-slate-800 flex items-center justify-center">
+                            <img 
+                              src={imagePreview} 
+                              alt="Cover Preview" 
+                              className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform" 
+                              onClick={() => setZoomedImage(imagePreview)}
+                            />
+                            <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2.5 backdrop-blur-[1px]">
+                              <button 
+                                type="button" 
+                                onClick={() => setZoomedImage(imagePreview)} 
+                                className="p-2 bg-white text-slate-900 rounded-full hover:bg-blue-50 hover:text-blue-600 transition-all shadow-md cursor-pointer hover:scale-110"
+                                title="Zoom image"
+                              >
+                                <Maximize className="w-4 h-4" />
+                              </button>
+                              <button 
+                                type="button" 
+                                onClick={() => { setImageFile(null); setImagePreview(null); }} 
+                                className="p-2 bg-white text-slate-900 rounded-full hover:bg-red-50 hover:text-red-600 transition-all shadow-md cursor-pointer hover:scale-110"
+                                title="Remove image"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <label className="w-full h-32 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors flex flex-col items-center justify-center gap-2 cursor-pointer group">
+                            <input 
+                              type="file" 
+                              accept="image/*"
+                              className="hidden" 
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  setImageFile(file);
+                                  const reader = new FileReader();
+                                  reader.onloadend = () => setImagePreview(reader.result as string);
+                                  reader.readAsDataURL(file);
+                                }
+                              }}
+                            />
+                            <div className="w-10 h-10 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-center text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors">
+                              <Plus className="w-5 h-5" />
+                            </div>
+                            <div className="text-center">
+                              <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
+                                Click or drag image to upload
+                              </span>
+                              <span className="text-[11px] font-medium text-slate-400">
+                                Supports PNG, JPG, WebP
+                              </span>
+                            </div>
+                          </label>
+                        )}
+                      </div>
+                    </div>
 
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Category Name <span className="text-red-500">*</span></label>
-                    <input 
-                      id="field-category-name" required autoFocus
-                      value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} 
-                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium dark:text-white"
-                      placeholder="e.g. Electronics" 
-                    />
-                  </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-bold text-slate-700 dark:text-slate-300">
+                        Category Name <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <input 
+                          id="field-category-name"
+                          value={formData.name} 
+                          onChange={e => {
+                            if (validationError?.field === 'field-category-name') setValidationError(null);
+                            setFormData({...formData, name: e.target.value});
+                          }} 
+                          className="w-full px-4 h-11 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl font-medium text-sm text-slate-900 dark:text-white transition-all outline-none"
+                          placeholder="e.g. Electronics" 
+                        />
+                        <ValidationErrorTooltip error={validationError} fieldId="field-category-name" />
+                      </div>
+                    </div>
 
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Description</label>
-                    <textarea 
-                      value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} 
-                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium dark:text-white resize-none"
-                      placeholder="Short description..." 
-                      rows={3}
-                    />
+                    <div className="space-y-2">
+                      <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Description</label>
+                      <textarea 
+                        value={formData.description} 
+                        onChange={e => setFormData({...formData, description: e.target.value})} 
+                        className="w-full p-4 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl font-medium text-sm text-slate-900 dark:text-white transition-all outline-none resize-none" 
+                        placeholder="Short description..." 
+                        rows={3}
+                      />
+                    </div>
                   </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
 
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Parent Category</label>
-                    <CustomSelect 
-                      value={formData.parentId} 
-                      onChange={val => setFormData({...formData, parentId: val})}
-                      label="None (Root Category)"
-                      options={[
-                        { value: 'null', label: 'None (Root Category)' },
-                        ...flatCategories
-                          .filter(c => c.id !== editingCategory?.id)
-                          .map(c => ({ value: c.id.toString(), label: c.name }))
-                      ]}
-                    />
+          {/* 2. Hierarchy & Organization */}
+          <div className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl overflow-hidden">
+            <button 
+              type="button" 
+              onClick={() => toggleSection("hierarchy")}
+              className={`w-full px-4 py-3 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors outline-none cursor-pointer ${openSections.hierarchy ? "rounded-t-xl" : "rounded-xl"}`}
+            >
+              <span className="font-bold text-slate-900 dark:text-white flex items-center gap-2 text-sm">
+                <Layers className="w-4 h-4 text-blue-600" />
+                Hierarchy & Organization
+              </span>
+              {openSections.hierarchy ? <ChevronUp className="w-5 h-5 text-slate-500" /> : <ChevronDown className="w-5 h-5 text-slate-500" />}
+            </button>
+            <AnimatePresence>
+              {openSections.hierarchy && (
+                <motion.div 
+                  initial={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                  animate={{ height: 'auto', opacity: 1, transitionEnd: { overflow: 'visible' } }}
+                  exit={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                >
+                  <div className="p-4 space-y-4 border-t border-slate-300 dark:border-slate-700">
+                    <div className="space-y-2">
+                      <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Parent Category</label>
+                      <CustomSelect 
+                        value={formData.parentId} 
+                        onChange={val => setFormData({...formData, parentId: val})}
+                        label="None (Root Category)"
+                        options={[
+                          { value: 'null', label: 'None (Root Category)' },
+                          ...flatCategories
+                            .filter(c => c.id !== editingCategory?.id)
+                            .map(c => ({ value: c.id.toString(), label: c.name }))
+                        ]}
+                      />
+                      <p className="text-xs text-slate-400 font-medium">
+                        Choose a parent category to create a sub-category, or leave as root category.
+                      </p>
+                    </div>
                   </div>
-                  {/* Empty space to allow dropdown to expand without being clipped */}
-                  <div className="h-40" aria-hidden="true"></div>
-                </form>
-              </div>
-
-              <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
-                <div className="flex gap-3">
-                  <button 
-                    type="button"
-                    onClick={() => setIsAddOpen(false)}
-                    className="flex-1 px-4 py-3 rounded-xl font-bold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button 
-                    type="submit" 
-                    form="categoryForm"
-                    disabled={isSubmitting}
-                    className="flex-[2] flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-70 transition-colors shadow-lg shadow-blue-500/20"
-                  >
-                    {isSubmitting ? (
-                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    ) : (
-                      <>
-                        <FolderTree className="w-5 h-5" />
-                        {editingCategory ? 'Save Changes' : 'Save Category'}
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </form>
+      </MainRightPanel>
 
       <ConfirmDialog 
         isOpen={confirmDialog.isOpen}
@@ -644,5 +738,13 @@ export default function CategoriesPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function CategoriesPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-full p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>}>
+      <CategoriesPageContent />
+    </Suspense>
   );
 }

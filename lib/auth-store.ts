@@ -183,6 +183,24 @@ export const useAuthStore = create<AuthState>()(
 
       logout: () => {
         clearAuthCookies();
+        if (typeof window !== 'undefined') {
+          // Preserve global application state before clearing
+          const preserveKeys = ['cmart-update-later-count', 'cmart-update-dismissed'];
+          const preserved: Record<string, string> = {};
+          
+          preserveKeys.forEach(key => {
+            const val = localStorage.getItem(key);
+            if (val !== null) preserved[key] = val;
+          });
+          
+          // Clear all cached user data (Drafts, Backup Settings, Dashboard preferences, Zustand persists, etc.)
+          localStorage.clear();
+          
+          // Restore global application state
+          Object.entries(preserved).forEach(([key, val]) => {
+            localStorage.setItem(key, val);
+          });
+        }
         set({ user: null, accessToken: null, refreshToken: null });
       },
 
@@ -197,8 +215,12 @@ export const useAuthStore = create<AuthState>()(
           if (user?.tenant?.plan === 'PRO' || user?.tenant?.plan === 'ENTERPRISE') {
             performBulkSync().catch(err => console.error('Background sync failed:', err));
           }
-        } catch {
-          get().logout();
+        } catch (err: any) {
+          if (!err.response || err.message === 'Network Error') {
+            console.log('[Auth] Network error in loadMe, skipping logout to preserve offline session');
+          } else {
+            get().logout();
+          }
           set({ isLoading: false });
         }
       },

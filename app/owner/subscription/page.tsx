@@ -5,11 +5,14 @@ import { toast } from 'sonner';
 import { userAPI } from '@/lib/api';
 import { 
   CreditCard, ShieldCheck, Check, 
-  Crown, Download, Clock, Zap, CheckCircle2, AlertCircle
+  Crown, Download, Clock, Zap, CheckCircle2, AlertCircle, AlertTriangle
 } from 'lucide-react';
+import Link from 'next/link';
 import { PLANS, formatLKR } from '@/lib/constants';
 import { useAuthStore } from '@/lib/auth-store';
+import { getSubscriptionStatus } from '@/lib/subscription-utils';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { TableEmptyState } from '@/components/ui/table-empty-state';
 
 
 
@@ -23,6 +26,7 @@ export default function SubscriptionPage() {
     targetPlan: ''
   });
   const { user, updatePlan } = useAuthStore();
+  const subStatus = getSubscriptionStatus(user);
   const activePlanKey = (user?.tenant?.plan || 'STARTUP').toUpperCase() as keyof typeof PLANS;
   const currentPlanData = PLANS[activePlanKey] || PLANS.STARTUP;
 
@@ -97,33 +101,65 @@ export default function SubscriptionPage() {
       <div className="max-w-6xl mx-auto w-full space-y-8 pb-10">
         
         {/* Current Plan Alert */}
-        <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col lg:flex-row items-start lg:items-center justify-between p-6 gap-6 relative">
+        <div className={`rounded-3xl shadow-sm border overflow-hidden flex flex-col lg:flex-row items-start lg:items-center justify-between p-6 gap-6 relative ${
+          subStatus.isExpired 
+            ? 'bg-red-50/50 dark:bg-red-950/20 border-red-200 dark:border-red-800/50' 
+            : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
+        }`}>
           <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -z-10 translate-x-1/3 -translate-y-1/3"></div>
           
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5 z-10">
-            <div className="w-16 h-16 bg-blue-50 dark:bg-blue-500/10 rounded-2xl flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0 border border-blue-100 dark:border-blue-500/20">
-              <Crown className="w-8 h-8" />
+            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shrink-0 border ${
+              subStatus.isExpired 
+                ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 border-red-200 dark:border-red-700/50'
+                : 'bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-100 dark:border-blue-500/20'
+            }`}>
+              {subStatus.isExpired ? <AlertTriangle className="w-8 h-8" /> : <Crown className="w-8 h-8" />}
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-2xl font-black text-slate-900 dark:text-white">{currentPlanData.name} Plan</h2>
-                <span className="bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 text-xs font-bold px-2 py-0.5 rounded-md uppercase tracking-wider flex items-center gap-1">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> Active
-                </span>
+                {subStatus.isExpired ? (
+                  <span className="bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400 text-xs font-bold px-2 py-0.5 rounded-md uppercase tracking-wider flex items-center gap-1">
+                    <AlertCircle className="w-3.5 h-3.5" /> Expired
+                  </span>
+                ) : subStatus.isTrial ? (
+                  <span className="bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400 text-xs font-bold px-2 py-0.5 rounded-md uppercase tracking-wider flex items-center gap-1">
+                    <Clock className="w-3.5 h-3.5" /> Free Trial
+                  </span>
+                ) : (
+                  <span className="bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 text-xs font-bold px-2 py-0.5 rounded-md uppercase tracking-wider flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Active
+                  </span>
+                )}
               </div>
               <p className="text-slate-500 dark:text-slate-400 font-medium mt-1">
-                {activePlanKey === 'STARTUP' && isFreeTrial ? `You are currently on a Free Trial. ${trialText}.` : activePlanKey === 'STARTUP' ? 'You are currently on the Startup plan.' : `Your next billing date is September 01, 2026 for ${formatLKR(billing === 'yearly' ? currentPlanData.priceYearly / 12 : currentPlanData.priceMonthly)}.`}
+                {subStatus.isExpired 
+                  ? `Your ${currentPlanData.name} plan subscription has expired${subStatus.formattedEndDate ? ` on ${subStatus.formattedEndDate}` : ''}. Renew your plan below to restore access.`
+                  : subStatus.isTrial 
+                    ? `You are currently on a Free Trial. ${subStatus.daysLeft !== null && subStatus.daysLeft > 0 ? `${subStatus.daysLeft} days remaining` : `${subStatus.hoursLeft} hours remaining`}.`
+                    : `Your next billing date is ${subStatus.formattedEndDate || 'scheduled'} for ${formatLKR(billing === 'yearly' ? currentPlanData.priceYearly / 12 : currentPlanData.priceMonthly)}.`
+                }
               </p>
             </div>
           </div>
           
           <div className="flex flex-wrap sm:flex-nowrap gap-3 w-full lg:w-auto z-10">
-            <button 
-              onClick={() => alert("Redirecting to payment gateway...")}
-              className="flex-1 lg:flex-none px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-sm transition-colors text-sm whitespace-nowrap"
-            >
-              Update Payment Method
-            </button>
+            {subStatus.isExpired ? (
+              <Link 
+                href={`/checkout?plan=${activePlanKey === 'STARTUP' ? 'PRO' : activePlanKey}&billing=${billing}`}
+                className="flex-1 lg:flex-none px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl shadow-sm transition-colors text-sm whitespace-nowrap text-center"
+              >
+                Renew Now
+              </Link>
+            ) : (
+              <button 
+                onClick={() => alert("Redirecting to payment gateway...")}
+                className="flex-1 lg:flex-none px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-sm transition-colors text-sm whitespace-nowrap"
+              >
+                Update Payment Method
+              </button>
+            )}
           </div>
         </div>
 
@@ -202,16 +238,16 @@ export default function SubscriptionPage() {
               const billingParam = billing;
               const isUnavailable = plan.price === null;
               
-              if (plan.key === 'PRO' || plan.key === 'ENTERPRISE') {
-                cta = 'Coming Soon';
-                disabled = true;
-                href = '#';
-              } else if (isUnavailable) {
+              if (isUnavailable) {
                 cta = 'Not Available';
                 href = '#';
                 disabled = true;
               } else if (userRank === plan.rank) {
-                if (activePlanKey === 'STARTUP' && isFreeTrial) {
+                if (subStatus.isExpired) {
+                  cta = `Renew ${plan.name}`;
+                  href = `/checkout?plan=${plan.key}&billing=${billingParam}`;
+                  disabled = false;
+                } else if (activePlanKey === 'STARTUP' && isFreeTrial) {
                   cta = `Free Trial (${trialText})`;
                   disabled = true;
                 } else {
@@ -352,33 +388,31 @@ export default function SubscriptionPage() {
             <h3 className="text-xl font-bold text-slate-900 dark:text-white">Billing History</h3>
           </div>
           
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm whitespace-nowrap">
-              <thead className="bg-slate-50/50 dark:bg-slate-900/50 text-slate-500 font-bold border-b border-slate-100 dark:border-slate-800">
-                <tr>
-                  <th className="px-6 py-4">Invoice</th>
-                  <th className="px-6 py-4">Date</th>
-                  <th className="px-6 py-4">Plan</th>
-                  <th className="px-6 py-4">Amount</th>
-                  <th className="px-6 py-4">Status</th>
-                  <th className="px-6 py-4 text-right">Receipt</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
-                {isLoadingHistory ? (
+          {isLoadingHistory ? (
+            <div className="py-16 text-center text-slate-400 font-medium">
+              Loading billing history...
+            </div>
+          ) : billingHistory.length === 0 ? (
+            <TableEmptyState
+              icon={CreditCard}
+              title="No billing history yet"
+              description="You have not been billed for any subscriptions or upgrades yet. When your plan renews or upgrades, your payment invoices and downloadable receipts will appear here."
+            />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm whitespace-nowrap">
+                <thead className="bg-slate-50/50 dark:bg-slate-900/50 text-slate-500 font-bold border-b border-slate-100 dark:border-slate-800">
                   <tr>
-                    <td colSpan={6} className="px-6 py-10 text-center text-slate-500">
-                      Loading billing history...
-                    </td>
+                    <th className="px-6 py-4">Invoice</th>
+                    <th className="px-6 py-4">Date</th>
+                    <th className="px-6 py-4">Plan</th>
+                    <th className="px-6 py-4">Amount</th>
+                    <th className="px-6 py-4">Status</th>
+                    <th className="px-6 py-4 text-right">Receipt</th>
                   </tr>
-                ) : billingHistory.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-6 py-10 text-center text-slate-500">
-                      No billing history yet.
-                    </td>
-                  </tr>
-                ) : (
-                  billingHistory.map((record) => (
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
+                  {billingHistory.map((record) => (
                     <tr key={record.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                       <td className="px-6 py-4 text-slate-900 dark:text-white">{record.payhereRef || `#INV-${record.id}`}</td>
                       <td className="px-6 py-4 text-slate-600 dark:text-slate-400">{new Date(record.createdAt).toLocaleDateString()}</td>
@@ -399,11 +433,11 @@ export default function SubscriptionPage() {
                         </button>
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
       </div>

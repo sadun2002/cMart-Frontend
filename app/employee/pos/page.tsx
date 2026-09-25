@@ -10,7 +10,8 @@ import {
   saveCustomerLocally,
   createSaleLocally,
   getRecentSoldProductIds,
-  getLocalProducts
+  getLocalProducts,
+  getPromotionsLocally
 } from '@/lib/local-services';
 import { useAuthStore } from '@/lib/auth-store';
 import { storeOwnerAPI } from '@/lib/api';
@@ -19,8 +20,15 @@ import {
   Search, Plus, Minus, CreditCard, Banknote,
   ShoppingCart, Package, User, Trash2, X, ChevronRight,
   Smartphone, Shirt, Pill, Apple, Wrench, Grid, QrCode, Tag, Printer,
-  List, ChevronDown, ChevronUp
+  List, ChevronDown, ChevronUp, Heart, TrendingUp, Gift, Monitor
 } from 'lucide-react';
+import {
+  sendCustomerDisplayEvent,
+  launchCustomerDisplayWindow,
+  closeCustomerDisplayWindow,
+  checkCustomerDisplayActive,
+  getCustomerDisplayConfig,
+} from '@/lib/customer-display';
 
 type PaymentMethod = 'CASH' | 'CARD' | 'PAYHERE_QR';
 
@@ -32,6 +40,8 @@ interface PaymentModal {
 
 const getCategoryDetails = (catName: string) => {
   const name = catName.toLowerCase();
+  if (name === "top selling") return { icon: TrendingUp, color: "from-purple-500 to-fuchsia-600", bg: "bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400" };
+  if (name === "promotions") return { icon: Gift, color: "from-cyan-400 to-blue-500", bg: "bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400" };
   if (name.includes('electr') || name.includes('device') || name.includes('phone') || name.includes('tech')) 
     return { icon: Smartphone, color: 'from-blue-500 to-indigo-600', bg: 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' };
   if (name.includes('cloth') || name.includes('apparel') || name.includes('fashion') || name.includes('wear')) 
@@ -72,6 +82,7 @@ export default function POSPage() {
   const [isDiscountModalOpen, setIsDiscountModalOpen] = useState(false);
   const [discountInputValue, setDiscountInputValue] = useState("");
   const [discountFocusedBtn, setDiscountFocusedBtn] = useState<"ok" | "cancel">("ok");
+  const [isDiscountTypeDropdownOpen, setIsDiscountTypeDropdownOpen] = useState(false);
 
   const [saleComplete, setSaleComplete] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -85,6 +96,37 @@ export default function POSPage() {
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
   const [recentSoldIds, setRecentSoldIds] = useState<number[]>([]);
   const cashInputRef = useRef<HTMLInputElement>(null);
+  const [isDisplayActive, setIsDisplayActive] = useState(false);
+
+  // Customer Display Auto-launch and status polling
+  useEffect(() => {
+    let mounted = true;
+    const initDisplay = async () => {
+      const active = await checkCustomerDisplayActive();
+      if (mounted) setIsDisplayActive(active);
+
+      const config = getCustomerDisplayConfig();
+      if (config.enabled && config.autoLaunch && !active) {
+        try {
+          await launchCustomerDisplayWindow();
+          if (mounted) setIsDisplayActive(true);
+        } catch (err) {
+          console.warn("Auto-launch customer display:", err);
+        }
+      }
+    };
+    initDisplay();
+
+    const interval = setInterval(async () => {
+      const active = await checkCustomerDisplayActive();
+      if (mounted) setIsDisplayActive(active);
+    }, 5000);
+
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+  }, []);
 
   const searchCustomers = async (q: string) => {
     try {
@@ -116,6 +158,8 @@ export default function POSPage() {
     }
   };
 
+  const [activePromotions, setActivePromotions] = useState<any[]>([]);
+
   useEffect(() => {
     const fetchInventory = async () => {
       try {
@@ -123,6 +167,16 @@ export default function POSPage() {
         setProducts(res);
         const recent = await getRecentSoldProductIds(user?.tenantId || null, 30);
         setRecentSoldIds(recent);
+
+        const promos = await getPromotionsLocally(user?.tenantId || null);
+        const now = new Date();
+        const active = promos.filter((p: any) => {
+          if (!p.active) return false;
+          const start = new Date(p.startDate); start.setHours(0,0,0,0);
+          const end = new Date(p.endDate); end.setHours(23,59,59,999);
+          return now >= start && now <= end;
+        });
+        setActivePromotions(active);
       } catch (err) {
         toast.error('Failed to load inventory');
       } finally {
@@ -152,6 +206,12 @@ export default function POSPage() {
         setFocusedProductIndex(prev => prev === -1 ? 0 : prev);
         searchRef.current?.blur();
       } else if (e.key === "Enter" && paymentModal.open) {
+        if (
+          document.activeElement?.tagName === "INPUT" ||
+          document.activeElement?.tagName === "BUTTON"
+        ) {
+          return;
+        }
         e.preventDefault();
         checkout();
       } else if (e.key === "Enter" && e.ctrlKey) {
@@ -183,7 +243,49 @@ export default function POSPage() {
     return () => window.removeEventListener('keydown', handleGlobalKeydown);
   }, [cart.length, paymentModal.open]);
 
-  const staticFilters = ['Recent', 'All', 'In Stock', 'Low Stock', 'Out of Stock', 'Favorites', 'Top Selling', 'Discounts'];
+  const staticFilters = ['Recent', 'All', 'In Stock', 'Low Stock', 'Out of Stock', 'Favorites', 'Top Selling', 'Promotions'];
+  
+  const getBestPromotionForProduct = (product: any) => {
+    let bestPromo: any = null;
+    activePromotions.forEach(promo => {
+      let applies = false;
+      if (promo.appliesToType === 'ALL') applies = true;
+      else if (promo.appliesToType === 'PRODUCTS') applies = promo.appliesToIds?.includes(product.id);
+      else if (promo.appliesToType === 'CATEGORIES') applies = promo.appliesToIds?.includes(product.categoryId);
+      else if (promo.appliesToType === 'BRANDS') applies = promo.appliesToIds?.includes(product.brandId);
+      else if (promo.appliesToType === 'MIXED') {
+        try {
+          const ids = typeof promo.appliesToIds === 'string' ? JSON.parse(promo.appliesToIds) : (promo.appliesToIds || {});
+          if (ids.products?.includes(product.id)) applies = true;
+          else if (ids.categories?.includes(product.categoryId)) applies = true;
+          else if (ids.brands?.includes(product.brandId)) applies = true;
+        } catch (e) {
+          applies = false;
+        }
+      }
+      
+      if (applies) {
+        if (!bestPromo) bestPromo = promo;
+      }
+    });
+    return bestPromo;
+  };
+
+  const getProductDiscountDetails = (product: any) => {
+    const promo = getBestPromotionForProduct(product);
+    if (!promo) return { hasPromo: false, originalPrice: product.price, finalPrice: product.price, promo: null };
+
+    let finalPrice = product.price;
+    if (promo.type === 'PERCENTAGE') {
+      finalPrice = product.price * (1 - promo.offerValue / 100);
+    } else if (promo.type === 'FIXED') {
+      finalPrice = Math.max(0, product.price - promo.offerValue);
+    } else if (promo.type === 'SPECIAL_PRICE') {
+      finalPrice = promo.offerValue;
+    }
+    return { hasPromo: true, originalPrice: product.price, finalPrice, promo };
+  };
+
   const dynamicCategories = Array.from(new Set(products.map((p) => p.category?.name).filter(Boolean)));
   const allChips = [...staticFilters, ...dynamicCategories];
 
@@ -203,7 +305,7 @@ export default function POSPage() {
     else if (selectedCategory === 'Out of Stock') matchesChip = p.stockQuantity <= 0;
     else if (selectedCategory === 'Favorites') matchesChip = p.isFavorite === 1;
     else if (selectedCategory === 'Top Selling') matchesChip = true;
-    else if (selectedCategory === 'Discounts') matchesChip = p.discount > 0;
+    else if (selectedCategory === 'Promotions') matchesChip = getBestPromotionForProduct(p) !== null;
     else matchesChip = p.category?.name === selectedCategory;
 
     return matchesSearch && matchesChip;
@@ -347,6 +449,15 @@ export default function POSPage() {
           } else if (focusedCartIndex === cart.length) {
             e.preventDefault();
             setFocusedCartIndex(cart.length + 1);
+          } else if (focusedCartIndex === cart.length + 2) {
+            e.preventDefault();
+            setFocusedCartIndex(cart.length + 3); // Hold -> Pay Now
+          }
+        } else if (e.key === "Delete") {
+          if (focusedCartIndex >= 0 && focusedCartIndex < cart.length) {
+            e.preventDefault();
+            const item = cart[focusedCartIndex];
+            removeFromCart(item.productId);
           }
         } else if (e.key === "Enter") {
           e.preventDefault();
@@ -471,26 +582,168 @@ export default function POSPage() {
   };
 
   const totalItems = cart.reduce((sum, i) => sum + i.quantity, 0);
-  const subtotal = cart.reduce((sum, i) => sum + i.subtotal, 0);
-  const discountAmount = discountType === 'percent' ? (subtotal * discount) / 100 : discount;
-  const taxAmount = 0; 
+  const subtotal = cart.reduce((sum, item) => sum + item.subtotal, 0);
+
+  // Automated Discount Calculation
+  let automatedDiscount = 0;
+  cart.forEach(item => {
+     const product = products.find(p => p.id === item.productId);
+     if (product) {
+        const promo = getBestPromotionForProduct(product);
+        if (promo) {
+           if (promo.type === 'PERCENTAGE') {
+             automatedDiscount += item.subtotal * (promo.offerValue / 100);
+           } else if (promo.type === 'FIXED') {
+             automatedDiscount += (promo.offerValue * item.quantity);
+           } else if (promo.type === 'SPECIAL_PRICE') {
+             automatedDiscount += Math.max(0, (product.price - promo.offerValue) * item.quantity);
+           } else if (promo.type === 'QUANTITY') {
+             const bundles = Math.floor(item.quantity / promo.quantityRequirement);
+             const remainder = item.quantity % promo.quantityRequirement;
+             const itemCostWithPromo = (bundles * promo.offerValue) + (remainder * product.price);
+             automatedDiscount += Math.max(0, item.subtotal - itemCostWithPromo);
+           } else if (promo.type === 'BUY_X_GET_Y') {
+             const bundleSize = promo.quantityRequirement + promo.rewardQuantity;
+             const bundles = Math.floor(item.quantity / bundleSize);
+             const remainder = item.quantity % bundleSize;
+             const paidQuantity = (bundles * promo.quantityRequirement) + Math.min(remainder, promo.quantityRequirement);
+             const itemCostWithPromo = paidQuantity * product.price;
+             automatedDiscount += Math.max(0, item.subtotal - itemCostWithPromo);
+           }
+        }
+     }
+  });
+
+  const manualDiscountAmount = discountType === "percent" ? (subtotal - automatedDiscount) * (discount / 100) : discount;
+  const discountAmount = automatedDiscount + manualDiscountAmount;
+  
+  const taxAmount = (subtotal - discountAmount) * 0; // Simplified
   const total = Math.max(0, subtotal - discountAmount + taxAmount);
 
   const change = paymentModal.method === 'CASH' && parseFloat(paymentModal.cashAmount || '0') >= total
     ? parseFloat(paymentModal.cashAmount || '0') - total
     : 0;
 
+  // Sync Cart State to Customer Display
+  useEffect(() => {
+    if (saleComplete) return;
+
+    if (cart.length === 0) {
+      sendCustomerDisplayEvent({
+        type: "RESET_IDLE",
+        payload: {
+          storeName: "Cmart Supermarket",
+          currency: "Rs.",
+        },
+      });
+      return;
+    }
+
+    sendCustomerDisplayEvent({
+      type: "CART_UPDATE",
+      payload: {
+        items: cart.map((i) => ({
+          productId: i.productId,
+          productName: i.productName,
+          quantity: i.quantity,
+          price: i.price,
+          subtotal: i.subtotal,
+          image: (i as any).image,
+          category: (i as any).category,
+        })),
+        subtotal,
+        discountAmount,
+        taxAmount,
+        total,
+        totalItems,
+        customerName: customer ? customer.name : undefined,
+        loyaltyPoints: customer ? (customer as any).points : undefined,
+        currency: "Rs.",
+      },
+    });
+  }, [cart, subtotal, discountAmount, taxAmount, total, totalItems, customer, saleComplete]);
+
+  // Sync Payment State to Customer Display
+  useEffect(() => {
+    if (!paymentModal.open) return;
+
+    sendCustomerDisplayEvent({
+      type: "PAYMENT_STATE",
+      payload: {
+        method: paymentModal.method,
+        total,
+        tendered:
+          paymentModal.method === "CASH"
+            ? parseFloat(paymentModal.cashAmount || "0")
+            : total,
+        change: paymentModal.method === "CASH" ? change : 0,
+        currency: "Rs.",
+      },
+    });
+  }, [paymentModal.open, paymentModal.method, paymentModal.cashAmount, total, change]);
+
   const checkout = async () => {
     if (cart.length === 0) return;
+    if (paymentModal.method === "CASH") {
+      if (!paymentModal.cashAmount) {
+        toast.error("Please enter the tendered amount.");
+        return;
+      }
+      if (parseFloat(paymentModal.cashAmount) < total) {
+        toast.error("Tendered amount must be equal or greater than the total amount.");
+        return;
+      }
+    }
     try {
-      await storeOwnerAPI.createSale({
-        items: cart.map(i => ({ productId: i.productId, productName: i.productName, quantity: i.quantity, price: i.price })),
-        paymentMethod: paymentModal.method,
-        amountLKR: total,
-        customerId: customer?.id
-      });
+      // @ts-ignore
+      const isDesktop = typeof window !== 'undefined' && (window.__TAURI_INTERNALS__ || window.__TAURI__);
+
+      const payload = {
+          items: cart.map((i) => ({
+            productId: i.productId,
+            productName: i.productName,
+            quantity: i.quantity,
+            price: i.price,
+          })),
+          paymentMethod: paymentModal.method,
+          subtotal: subtotal,
+          discount: discountAmount,
+          tax: 0,
+          amountLKR: total,
+          tenderedAmount: paymentModal.method === "CASH" ? parseFloat(paymentModal.cashAmount || "0") : total,
+          changeAmount: paymentModal.method === "CASH" ? change : 0,
+          customerId: customer?.id,
+      };
+
+      let invoiceNo = undefined;
+      if (isDesktop) {
+        const saleResult = await createSaleLocally(
+          payload,
+          user?.tenantId || null,
+          user?.branchId || 1,
+          user?.id || 0
+        );
+        invoiceNo = saleResult?.invoiceNo;
+      } else {
+        const res = await storeOwnerAPI.createSale(payload);
+        invoiceNo = res?.data?.invoiceNo || (res as any)?.invoiceNo;
+      }
+
       toast.success('Payment completed successfully!');
       setSaleComplete(true);
+      sendCustomerDisplayEvent({
+        type: "PAYMENT_SUCCESS",
+        payload: {
+          invoiceNo: invoiceNo || `INV-${Date.now().toString().slice(-6)}`,
+          totalPaid: total,
+          tendered: paymentModal.method === "CASH" ? parseFloat(paymentModal.cashAmount || "0") : total,
+          change: paymentModal.method === "CASH" ? change : 0,
+          currency: "Rs.",
+          itemsCount: totalItems,
+          customerName: customer?.name,
+        },
+      });
+      printReceipt(invoiceNo);
       setCart([]);
       setDiscount(0);
       setCustomer(null);
@@ -513,7 +766,7 @@ export default function POSPage() {
     setLoading(false);
   };
 
-  const printReceipt = () => {
+  const printReceipt = (invoiceNo?: string) => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
     
@@ -549,6 +802,7 @@ export default function POSPage() {
           <h2>cMart</h2>
           <p class="text-center">Receipt</p>
           <div class="divider"></div>
+          ${invoiceNo ? `<p>Invoice: ${invoiceNo}</p>` : ''}
           <p>Date: ${dateStr}</p>
           <p>Customer: ${customerName}</p>
           <p>Pay Method: ${paymentModal.method}</p>
@@ -559,7 +813,7 @@ export default function POSPage() {
           <div class="divider"></div>
           <table>
             <tr><td>Subtotal:</td><td class="text-right">${formatLKR(subtotal)}</td></tr>
-            ${discount > 0 ? `<tr><td>Discount:</td><td class="text-right">-${formatLKR(discountAmount)}</td></tr>` : ''}
+            ${discountAmount > 0 ? `<tr><td>Discount:</td><td class="text-right">-${formatLKR(discountAmount)}</td></tr>` : ""}
             <tr><td class="bold">Total:</td><td class="text-right bold">${formatLKR(total)}</td></tr>
           </table>
           ${paymentModal.method === 'CASH' ? `
@@ -650,6 +904,35 @@ export default function POSPage() {
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="10" y1="15" x2="14" y2="15"/></svg>
             </button>
+            <button
+              onClick={async () => {
+                try {
+                  const active = await checkCustomerDisplayActive();
+                  if (!active) {
+                    await launchCustomerDisplayWindow();
+                    setIsDisplayActive(true);
+                    toast.success("Customer Display Launched!");
+                  } else {
+                    await closeCustomerDisplayWindow();
+                    setIsDisplayActive(false);
+                    toast.info("Customer Display Window Closed.");
+                  }
+                } catch (e: any) {
+                  toast.error("Customer Display error: " + e.message);
+                }
+              }}
+              className={`h-14 px-4 rounded-2xl flex items-center justify-center gap-2 border text-xs font-bold shrink-0 transition-all ${
+                isDisplayActive
+                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 shadow-sm"
+                  : "bg-white dark:bg-slate-900 border-gray-200 dark:border-slate-800 text-gray-600 dark:text-slate-300 hover:border-blue-500 hover:text-blue-600"
+              }`}
+              title={isDisplayActive ? "Customer Display Active - Click to Close" : "Launch Customer Display (Secondary Screen)"}
+            >
+              <Monitor className={`w-5 h-5 ${isDisplayActive ? "text-emerald-500 animate-pulse" : ""}`} />
+              <span className="hidden sm:inline">
+                {isDisplayActive ? "CFD: Active" : "Screen 2"}
+              </span>
+            </button>
           </div>
 
           <div className="flex items-center justify-between gap-4 pb-2">
@@ -703,6 +986,7 @@ export default function POSPage() {
                 const { icon: CatIcon, color, bg } = getCategoryDetails(p.category?.name || '');
                 const isOutOfStock = p.stockQuantity <= 0;
                 const isFocused = focusedSection === 'grid' && focusedProductIndex === idx;
+                const promoDetails = getProductDiscountDetails(p);
                 return (
                   <motion.div
                     id={`product-${idx}`}
@@ -735,12 +1019,24 @@ export default function POSPage() {
                             {p.stockQuantity} in stock
                           </span>
                         )}
+                        {promoDetails.hasPromo && (
+                          <span className="bg-red-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded shadow-sm">
+                            PROMO
+                          </span>
+                        )}
                       </div>
                       
                       {/* Price Overlay */}
                       <div className="absolute bottom-2 left-2 right-2 flex justify-between items-end z-10">
-                        <span className="text-white font-black text-sm tracking-tight bg-black/40 dark:bg-black/60 backdrop-blur-sm px-2 py-0.5 rounded-lg">
-                          {formatLKR(p.price)}
+                        <span className="text-white font-black text-sm tracking-tight bg-black/40 dark:bg-black/60 backdrop-blur-sm px-2 py-0.5 rounded-lg flex flex-col items-start">
+                          {promoDetails.hasPromo && promoDetails.promo?.type !== 'QUANTITY' && promoDetails.promo?.type !== 'BUY_X_GET_Y' ? (
+                            <>
+                              <span className="text-[10px] line-through text-gray-300 opacity-80">{formatLKR(promoDetails.originalPrice)}</span>
+                              <span className="text-green-300">{formatLKR(promoDetails.finalPrice)}</span>
+                            </>
+                          ) : (
+                            formatLKR(p.price)
+                          )}
                         </span>
                       </div>
                     </div>
@@ -777,6 +1073,7 @@ export default function POSPage() {
                 const isOutOfStock = p.stockQuantity <= 0;
                 const isExpanded = expandedItemId === p.id;
                 const isFocused = focusedSection === 'grid' && focusedProductIndex === idx;
+                const promoDetails = getProductDiscountDetails(p);
 
                 return (
                   <motion.div
@@ -815,14 +1112,28 @@ export default function POSPage() {
                           </div>
                         </div>
                         <div className="flex flex-col items-end justify-center gap-1.5 ml-2">
-                          <span className="text-blue-600 dark:text-blue-400 font-black text-sm whitespace-nowrap leading-none">
-                            {formatLKR(p.price)}
+                          <span className="text-blue-600 dark:text-blue-400 font-black text-sm whitespace-nowrap leading-none flex flex-col items-end">
+                            {promoDetails.hasPromo && promoDetails.promo?.type !== 'QUANTITY' && promoDetails.promo?.type !== 'BUY_X_GET_Y' ? (
+                              <>
+                                <span className="text-[10px] line-through text-gray-400 dark:text-slate-500 font-bold">{formatLKR(promoDetails.originalPrice)}</span>
+                                <span className="text-green-600 dark:text-green-400">{formatLKR(promoDetails.finalPrice)}</span>
+                              </>
+                            ) : (
+                              formatLKR(p.price)
+                            )}
                           </span>
-                          <span
-                            className={`text-[9px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap leading-none ${isOutOfStock ? "bg-red-100 text-red-600 dark:bg-red-900/30" : "bg-green-100 text-green-600 dark:bg-green-900/30"}`}
-                          >
-                            {p.stockQuantity} IN STOCK
-                          </span>
+                          <div className="flex items-center gap-1">
+                            {promoDetails.hasPromo && (
+                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap leading-none bg-red-100 text-red-600 dark:bg-red-900/30">
+                                PROMO
+                              </span>
+                            )}
+                            <span
+                              className={`text-[9px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap leading-none ${isOutOfStock ? "bg-red-100 text-red-600 dark:bg-red-900/30" : "bg-green-100 text-green-600 dark:bg-green-900/30"}`}
+                            >
+                              {p.stockQuantity} IN STOCK
+                            </span>
+                          </div>
                         </div>
                       </div>
                       
@@ -942,7 +1253,10 @@ export default function POSPage() {
         {/* Cart Items List */}
         <div className="flex-1 overflow-y-auto min-h-0 p-4 space-y-3 relative">
           <AnimatePresence initial={false}>
-            {cart.map((item, index) => (
+            {cart.map((item, index) => {
+              const product = products.find(p => p.id === item.productId);
+              const promoDetails = product ? getProductDiscountDetails(product) : { hasPromo: false, originalPrice: item.price, finalPrice: item.price, promo: null };
+              return (
               <motion.div
                 layout
                 initial={{ opacity: 0, x: 20, scale: 0.95 }}
@@ -954,14 +1268,23 @@ export default function POSPage() {
                 className={`group flex flex-col p-3 border rounded-xl shadow-sm hover:border-blue-200 transition-colors ${focusedSection === "cart" && focusedCartIndex === index ? "bg-blue-50 dark:bg-slate-800 border-blue-400 ring-2 ring-blue-400" : "bg-white dark:bg-slate-900 border-gray-100 dark:border-slate-800"}`}
               >
                 <div className="flex justify-between items-start mb-2">
-                  <h4 className="font-bold text-sm text-gray-900 dark:text-white leading-tight pr-4">{item.productName}</h4>
+                  <h4 className="font-bold text-sm text-gray-900 dark:text-white leading-tight pr-4 truncate">
+                    {item.productName.length > 30 ? item.productName.substring(0, 30) + "..." : item.productName}
+                  </h4>
                   <button onClick={() => removeFromCart(item.productId)} className="text-gray-300 hover:text-red-500 dark:text-slate-600 dark:hover:text-red-400 transition-colors">
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
                 <div className="flex items-end justify-between">
-                  <span className="text-blue-600 dark:text-blue-400 font-bold text-sm">
-                    {formatLKR(item.price)}
+                  <span className="text-blue-600 dark:text-blue-400 font-bold text-sm flex flex-col">
+                    {promoDetails.hasPromo && promoDetails.promo?.type !== 'QUANTITY' && promoDetails.promo?.type !== 'BUY_X_GET_Y' ? (
+                      <>
+                        <span className="text-[10px] line-through text-gray-400 font-medium leading-none mb-0.5">{formatLKR(promoDetails.originalPrice)}</span>
+                        <span>{formatLKR(promoDetails.finalPrice)}</span>
+                      </>
+                    ) : (
+                      <span>{formatLKR(item.price)}</span>
+                    )}
                   </span>
                   
                   {/* Quantity Stepper */}
@@ -984,7 +1307,7 @@ export default function POSPage() {
                   </div>
                 </div>
               </motion.div>
-            ))}
+            )})}
           </AnimatePresence>
           
           {cart.length === 0 && (
@@ -1183,7 +1506,8 @@ export default function POSPage() {
                       <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-b from-gray-200 to-transparent opacity-50"></div>
                       
                       <div className="text-center text-black mb-4">
-                        <h2 className="font-bold text-lg mb-1">{user?.tenant?.name || 'cMart POS'}</h2>
+                        <h2 className="font-bold text-lg mb-1">{user?.tenant?.businessName || 'cMart POS'}</h2>
+                        <div className="text-[10px]">Invoice: INV-XXXXXXXX</div>
                       </div>
 
                       <div className="border-b border-dashed border-gray-300 pb-2 mb-2 flex justify-between text-[10px] text-black">
@@ -1249,8 +1573,8 @@ export default function POSPage() {
                           <span className="font-bold">{user?.name || 'Admin'}</span>
                         </div>
                         <div className="text-center space-y-1 text-gray-600">
-                          <p>Tel: {user?.tenant?.phone || '011-2345678'}</p>
-                          <p>Email: {user?.tenant?.email || 'contact@store.com'}</p>
+                          <p>Tel: {(user?.tenant as any)?.phone || '011-2345678'}</p>
+                          <p>Email: {(user?.tenant as any)?.email || 'contact@store.com'}</p>
                           <p className="mt-2 text-[9px] italic">Returns/Refunds accepted within 7 days with original receipt.</p>
                           <p className="font-bold mt-2">Thank you for shopping with us!</p>
                         </div>
@@ -1291,7 +1615,7 @@ export default function POSPage() {
                     <h2 className="text-2xl font-black text-gray-900 dark:text-white mb-2">Payment Successful!</h2>
                     <p className="text-gray-500 dark:text-slate-400 mb-8">Change due: <span className="font-bold text-gray-900 dark:text-white">{formatLKR(change)}</span></p>
                     <div className="flex gap-4">
-                      <button onClick={printReceipt} className="flex flex-col items-center justify-center px-6 py-2 bg-white dark:bg-slate-800 text-gray-900 dark:text-white border border-gray-200 dark:border-slate-700 font-bold rounded-xl hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
+                      <button onClick={() => printReceipt()} className="flex flex-col items-center justify-center px-6 py-2 bg-white dark:bg-slate-800 text-gray-900 dark:text-white border border-gray-200 dark:border-slate-700 font-bold rounded-xl hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
                         <div className="flex items-center gap-2">
                           <Printer className="w-5 h-5" />
                           <span>Print Receipt</span>
@@ -1347,9 +1671,8 @@ export default function POSPage() {
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') {
                                e.preventDefault();
-                               if (parseFloat(paymentModal.cashAmount || '0') >= total) {
-                                 checkout();
-                               }
+                               if (e.repeat) return;
+                               checkout();
                             } else if (e.key === 'ArrowDown') {
                                e.preventDefault();
                                const shortcut = document.getElementById('cash-shortcut-0');
@@ -1393,8 +1716,8 @@ export default function POSPage() {
                                     document.getElementById('confirm-payment-btn')?.focus();
                                   } else if (e.key === 'Enter') {
                                     e.preventDefault();
+                                    if (e.repeat) return;
                                     setPaymentModal(prev => ({ ...prev, cashAmount: amt.toString() }));
-                                    setTimeout(() => document.getElementById('confirm-payment-btn')?.focus(), 50);
                                   }
                                 }}
                                 className="px-4 py-2 bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 text-sm font-bold rounded-lg hover:bg-gray-200 dark:hover:bg-slate-700 focus:bg-blue-100 focus:text-blue-700 dark:focus:bg-blue-900/40 dark:focus:text-blue-400 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
@@ -1409,13 +1732,11 @@ export default function POSPage() {
                     <button
                       id="confirm-payment-btn"
                       onClick={checkout}
-                      disabled={paymentModal.method === 'CASH' && (!paymentModal.cashAmount || parseFloat(paymentModal.cashAmount) < total)}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" && !e.shiftKey) {
                           e.preventDefault();
-                          if (!(paymentModal.method === "CASH" && (!paymentModal.cashAmount || parseFloat(paymentModal.cashAmount) < total))) {
-                            checkout();
-                          }
+                          if (e.repeat) return;
+                          checkout();
                         } else if (e.key === "ArrowUp") {
                           e.preventDefault();
                           const shortcut = document.getElementById('cash-shortcut-0');
@@ -1507,9 +1828,73 @@ export default function POSPage() {
                 </button>
               </div>
 
+              <div className="mb-4 relative">
+                <label className="block text-sm font-bold text-gray-700 dark:text-slate-300 mb-2">Discount Type</label>
+                <button
+                  id="discount-type-btn"
+                  type="button"
+                  onClick={() => setIsDiscountTypeDropdownOpen(!isDiscountTypeDropdownOpen)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      if (isDiscountTypeDropdownOpen) {
+                        setIsDiscountTypeDropdownOpen(false);
+                        document.getElementById("discount-input")?.focus();
+                      } else {
+                        setIsDiscountTypeDropdownOpen(true);
+                      }
+                    } else if (e.key === "ArrowDown") {
+                      e.preventDefault();
+                      if (isDiscountTypeDropdownOpen) {
+                        setDiscountType(discountType === "percent" ? "fixed" : "percent");
+                      } else {
+                        document.getElementById("discount-input")?.focus();
+                      }
+                    } else if (e.key === "ArrowUp") {
+                      e.preventDefault();
+                      if (isDiscountTypeDropdownOpen) {
+                        setDiscountType(discountType === "percent" ? "fixed" : "percent");
+                      }
+                    } else if (e.key === "Escape") {
+                      if (isDiscountTypeDropdownOpen) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setIsDiscountTypeDropdownOpen(false);
+                      }
+                    }
+                  }}
+                  className="w-full p-3 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white flex justify-between items-center font-medium"
+                >
+                  {discountType === "percent" ? "Percentage (%)" : "Fixed Amount"}
+                  <ChevronDown className="w-4 h-4 text-gray-500" />
+                </button>
+                
+                {isDiscountTypeDropdownOpen && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-lg z-50 overflow-hidden">
+                    <button
+                      type="button"
+                      className={`w-full text-left px-4 py-3 text-sm font-medium hover:bg-gray-50 dark:hover:bg-slate-700 ${discountType === 'percent' ? 'bg-blue-50 dark:bg-slate-700/50 text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-slate-300'}`}
+                      onClick={() => { setDiscountType('percent'); setIsDiscountTypeDropdownOpen(false); document.getElementById('discount-input')?.focus(); }}
+                    >
+                      Percentage (%)
+                    </button>
+                    <button
+                      type="button"
+                      className={`w-full text-left px-4 py-3 text-sm font-medium hover:bg-gray-50 dark:hover:bg-slate-700 ${discountType === 'fixed' ? 'bg-blue-50 dark:bg-slate-700/50 text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-slate-300'}`}
+                      onClick={() => { setDiscountType('fixed'); setIsDiscountTypeDropdownOpen(false); document.getElementById('discount-input')?.focus(); }}
+                    >
+                      Fixed Amount
+                    </button>
+                  </div>
+                )}
+              </div>
+
               <div className="mb-6">
-                <label className="block text-sm font-bold text-gray-700 dark:text-slate-300 mb-2">Discount Amount (Rs)</label>
+                <label className="block text-sm font-bold text-gray-700 dark:text-slate-300 mb-2">
+                  {discountType === "percent" ? "Discount Percentage (%)" : "Discount Amount (Rs)"}
+                </label>
                 <input
+                  id="discount-input"
                   type="number"
                   autoFocus
                   value={discountInputValue}
@@ -1517,21 +1902,33 @@ export default function POSPage() {
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       e.preventDefault();
-                      const val = Number(discountInputValue);
-                      if (!isNaN(val) && val >= 0) {
-                        setDiscountType("fixed");
-                        setDiscount(val);
+                      if (discountFocusedBtn === "cancel") {
                         setIsDiscountModalOpen(false);
+                      } else {
+                        if (!discountInputValue || Number(discountInputValue) <= 0) {
+                          toast.error("Please enter a valid discount amount");
+                          return;
+                        }
+                        const val = Number(discountInputValue);
+                        if (!isNaN(val) && val > 0) {
+                          setDiscount(val);
+                          setIsDiscountModalOpen(false);
+                          setIsDiscountTypeDropdownOpen(false);
+                        }
                       }
                     } else if (e.key === "Escape") {
                       e.preventDefault();
                       setIsDiscountModalOpen(false);
+                      setIsDiscountTypeDropdownOpen(false);
+                    } else if (e.key === "ArrowUp") {
+                      e.preventDefault();
+                      document.getElementById("discount-type-btn")?.focus();
                     } else if (e.key === "ArrowRight") {
                       e.preventDefault();
-                      setDiscountFocusedBtn("cancel");
+                      setDiscountFocusedBtn("ok");
                     } else if (e.key === "ArrowLeft") {
                       e.preventDefault();
-                      setDiscountFocusedBtn("ok");
+                      setDiscountFocusedBtn("cancel");
                     }
                   }}
                   className="w-full text-2xl font-black p-4 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white"
@@ -1541,22 +1938,31 @@ export default function POSPage() {
 
               <div className="flex gap-3 mt-auto">
                 <button
-                  onClick={() => setIsDiscountModalOpen(false)}
+                  onClick={() => {
+                    setDiscount(0);
+                    setDiscountInputValue("");
+                    setIsDiscountModalOpen(false);
+                    setIsDiscountTypeDropdownOpen(false);
+                  }}
                   className={`flex-1 py-3 font-bold rounded-xl transition-all ${
                     discountFocusedBtn === "cancel"
                       ? "bg-gray-200 dark:bg-slate-700 text-gray-900 dark:text-white ring-2 ring-gray-400"
                       : "bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-700"
                   }`}
                 >
-                  Cancel
+                  Clear
                 </button>
                 <button
                   onClick={() => {
+                    if (!discountInputValue || Number(discountInputValue) <= 0) {
+                      toast.error("Please enter a valid discount amount");
+                      return;
+                    }
                     const val = Number(discountInputValue);
-                    if (!isNaN(val) && val >= 0) {
-                      setDiscountType("fixed");
+                    if (!isNaN(val) && val > 0) {
                       setDiscount(val);
                       setIsDiscountModalOpen(false);
+                      setIsDiscountTypeDropdownOpen(false);
                     }
                   }}
                   className={`flex-1 py-3 font-bold rounded-xl transition-all ${
@@ -1573,98 +1979,7 @@ export default function POSPage() {
         )}
       </AnimatePresence>
 
-      {/* Discount Modal */}
-      <AnimatePresence>
-        {isDiscountModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
-              onClick={() => setIsDiscountModalOpen(false)}
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-sm bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-2xl border border-gray-100 dark:border-slate-800 flex flex-col"
-            >
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-black text-gray-900 dark:text-white">Apply Discount</h2>
-                <button
-                  onClick={() => setIsDiscountModalOpen(false)}
-                  className="p-2 bg-gray-100 dark:bg-slate-800 rounded-full text-gray-500 hover:text-gray-700 transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
 
-              <div className="mb-6">
-                <label className="block text-sm font-bold text-gray-700 dark:text-slate-300 mb-2">Discount Amount (Rs)</label>
-                <input
-                  type="number"
-                  autoFocus
-                  value={discountInputValue}
-                  onChange={(e) => setDiscountInputValue(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      const val = Number(discountInputValue);
-                      if (!isNaN(val) && val >= 0) {
-                        setDiscountType("fixed");
-                        setDiscount(val);
-                        setIsDiscountModalOpen(false);
-                      }
-                    } else if (e.key === "Escape") {
-                      e.preventDefault();
-                      setIsDiscountModalOpen(false);
-                    } else if (e.key === "ArrowRight") {
-                      e.preventDefault();
-                      setDiscountFocusedBtn("cancel");
-                    } else if (e.key === "ArrowLeft") {
-                      e.preventDefault();
-                      setDiscountFocusedBtn("ok");
-                    }
-                  }}
-                  className="w-full text-2xl font-black p-4 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white"
-                  placeholder="0.00"
-                />
-              </div>
-
-              <div className="flex gap-3 mt-auto">
-                <button
-                  onClick={() => setIsDiscountModalOpen(false)}
-                  className={`flex-1 py-3 font-bold rounded-xl transition-all ${
-                    discountFocusedBtn === "cancel"
-                      ? "bg-gray-200 dark:bg-slate-700 text-gray-900 dark:text-white ring-2 ring-gray-400"
-                      : "bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-700"
-                  }`}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => {
-                    const val = Number(discountInputValue);
-                    if (!isNaN(val) && val >= 0) {
-                      setDiscountType("fixed");
-                      setDiscount(val);
-                      setIsDiscountModalOpen(false);
-                    }
-                  }}
-                  className={`flex-1 py-3 font-bold rounded-xl transition-all ${
-                    discountFocusedBtn === "ok"
-                      ? "bg-blue-600 text-white shadow-lg shadow-blue-500/25 ring-2 ring-blue-400 ring-offset-2 dark:ring-offset-slate-900"
-                      : "bg-blue-500 text-white hover:bg-blue-600"
-                  }`}
-                >
-                  Apply
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
 
     </div>
   );

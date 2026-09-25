@@ -1,11 +1,11 @@
 'use client';
 import { Suspense } from 'react';
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Search, Trash2, Package, Tag, Filter, X, Barcode, Edit, List, LayoutGrid, Maximize, Minimize, Copy } from 'lucide-react';
+import { Plus, Search, Trash2, Package, Tag, Filter, X, Barcode, Edit, List, LayoutGrid, Maximize, Minimize, Copy, Calendar, ChevronUp } from 'lucide-react';
 import { KpiCard } from '@/components/ui/kpi-card';
 import { FilterPanel } from '@/components/ui/filter-panel';
 import { CustomSelect } from '@/components/ui/custom-select';
@@ -34,7 +34,7 @@ function dataURLtoFile(dataurl: string, filename: string) {
   }
 }
 
-function ProductHistoryView({ product, onBack }: { product: any, onBack: () => void }) {
+function ProductHistoryView({ product, onClose, onUpdate, onDelete }: { product: any, onClose: () => void, onUpdate: (p: any) => void, onDelete: (id: number) => void }) {
   const [history, setHistory] = useState<any[]>([]);
   const user = useAuthStore(state => state.user);
 
@@ -62,48 +62,71 @@ function ProductHistoryView({ product, onBack }: { product: any, onBack: () => v
   }, [product, user?.branchId]);
 
   return (
-    <div className="flex flex-col h-full w-full">
-      <div className="flex items-center gap-4 p-6 border-b border-slate-100 dark:border-slate-800 shrink-0 bg-white dark:bg-slate-900">
-        <button onClick={onBack} className="p-2 bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white rounded-xl transition-colors">
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
-        </button>
+    <div className="bg-[#F8FAFC] dark:bg-slate-900/50 border-b-2 border-slate-200 dark:border-slate-800 p-6 sm:p-8">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-8">
         <div>
-          <h2 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            {product.name} - Product History
+          <h2 className="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-3">
+            {product.name}
+            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold ${
+              product.showOnWebsite ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400' : 
+              'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+            }`}>
+              <span className="w-2 h-2 rounded-full bg-current" />
+              {product.showOnWebsite ? 'Published' : 'POS Only'}
+            </span>
           </h2>
-          <p className="text-sm font-medium text-slate-500">View creation and update logs for this product.</p>
+          <p className="text-sm font-bold text-slate-500 mt-2 flex items-center gap-2">
+            <Calendar className="w-4 h-4" /> Added on {new Date(product.createdAt).toLocaleDateString()} at {new Date(product.createdAt).toLocaleTimeString()}
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button onClick={() => onUpdate(product)} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 font-bold transition-colors shadow-sm shadow-blue-500/20">
+            <Edit className="w-4 h-4" /> Update
+          </button>
+          <button onClick={() => onDelete(product.id)} className="flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-blue-600 text-blue-600 hover:bg-blue-50 dark:border-blue-500 dark:text-blue-400 dark:hover:bg-blue-500/10 font-bold transition-colors">
+            <Trash2 className="w-4 h-4" /> Delete
+          </button>
+          <button onClick={onClose} className="flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-blue-600 text-blue-600 hover:bg-blue-50 dark:border-blue-500 dark:text-blue-400 dark:hover:bg-blue-500/10 font-bold transition-colors">
+            Close <ChevronUp className="w-4 h-4" />
+          </button>
         </div>
       </div>
-      <div className="flex-1 overflow-x-auto bg-white dark:bg-slate-900">
-        <div className="min-w-max h-full flex flex-col">
-          <div className="grid grid-cols-[200px_150px_450px_200px] gap-4 p-5 border-b border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/50 text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0">
-            <div>Date</div>
-            <div>Action</div>
-            <div>Description</div>
-            <div>Performed By</div>
-          </div>
-          <div className="flex-1 overflow-y-auto no-scrollbar">
-            {history.map((h, i) => (
-              <div key={i} className="grid grid-cols-[200px_150px_450px_200px] gap-4 p-5 border-b border-slate-100 dark:border-slate-800/60 items-center hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-                <div className="text-sm font-bold text-slate-700 dark:text-slate-300">{new Date(h.date).toLocaleDateString()} {new Date(h.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
-                <div>
-                  <span className={`inline-flex px-2 py-1 rounded-md text-[10px] uppercase font-bold ${
-                    h.action === 'CREATED' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' : 
-                    h.action === 'PRICE_UPDATE' ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400' :
-                    'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400'
-                  }`}>{h.action.replace('_', ' ')}</span>
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col">
+        <div className="p-5 border-b border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/50">
+          <h3 className="font-black text-slate-900 dark:text-white">Recent Activity Log</h3>
+        </div>
+        <div className="overflow-x-auto no-scrollbar">
+          <div className="min-w-max flex flex-col">
+            <div className="grid grid-cols-[200px_150px_450px_200px] gap-4 p-4 border-b border-slate-100 dark:border-slate-800/60 bg-slate-50/30 dark:bg-slate-900/30 text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0">
+              <div>Date</div>
+              <div>Action</div>
+              <div>Description</div>
+              <div>Performed By</div>
+            </div>
+            <div className="flex flex-col">
+              {history.map((h, i) => (
+                <div key={i} className="grid grid-cols-[200px_150px_450px_200px] gap-4 p-4 border-b border-slate-100 dark:border-slate-800/60 items-center hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                  <div className="text-sm font-bold text-slate-700 dark:text-slate-300">{new Date(h.date).toLocaleDateString()} {new Date(h.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                  <div>
+                    <span className={`inline-flex px-2 py-1 rounded-md text-[10px] uppercase font-bold ${
+                      h.action === 'CREATED' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' : 
+                      h.action === 'PRICE_UPDATE' ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400' :
+                      'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400'
+                    }`}>{h.action.replace('_', ' ')}</span>
+                  </div>
+                  <div className="text-sm font-medium text-slate-700 dark:text-slate-300 truncate">{h.desc}</div>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{h.by}</span>
+                    {h.role && (
+                      <span className="text-[10px] font-bold text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-500/10 px-1.5 py-0.5 rounded w-max mt-0.5">
+                        {h.role}
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div className="text-sm font-medium text-slate-700 dark:text-slate-300 truncate">{h.desc}</div>
-                <div className="flex flex-col">
-                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{h.by}</span>
-                  {h.role && (
-                    <span className="text-[10px] font-bold text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-500/10 px-1.5 py-0.5 rounded w-max mt-0.5">
-                      {h.role}
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -419,26 +442,28 @@ function StoreProductsPageContent() {
   });
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900/50 p-6 overflow-hidden">
+    <div className={`flex flex-col bg-slate-50 dark:bg-slate-900/50 overflow-hidden ${isFullscreen ? 'h-full p-2 sm:p-4' : 'h-full p-6'}`}>
       
       {/* ──────────────── HEADER ──────────────── */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
-        <div>
-          <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
-            <Package className="w-8 h-8 text-blue-600" />
-            Product Management
-          </h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium">Add, update, and track your store products elegantly.</p>
+      {!isFullscreen && (
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+          <div>
+            <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
+              <Package className="w-8 h-8 text-blue-600" />
+              Product Management
+            </h1>
+            <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium">Add, update, and track your store products elegantly.</p>
+          </div>
+          
+          <button 
+            onClick={openAddPanel}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5 active:translate-y-0"
+          >
+            <Plus className="w-5 h-5" />
+            Add Product
+          </button>
         </div>
-        
-        <button 
-          onClick={openAddPanel}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5 active:translate-y-0"
-        >
-          <Plus className="w-5 h-5" />
-          Add Product
-        </button>
-      </div>
+      )}
 
       {/* ──────────────── SEARCH & FILTER BAR ──────────────── */}
       <div className="flex flex-col sm:flex-row gap-4 mb-6">
@@ -485,28 +510,18 @@ function StoreProductsPageContent() {
           </button>
           <div className="w-px h-full bg-slate-200 dark:bg-slate-800 mx-1"></div>
           <button 
-            onClick={() => setIsFullscreen(true)}
+            onClick={() => setIsFullscreen(!isFullscreen)}
             title="Full Screen"
             className={`flex items-center justify-center w-12 h-full rounded-xl transition-all text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800`}
           >
-            <Maximize className="w-5 h-5" />
+            {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
           </button>
         </div>
       </div>
 
       {/* ──────────────── DATA TABLE (CARD LIST) ──────────────── */}
-      <div className={`flex-1 bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col min-h-[400px] ${isFullscreen ? 'fixed inset-y-0 right-0 left-[68px] z-[100] m-0 rounded-none border-none' : ''}`}>
-        {isFullscreen && (
-          <button 
-            onClick={() => setIsFullscreen(false)} 
-            className="absolute top-4 right-4 z-[110] p-3 bg-slate-900/50 text-white rounded-full hover:bg-slate-900/80 transition-colors backdrop-blur-md shadow-lg"
-          >
-            <Minimize className="w-5 h-5" />
-          </button>
-        )}
-        {viewingProduct ? (
-          <ProductHistoryView product={viewingProduct} onBack={() => setViewingProduct(null)} />
-        ) : viewMode === 'list' ? (
+      <div className={`flex-1 bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col min-h-[400px] ${isFullscreen ? 'm-0 rounded-none border-none' : ''}`}>
+        {viewMode === 'list' ? (
           <div className="flex-1 overflow-x-auto">
             <div className="min-w-max h-full flex flex-col">
               {/* Table Header */}
@@ -538,7 +553,8 @@ function StoreProductsPageContent() {
                 {filteredProducts.map((p) => {
                   const catInfo = getCategoryName(p.categoryId);
                   return (
-                  <div key={p.id} onClick={() => setViewingProduct(p)} className="cursor-pointer grid grid-cols-[250px_150px_150px_150px_150px_120px_150px_100px] gap-4 p-5 border-b border-slate-100 dark:border-slate-800/60 items-center hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group">
+                  <React.Fragment key={p.id}>
+                    <div onClick={() => setViewingProduct(viewingProduct?.id === p.id ? null : p)} className={`cursor-pointer grid grid-cols-[250px_150px_150px_150px_150px_120px_150px_100px] gap-4 p-5 items-center transition-colors group ${viewingProduct?.id === p.id ? 'bg-blue-50/50 dark:bg-blue-900/10 border-b-0' : 'border-b border-slate-100 dark:border-slate-800/60 hover:bg-slate-50/50 dark:hover:bg-slate-800/30'}`}>
                     <div className="flex items-center gap-4 min-w-0">
                       <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0 text-slate-400 overflow-hidden">
                         {p.images?.[0]?.url ? (
@@ -630,6 +646,21 @@ function StoreProductsPageContent() {
                       </button>
                     </div>
                   </div>
+
+                    {/* Inline Details Expansion for List */}
+                    <AnimatePresence>
+                      {viewingProduct?.id === p.id && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          className="overflow-hidden border-b border-slate-100 dark:border-slate-800/60"
+                        >
+                          <ProductHistoryView product={p} onClose={() => setViewingProduct(null)} onUpdate={openEditPanel} onDelete={handleDelete} />
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </React.Fragment>
                 )})}
                 </>
               )}
@@ -653,7 +684,8 @@ function StoreProductsPageContent() {
                 {filteredProducts.map(p => {
                   const catInfo = getCategoryName(p.categoryId);
                   return (
-                    <div key={p.id} className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all group flex flex-col">
+                  <React.Fragment key={p.id}>
+                    <div onClick={() => setViewingProduct(viewingProduct?.id === p.id ? null : p)} className={`cursor-pointer bg-white dark:bg-slate-900 border ${viewingProduct?.id === p.id ? 'border-blue-500 shadow-md' : 'border-slate-200 dark:border-slate-800'} rounded-3xl overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all group flex flex-col`}>
                       <div className="relative aspect-square bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 overflow-hidden">
                          {p.images?.[0]?.url ? <img src={p.images[0].url} alt={p.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" /> : <Package className="w-12 h-12 opacity-50" />}
                          <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3 backdrop-blur-[2px]">
@@ -691,6 +723,20 @@ function StoreProductsPageContent() {
                         </div>
                       </div>
                     </div>
+                    {/* Inline Details Expansion for Grid */}
+                    <AnimatePresence>
+                      {viewingProduct?.id === p.id && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          className="col-span-full overflow-hidden rounded-3xl border border-blue-100 dark:border-blue-900/30 shadow-lg mt-2 mb-4"
+                        >
+                          <ProductHistoryView product={p} onClose={() => setViewingProduct(null)} onUpdate={openEditPanel} onDelete={handleDelete} />
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </React.Fragment>
                   );
                 })}
               </div>
@@ -999,7 +1045,7 @@ function StoreProductsPageContent() {
                 <div className="flex gap-3">
                   <button 
                     type="button"
-                    onClick={() => setIsAddOpen(false)}
+                    onClick={() => setIsPanelOpen(false)}
                     className="flex-1 px-4 py-3 rounded-xl font-bold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
                   >
                     Cancel

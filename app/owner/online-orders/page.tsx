@@ -12,6 +12,7 @@ import { KpiCard } from '@/components/ui/kpi-card';
 import { FilterPanel } from '@/components/ui/filter-panel';
 import { CustomSelect } from '@/components/ui/custom-select';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { TableEmptyState } from '@/components/ui/table-empty-state';
 import PrintOrderModal from '@/components/PrintOrderModal';
 import { toast } from 'sonner';
 
@@ -442,7 +443,13 @@ export default function OnlineOrdersPage() {
           </button>
         )}
 
-        {viewMode === 'list' ? (
+        {filteredOrders.length === 0 ? (
+          <TableEmptyState
+            icon={ShoppingBag}
+            title="No online orders found"
+            description="You haven't received any customer online orders yet, or none match your search filters."
+          />
+        ) : viewMode === 'list' ? (
           <div className="flex-1 overflow-x-auto">
             <div className="min-w-max h-full flex flex-col">
               {/* Table Header */}
@@ -457,14 +464,7 @@ export default function OnlineOrdersPage() {
 
               {/* Table Body */}
               <div className="flex-1 overflow-y-auto no-scrollbar">
-                {filteredOrders.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-64 text-slate-400 gap-4">
-                    <ShoppingBag className="w-12 h-12 opacity-20" />
-                    <p className="font-medium text-lg text-slate-500">No online orders found.</p>
-                  </div>
-                ) : (
-                  <>
-                  {filteredOrders.map((order) => (
+                {filteredOrders.map((order) => (
                     <div key={order.id} onClick={() => openOrderDetails(order)} className="cursor-pointer grid grid-cols-[140px_1fr_120px_150px_150px_160px] gap-4 p-5 border-b border-slate-100 dark:border-slate-800/60 items-center hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group">
                       
                       <div className="flex items-center gap-1.5 text-sm font-bold text-slate-900 dark:text-white">
@@ -548,21 +548,13 @@ export default function OnlineOrdersPage() {
                       </div>
                     </div>
                   ))}
-                  </>
-                )}
               </div>
             </div>
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto no-scrollbar p-6 bg-slate-50/50 dark:bg-slate-900/50">
-            {filteredOrders.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-64 text-slate-400 gap-4">
-                <ShoppingBag className="w-12 h-12 opacity-20" />
-                <p className="font-medium text-lg text-slate-500">No online orders found.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
-                {filteredOrders.map((order) => (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
+              {filteredOrders.map((order) => (
                   <div key={order.id} onClick={() => openOrderDetails(order)} className="cursor-pointer bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-sm hover:shadow-md transition-shadow group relative flex flex-col min-h-[260px]">
                     
                     <div className="flex justify-between items-start mb-4">
@@ -651,8 +643,7 @@ export default function OnlineOrdersPage() {
                   </div>
                 ))}
               </div>
-            )}
-          </div>
+            </div>
         )}
       </div>
 
@@ -694,14 +685,19 @@ export default function OnlineOrdersPage() {
               className="fixed inset-y-0 right-0 z-50 w-full max-w-lg bg-white dark:bg-slate-900 shadow-2xl border-l border-slate-200 dark:border-slate-800 flex flex-col"
             >
               {/* Panel Header */}
-              <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-slate-800 shrink-0">
-                <div>
-                  <h2 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-                    Order Details
-                  </h2>
-                  <div className="flex items-center gap-2 mt-1">
-                    <p className="text-sm font-bold text-slate-500 uppercase tracking-wider">{selectedOrder.id}</p>
-                    <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(selectedOrder.id); toast.success('Order ID copied'); }} className="text-slate-400 hover:text-blue-600 transition-colors" title="Copy ID"><Copy className="w-3.5 h-3.5" /></button>
+              <div className="flex items-center justify-between h-[89px] px-6 border-b border-slate-100 dark:border-slate-800 shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0">
+                    <Globe className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-black text-slate-900 dark:text-white">
+                      Order Details
+                    </h2>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">{selectedOrder.id}</p>
+                      <button type="button" onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(selectedOrder.id); toast.success('Order ID copied'); }} className="text-slate-400 hover:text-blue-600 transition-colors" title="Copy ID"><Copy className="w-3 h-3" /></button>
+                    </div>
                   </div>
                 </div>
                 <button onClick={() => setIsDetailsPanelOpen(false)} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors">

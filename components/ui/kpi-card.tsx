@@ -23,7 +23,7 @@ export function KpiCard({
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-[10px] sm:text-xs md:text-sm font-bold text-slate-500 dark:text-slate-400 truncate">{title}</p>
-        <p className="text-sm sm:text-base md:text-xl font-black text-slate-900 dark:text-white truncate">{value}</p>
+        <div className="text-sm sm:text-base md:text-xl font-black text-slate-900 dark:text-white truncate">{value}</div>
       </div>
     </div>
   );

@@ -11,7 +11,7 @@ import {
   CreditCard, Settings as SettingsIcon, ChevronDown, Store, User,
   Database, Bell, DollarSign, Printer, Lock, AlertTriangle,
   PanelLeftClose, PanelLeftOpen, SlidersHorizontal, Barcode, Shield, CalendarDays, Banknote,
-  Palette, FileText, Layout, Search, Image, PieChart, Building2
+  Palette, FileText, Layout, Search, Image, PieChart, Building2, Target
 } from 'lucide-react';
 
 interface EmployeeSidebarProps {
@@ -25,13 +25,14 @@ const mainNavItems = [
   { href: '/employee/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/employee/pos', label: 'POS', icon: ShoppingCart, hideOnMobile: true },
   { href: '/employee/products', label: 'Products', icon: Package },
-  { href: '/employee/barcode-generator', label: 'Barcode Generator', icon: Barcode, hideOnMobile: true },
-  { href: '/employee/categories', label: 'Categories', icon: Tag },
   { href: '/employee/inventory', label: 'Inventory', icon: Warehouse },
-  { href: '/employee/suppliers', label: 'Suppliers', icon: Truck, tier: 'PRO' },
   { href: '/employee/sales', label: 'Sales', icon: Receipt },
-  { href: '/employee/expenses', label: 'Expenses', icon: Banknote },
+  { href: '/employee/goals', label: 'Goals', icon: Target },
+  { href: '/employee/suppliers', label: 'Suppliers', icon: Truck, tier: 'PRO' },
   { href: '/employee/customers', label: 'Customers', icon: Users, tier: 'PRO' },
+  { href: '/employee/categories', label: 'Categories', icon: Tag },
+  { href: '/employee/expenses', label: 'Expenses', icon: Banknote },
+  { href: '/employee/barcode-generator', label: 'Barcode Generator', icon: Barcode, hideOnMobile: true },
   { href: '/employee/attendance', label: 'Attendance', icon: Clock, tier: 'PRO' },
   { href: '/employee/subscription', label: 'Subscription', icon: CreditCard },
 ];
@@ -108,6 +109,37 @@ export default function EmployeeSidebar({ collapsed: desktopCollapsed, onToggle,
   const isEmployeesActive = employeeSubItems.some((item) => pathname === item.href || pathname.startsWith(item.href + '/'));
   const isOnlineStoreActive = onlineStoreSubItems.some((item) => pathname === item.href || pathname.startsWith(item.href + '/'));
   const isReportsActive = reportsSubItems.some((item) => pathname === item.href || pathname.startsWith(item.href + '/'));
+
+  const [isAutoBackupActive, setIsAutoBackupActive] = useState(true);
+
+  useEffect(() => {
+    const checkBackupStatus = () => {
+      try {
+        const stored = localStorage.getItem('cmart_auto_backup_enabled');
+        if (stored !== null) {
+          setIsAutoBackupActive(stored === 'true');
+          return;
+        }
+        const savedSettings = localStorage.getItem('cmart_backup_settings');
+        if (savedSettings) {
+          const parsed = JSON.parse(savedSettings);
+          if (parsed.autoBackupEnabled !== undefined) {
+            setIsAutoBackupActive(Boolean(parsed.autoBackupEnabled));
+            return;
+          }
+        }
+      } catch (e) {}
+      setIsAutoBackupActive(true);
+    };
+
+    checkBackupStatus();
+    window.addEventListener('cmart_backup_settings_updated', checkBackupStatus);
+    window.addEventListener('storage', checkBackupStatus);
+    return () => {
+      window.removeEventListener('cmart_backup_settings_updated', checkBackupStatus);
+      window.removeEventListener('storage', checkBackupStatus);
+    };
+  }, []);
 
   useEffect(() => {
     if (isSettingsActive) setSettingsOpen(true);
@@ -208,7 +240,7 @@ export default function EmployeeSidebar({ collapsed: desktopCollapsed, onToggle,
           <button
             onClick={() => {
               if (collapsed) {
-                handleToggle();
+                onToggle();
                 setReportsOpen(true);
               } else {
                 setReportsOpen(!reportsOpen);
@@ -429,11 +461,14 @@ export default function EmployeeSidebar({ collapsed: desktopCollapsed, onToggle,
               {settingsSubItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = pathname.startsWith(item.href);
+                const showBadge = item.href.includes('/backup') 
+                  ? (isAutoBackupActive ? 'Auto' : null) 
+                  : item.badge;
                 return (
                   <Link
-              key={item.href}
-              href={item.href}
-              onClick={(e) => handleNavigation(e, item)}
+                    key={item.href}
+                    href={item.href}
+                    onClick={(e) => handleNavigation(e, item)}
                     className={`flex items-center gap-3 text-sm py-2 pl-4 pr-3 transition-colors duration-150 ${
                       isActive
                         ? 'text-blue-600 dark:text-blue-400 font-medium'
@@ -444,13 +479,13 @@ export default function EmployeeSidebar({ collapsed: desktopCollapsed, onToggle,
                   >
                     <Icon className="w-4 h-4 flex-shrink-0" />
                     <span className="truncate">{item.label}</span>
-                    {item.badge && (
+                    {showBadge && (
                       <span className={`ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                        item.badge === '3'
+                        showBadge === '3'
                           ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
                           : 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
                       }`}>
-                        {item.badge}
+                        {showBadge}
                       </span>
                     )}
                   </Link>

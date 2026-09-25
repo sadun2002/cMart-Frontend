@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { KpiCard } from '@/components/ui/kpi-card';
 import { CustomSelect } from '@/components/ui/custom-select';
+import { TableEmptyState } from '@/components/ui/table-empty-state';
 import { bannersApi, themeApi } from '@/lib/services';
 
 const mockPages = [
@@ -244,10 +245,13 @@ export default function BannersPage() {
         <div className="flex-1 overflow-x-auto custom-scrollbar p-6">
           <div className="flex flex-col gap-4 min-w-[800px]">
             {filteredBanners.length === 0 ? (
-              <div className="py-20 text-center flex flex-col items-center justify-center text-slate-400 gap-4">
-                <ImageIcon className="w-12 h-12 opacity-20" />
-                <p className="font-medium text-lg text-slate-500">No banners found.</p>
-              </div>
+              <TableEmptyState
+                icon={ImageIcon}
+                title="No banners found"
+                description="You haven't created any promotional banners yet, or none match your search. Click below to design your first banner."
+                actionLabel="Create First Banner"
+                onAction={() => handleOpenPanel()}
+              />
             ) : (
               filteredBanners.map((banner) => (
                 <div key={banner.id} onClick={() => handleOpenPanel(banner)} className="flex items-center gap-6 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all cursor-pointer group">
@@ -314,11 +318,19 @@ export default function BannersPage() {
               className="fixed inset-y-0 right-0 w-full md:w-[600px] bg-white dark:bg-slate-900 z-[110] border-l border-slate-200 dark:border-slate-800 flex flex-col"
             >
               {/* Panel Header */}
-              <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-slate-800 shrink-0">
-                <h2 className="text-xl font-black text-slate-900 dark:text-white">
-                  {editingBanner ? 'Edit Banner' : 'Add New Banner'}
-                </h2>
-                <button onClick={() => setIsPanelOpen(false)} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-full transition-colors">
+              <div className="flex items-center justify-between h-[89px] px-6 border-b border-slate-100 dark:border-slate-800 shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0">
+                    <ImageIcon className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-black text-slate-900 dark:text-white">
+                      {editingBanner ? 'Edit Banner' : 'Add New Banner'}
+                    </h2>
+                    <p className="text-xs text-slate-500 font-medium">Configure marketing slides, links, and display order</p>
+                  </div>
+                </div>
+                <button onClick={() => setIsPanelOpen(false)} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors">
                   <X className="w-5 h-5" />
                 </button>
               </div>

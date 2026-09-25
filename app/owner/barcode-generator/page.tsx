@@ -1,12 +1,15 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Package, Barcode, Download, Printer, Copy, RefreshCcw, ChevronDown, History, Maximize, Minimize, Settings } from 'lucide-react';
+import { Package, Barcode, Download, Printer, Copy, RefreshCcw, ChevronDown, History, Maximize, Minimize, Settings, Search, List, LayoutGrid, Filter } from 'lucide-react';
 import { toast } from 'sonner';
 import JSZip from 'jszip';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { FilterPanel } from '@/components/ui/filter-panel';
+import { CustomSelect } from '@/components/ui/custom-select';
+import { AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '@/lib/auth-store';
-import { getLocalProducts, getBarcodeHistory, saveBarcodeHistory } from '@/lib/local-services';
+import { getLocalProducts, getBarcodeHistory, saveBarcodeHistory, markBarcodePrintedLocally, getLocalCategories } from '@/lib/local-services';
 import type { Product } from '@/lib/types';
 import { generateSystemBarcode } from '@/lib/barcode-utils';
 
@@ -21,9 +24,11 @@ const BARCODE_TYPES = [
 export default function BarcodeGeneratorPage() {
   const { user } = useAuthStore();
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
   useEffect(() => {
     if (user?.tenantId) {
       getLocalProducts(user.tenantId).then(setProducts).catch(console.error);
+      getLocalCategories(user.tenantId).then(setCategories).catch(console.error);
     }
   }, [user?.tenantId]);
 
@@ -54,7 +59,7 @@ export default function BarcodeGeneratorPage() {
       setIsPriceLocked(false);
     }
   }, [barcodeText, products]);
-  const [printQuantity, setPrintQuantity] = useState(1);
+  const [printQuantity, setPrintQuantity] = useState<number | ''>(1);
   const [compositeImageUrl, setCompositeImageUrl] = useState('');
   const [isTypeDropdownOpen, setIsTypeDropdownOpen] = useState(false);
   const [isBarcodeEditable, setIsBarcodeEditable] = useState(false);
@@ -62,7 +67,17 @@ export default function BarcodeGeneratorPage() {
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   const [isHistoryView, setIsHistoryView] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [printedFilter, setPrintedFilter] = useState<'all' | 'printed' | 'not-printed'>('not-printed');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [stockFilter, setStockFilter] = useState<string>('all');
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [historyData, setHistoryData] = useState<any[]>([]);
+
+  const barcodeInputRef = useRef<HTMLInputElement>(null);
+  const quantityInputRef = useRef<HTMLInputElement>(null);
+  const priceInputRef = useRef<HTMLInputElement>(null);
 
   const fetchHistory = async () => {
     if (user?.tenantId) {
@@ -118,9 +133,16 @@ export default function BarcodeGeneratorPage() {
     }
   };
 
+  const getBarcodeError = () => {
+    if (!barcodeText) return null;
+    if (symbology === 'ean13' && barcodeText.length !== 13) return 'EAN-13 barcodes must be exactly 13 digits';
+    if (symbology === 'upca' && barcodeText.length !== 12) return 'UPC-A barcodes must be exactly 12 digits';
+    return null;
+  };
+
   // Generate URL for bwip-js API
   const generateBarcodeUrl = () => {
-    if (!barcodeText) return '';
+    if (!barcodeText || getBarcodeError()) return '';
     const params = new URLSearchParams({
       bcid: symbology,
       text: barcodeText,
@@ -193,18 +215,57 @@ export default function BarcodeGeneratorPage() {
     };
   }, [barcodeText, symbology, scale, height, showStoreName, showDate, showPrice, manualPrice, user]);
 
+  const validateAndFocus = () => {
+    if (!barcodeText || !barcodeText.trim()) {
+      toast.error('Please enter barcode data');
+      barcodeInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      barcodeInputRef.current?.focus();
+      return false;
+    }
+    if (printQuantity === '' || printQuantity < 1) {
+      toast.error('Please enter a valid print quantity');
+      quantityInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      quantityInputRef.current?.focus();
+      return false;
+    }
+    if (showPrice && (!manualPrice || !manualPrice.trim())) {
+      toast.error('Please enter a price');
+      priceInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      priceInputRef.current?.focus();
+      return false;
+    }
+    if (symbology === 'ean13' && barcodeText.length !== 13) {
+      toast.error('EAN-13 barcodes must be exactly 13 digits');
+      barcodeInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      barcodeInputRef.current?.focus();
+      return false;
+    }
+    return true;
+  };
+
   const handlePrint = async () => {
+    if (!validateAndFocus()) return;
+
     if (user?.tenantId) {
        await saveBarcodeHistory(user.tenantId, {
          barcode: barcodeText,
          barcodeType: symbology,
-         quantity: printQuantity
+         quantity: Number(printQuantity)
        });
+       
+       const printedProduct = products.find(p => p.barcode === barcodeText);
+       if (printedProduct && !printedProduct?.isBarcodePrinted) {
+         await markBarcodePrintedLocally(printedProduct.id);
+         const updatedProducts = await getLocalProducts(user.tenantId, user.branchId || 1);
+         setProducts(updatedProducts);
+       }
+       
        fetchHistory();
     }
     const printWindow = window.open('', '_blank');
     if (printWindow && compositeImageUrl) {
-      const imagesHtml = Array(printQuantity)
+      const q = typeof printQuantity === 'number' ? printQuantity : 1;
+      const imagesHtml = Array(q)
         .fill(0)
         .map(() => `<div class="barcode-wrapper"><img src="${compositeImageUrl}" onload="imageLoaded()" /></div>`)
         .join('');
@@ -272,9 +333,11 @@ export default function BarcodeGeneratorPage() {
   };
 
   const handleDownload = async () => {
-    if (!compositeImageUrl) return;
+    if (!validateAndFocus() || !compositeImageUrl) return;
 
-    if (printQuantity === 1) {
+    const q = typeof printQuantity === 'number' ? printQuantity : 1;
+
+    if (q === 1) {
       // Single download
       const link = document.createElement('a');
       link.href = compositeImageUrl;
@@ -291,7 +354,7 @@ export default function BarcodeGeneratorPage() {
         // Remove data URL prefix to get raw base64
         const base64Data = compositeImageUrl.split(',')[1];
         
-        for (let i = 1; i <= printQuantity; i++) {
+        for (let i = 1; i <= q; i++) {
           zip.file(`barcode-${barcodeText}-${i}.png`, base64Data, { base64: true });
         }
         
@@ -334,7 +397,7 @@ export default function BarcodeGeneratorPage() {
           )}
           <button 
             onClick={() => setIsHistoryView(!isHistoryView)}
-            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all ${isHistoryView ? 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-600/20 hover:-translate-y-0.5 active:translate-y-0'}`}
+            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-600/20 hover:-translate-y-0.5 active:translate-y-0`}
           >
             {isHistoryView ? (
               <>
@@ -427,18 +490,63 @@ export default function BarcodeGeneratorPage() {
           </div>
         </div>
       ) : (
-      <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-0">
+      <div className={`flex flex-col lg:flex-row gap-6 flex-1 min-h-0 ${isFullscreen ? 'fixed inset-y-0 right-0 left-[68px] z-[100] m-0 p-6 bg-slate-50 dark:bg-slate-950' : ''}`}>
         
         {/* CONFIGURATION PANEL */}
         <div className="w-full lg:w-1/3 bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 p-6 overflow-y-auto no-scrollbar flex flex-col gap-6">
           
-          <div className="space-y-2">
+          {/* LIVE PREVIEW SECTION (MOVED TO TOP) */}
+          <div className="flex flex-col items-center">
+            {getBarcodeError() ? (
+              <div className="flex flex-col items-center text-amber-600 dark:text-amber-500 gap-3 mb-6 p-6 border-2 border-dashed border-amber-200 dark:border-amber-900/50 rounded-2xl w-full text-center bg-amber-50 dark:bg-amber-900/10">
+                <div className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+                <p className="font-bold text-sm">{getBarcodeError()}</p>
+                <p className="text-xs font-medium opacity-80">Generating preview...</p>
+              </div>
+            ) : compositeImageUrl ? (
+              <div className="bg-white p-6 rounded-2xl shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-100 mb-6 inline-block transition-transform duration-300 hover:scale-105">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img 
+                  src={compositeImageUrl} 
+                  alt="Barcode Preview" 
+                  className="max-w-full object-contain"
+                  style={{ imageRendering: 'pixelated' }}
+                />
+              </div>
+            ) : (
+              <div className="flex flex-col items-center text-slate-400 gap-4 mb-6">
+                <Barcode className="w-12 h-12 opacity-20" />
+                <p className="font-medium text-slate-500 text-sm">Enter data to preview</p>
+              </div>
+            )}
+
+            <div className="w-full flex flex-wrap gap-3">
+               <button 
+                onClick={handlePrint}
+                className="flex-1 min-w-[140px] bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-1 flex items-center justify-center gap-2 text-sm"
+              >
+                <Printer className="w-4 h-4 shrink-0" />
+                <span className="whitespace-nowrap">Print Label</span>
+              </button>
+              <button 
+                onClick={handleDownload}
+                className="flex-1 min-w-[140px] bg-slate-900 dark:bg-white hover:bg-slate-800 dark:hover:bg-slate-100 text-white dark:text-slate-900 font-bold py-3 rounded-xl shadow-lg transition-all hover:-translate-y-1 flex items-center justify-center gap-2 text-sm"
+              >
+                <Download className="w-4 h-4 shrink-0" />
+                <span className="whitespace-nowrap">Download PNG</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-2 pt-6 border-t border-slate-100 dark:border-slate-800">
             <div className="flex items-center justify-between">
               <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Barcode Data (Auto Generated)</label>
               <button 
                 onClick={() => {
                   setBarcodeText(generateSystemBarcode(user?.tenantId || 0));
                   setIsBarcodeEditable(false);
+                  setManualPrice('');
+                  setIsPriceLocked(false);
                 }}
                 className="text-xs flex items-center gap-1.5 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-bold bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 px-2 py-1 rounded-md transition-colors"
                 title="Regenerate Barcode"
@@ -448,9 +556,16 @@ export default function BarcodeGeneratorPage() {
               </button>
             </div>
             <input 
+              ref={barcodeInputRef}
               type="text" 
               value={barcodeText}
-              onChange={(e) => setBarcodeText(e.target.value)}
+              maxLength={symbology === 'ean13' ? 13 : symbology === 'upca' ? 12 : undefined}
+              onChange={(e) => {
+                let val = e.target.value;
+                if (symbology === 'ean13') val = val.replace(/\D/g, '').slice(0, 13);
+                else if (symbology === 'upca') val = val.replace(/\D/g, '').slice(0, 12);
+                setBarcodeText(val);
+              }}
               readOnly={!isBarcodeEditable}
               onClick={handleBarcodeClick}
               className={`w-full px-4 py-3 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold transition-colors ${
@@ -464,10 +579,11 @@ export default function BarcodeGeneratorPage() {
           <div className="space-y-2">
             <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Print Quantity</label>
             <input 
+              ref={quantityInputRef}
               type="number" 
               min="1"
               value={printQuantity}
-              onChange={(e) => setPrintQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+              onChange={(e) => setPrintQuantity(e.target.value === '' ? '' : Math.max(1, parseInt(e.target.value) || 1))}
               className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold dark:text-white"
             />
           </div>
@@ -476,6 +592,7 @@ export default function BarcodeGeneratorPage() {
             <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
               <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Price Field (Rs.)</label>
               <input 
+                ref={priceInputRef}
                 type="number"
                 value={manualPrice}
                 onChange={(e) => setManualPrice(e.target.value)}
@@ -597,56 +714,290 @@ export default function BarcodeGeneratorPage() {
               </div>
             )}
           </div>
-        </div>
-
-        {/* PREVIEW PANEL */}
-        <div className="w-full lg:w-2/3 bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden">
-          <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between flex-shrink-0">
-            <h2 className="font-bold text-lg text-slate-900 dark:text-white">Live Preview</h2>
           </div>
-          
-          <div className="flex-1 overflow-y-auto p-8 bg-slate-50/50 dark:bg-slate-900/30 flex flex-col items-center">
-            
-            <div className="flex-1 flex flex-col items-center justify-center w-full relative min-h-[min-content]">
-              {compositeImageUrl ? (
-                <div className="bg-white p-8 rounded-2xl shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-100 mb-8 inline-block transition-transform duration-300 hover:scale-105">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img 
-                    src={compositeImageUrl} 
-                    alt="Barcode Preview" 
-                    className="max-w-full object-contain"
-                    style={{ imageRendering: 'pixelated' }}
-                  />
-                </div>
-              ) : (
-                <div className="flex flex-col items-center text-slate-400 gap-4 mb-8">
-                  <Barcode className="w-16 h-16 opacity-20" />
-                  <p className="font-medium text-slate-500">Enter data to generate a barcode</p>
-                </div>
-              )}
 
-              <div className="w-full max-w-sm flex gap-4 mt-auto">
-                 <button 
-                  onClick={handlePrint}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-1 flex items-center justify-center gap-2"
-                >
-                  <Printer className="w-5 h-5" />
-                  Print Label
-                </button>
-                <button 
-                  onClick={handleDownload}
-                  className="flex-1 bg-slate-900 dark:bg-white hover:bg-slate-800 dark:hover:bg-slate-100 text-white dark:text-slate-900 font-bold py-4 rounded-xl shadow-lg transition-all hover:-translate-y-1 flex items-center justify-center gap-2"
-                >
-                  <Download className="w-5 h-5" />
-                  Download PNG
-                </button>
+        {/* RIGHT PANEL: PRODUCT SELECTION */}
+        <div className="w-full lg:w-2/3 bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden">
+          
+          <div className="p-4 sm:p-6 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row gap-4 sm:items-center justify-between shrink-0">
+            <div className="relative w-full flex-1 min-w-[200px] max-w-md group">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors">
+                <Search className="h-4 w-4" />
               </div>
+              <input
+                type="text"
+                placeholder="Search products..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-10 pr-4 h-10 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl shadow-sm text-slate-900 dark:text-white font-bold placeholder:text-slate-400 placeholder:font-medium transition-all outline-none text-sm"
+              />
+            </div>
+            
+            <div className="flex bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-1 overflow-hidden shrink-0">
+              <button 
+                onClick={() => setIsFilterOpen(true)}
+                className={`px-3 py-1.5 flex items-center gap-2 rounded-lg transition-colors font-bold text-sm ${printedFilter !== 'all' ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
+              >
+                <Filter className="w-4 h-4" />
+                <span className="hidden md:inline">Filter</span>
+              </button>
+              <div className="w-px bg-slate-200 dark:bg-slate-700 mx-1 my-1"></div>
+              <button onClick={() => setViewMode('list')} className={`p-2 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}>
+                <List className="w-4 h-4" />
+              </button>
+              <button onClick={() => setViewMode('grid')} className={`p-2 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}>
+                <LayoutGrid className="w-4 h-4" />
+              </button>
+              <div className="w-px bg-slate-200 dark:bg-slate-700 mx-1 my-1"></div>
+              <button onClick={() => setIsFullscreen(!isFullscreen)} className={`p-2 rounded-lg transition-colors ${isFullscreen ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}>
+                {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+              </button>
             </div>
           </div>
+          
+          
+          {viewMode === 'list' ? (
+            <div className="flex-1 overflow-x-auto no-scrollbar">
+              <div className="min-w-max h-full flex flex-col">
+                {/* Table Header */}
+                <div className="grid grid-cols-[300px_200px_200px_150px] gap-4 h-12 px-6 items-center border-b border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-800/50 text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0">
+                  <div>Product Name</div>
+                  <div>Category & Brand</div>
+                  <div>Identifier</div>
+                  <div>Pricing</div>
+                </div>
+
+                {/* Table Body */}
+                <div className="flex-1 overflow-y-auto custom-scrollbar">
+                  {(() => {
+                    const filteredProducts = products.filter(p => {
+                      const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) || p.barcode?.includes(search) || p.sku?.toLowerCase().includes(search.toLowerCase());
+                      
+                      let matchesPrint = true;
+                      if (printedFilter === 'printed') matchesPrint = p?.isBarcodePrinted === true;
+                      if (printedFilter === 'not-printed') matchesPrint = !p?.isBarcodePrinted;
+
+                      let matchesCategory = true;
+                      if (categoryFilter !== 'all') {
+                        const catId = parseInt(categoryFilter);
+                        const isMainCat = categories.some(c => c.id === catId);
+                        if (isMainCat) {
+                          const subCatIds = categories.find(c => c.id === catId)?.children?.map((sc: any) => sc.id) || [];
+                          matchesCategory = p.categoryId === catId || subCatIds.includes(p.categoryId);
+                        } else {
+                          matchesCategory = p.categoryId === catId;
+                        }
+                      }
+                      
+                      let matchesStock = true;
+                      const stockValue = p?.stockQuantity || p?.stock || 0;
+                      if (stockFilter === 'instock') matchesStock = stockValue > 0;
+                      if (stockFilter === 'lowstock') matchesStock = stockValue > 0 && stockValue < 10;
+                      if (stockFilter === 'outofstock') matchesStock = stockValue <= 0;
+
+                      return matchesSearch && matchesPrint && matchesCategory && matchesStock;
+                    });
+
+                    return filteredProducts.length > 0 ? (
+                      filteredProducts.map((product) => {
+                        const img0 = product.images?.[0];
+                        const primaryImage = img0 ? (typeof img0 === 'string' ? img0 : img0.url) : (product as any).image;
+                        return (
+                          <div 
+                            key={product.id} 
+                            onClick={() => {
+                              setBarcodeText(product.barcode || '');
+                              setManualPrice(product.price?.toString() || '0');
+                              setPrintQuantity(Math.max(1, product?.stockQuantity || product?.stock || 1));
+                            }}
+                            className="grid grid-cols-[300px_200px_200px_150px] gap-4 p-4 px-6 border-b border-slate-100 dark:border-slate-800/60 items-center hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-colors cursor-pointer group"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0 text-slate-400 overflow-hidden shadow-sm">
+                                {primaryImage ? (
+                                  <img src={primaryImage} alt={product.name} className="w-full h-full object-cover" />
+                                ) : (
+                                  <Package className="w-5 h-5" />
+                                )}
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="font-bold text-sm text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors truncate max-w-[200px]">{product.name}</span>
+                                <span className="text-xs font-medium text-slate-500">{product?.stockQuantity || product?.stock || 0} {product.unit || 'units'} in stock</span>
+                              </div>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="font-medium text-sm text-slate-700 dark:text-slate-300 truncate max-w-[150px]">{product.category?.name || 'Uncategorized'}</span>
+                              <span className="text-xs text-slate-500 truncate max-w-[150px]">{(product as any)?.brand || 'No Brand'}</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <div className="flex items-center gap-1">
+                                <Barcode className="w-3 h-3 text-slate-400" />
+                                <span className="font-mono text-sm text-slate-700 dark:text-slate-300 truncate max-w-[150px]">{product.barcode || '-'}</span>
+                              </div>
+                              <span className="text-xs font-medium text-slate-500 truncate max-w-[150px]">SKU: {product.sku || '-'}</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="font-bold text-sm text-emerald-600 dark:text-emerald-400">Rs. {Number(product.price).toFixed(2)}</span>
+                              <span className="text-xs font-medium text-slate-500">Cost: Rs. {Number(product.cost).toFixed(2)}</span>
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="p-8 text-center text-slate-500 dark:text-slate-400 font-medium">
+                        No products found matching your filter criteria.
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-6 bg-slate-50/30 dark:bg-slate-900/20">
+              {(() => {
+                const filteredProducts = products.filter(p => {
+                  const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) || p.barcode?.includes(search) || p.sku?.toLowerCase().includes(search.toLowerCase());
+                  
+                  let matchesPrint = true;
+                  if (printedFilter === 'printed') matchesPrint = p?.isBarcodePrinted === true;
+                  if (printedFilter === 'not-printed') matchesPrint = !p?.isBarcodePrinted;
+
+                  let matchesCategory = true;
+                  if (categoryFilter !== 'all') {
+                    const catId = parseInt(categoryFilter);
+                    const isMainCat = categories.some(c => c.id === catId);
+                    if (isMainCat) {
+                      const subCatIds = categories.find(c => c.id === catId)?.children?.map((sc: any) => sc.id) || [];
+                      matchesCategory = p.categoryId === catId || subCatIds.includes(p.categoryId);
+                    } else {
+                      matchesCategory = p.categoryId === catId;
+                    }
+                  }
+                  
+                  let matchesStock = true;
+                  const stockValue = p?.stockQuantity || p?.stock || 0;
+                  if (stockFilter === 'instock') matchesStock = stockValue > 0;
+                  if (stockFilter === 'lowstock') matchesStock = stockValue > 0 && stockValue < 10;
+                  if (stockFilter === 'outofstock') matchesStock = stockValue <= 0;
+
+                  return matchesSearch && matchesPrint && matchesCategory && matchesStock;
+                });
+
+                return filteredProducts.length > 0 ? (
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-4 xl:gap-6">
+                    {filteredProducts.map(product => {
+                      const img0 = product.images?.[0];
+                      const primaryImage = img0 ? (typeof img0 === 'string' ? img0 : img0.url) : (product as any).image;
+                      const stockValue = product?.stockQuantity || product?.stock || 0;
+                      return (
+                        <div
+                          key={product.id}
+                          onClick={() => {
+                            setBarcodeText(product.barcode || '');
+                            setManualPrice(product.price?.toString() || '0');
+                            setPrintQuantity(Math.max(1, product?.stockQuantity || product?.stock || 1));
+                          }}
+                          className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer group flex flex-col"
+                        >
+                          <div className="relative aspect-video bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 overflow-hidden shrink-0">
+                            {primaryImage ? (
+                              <img src={primaryImage} alt={product.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                            ) : (
+                              <Package className="w-8 h-8 opacity-50" />
+                            )}
+                            <div className="absolute top-3 right-3 flex flex-col gap-2 items-end">
+                              <span className={`px-2.5 py-1 rounded-full text-xs font-bold shadow-sm backdrop-blur-md ${
+                                stockValue <= 0 ? 'bg-red-500 text-white' :
+                                stockValue < 10 ? 'bg-orange-500 text-white' :
+                                'bg-emerald-500 text-white'
+                              }`}>
+                                {stockValue} {product.unit || 'units'}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="p-4 flex-1 flex flex-col">
+                            <div className="flex-1">
+                              <div className="flex justify-between items-start gap-2 mb-1">
+                                <p className="text-[10px] font-bold text-slate-500 truncate">{product.category?.name || 'Uncategorized'}</p>
+                                {(product as any)?.brand && <span className="text-[9px] font-bold text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-500/10 px-1.5 py-0.5 rounded truncate max-w-[80px] shrink-0">{(product as any)?.brand}</span>}
+                              </div>
+                              <h3 className="font-black text-slate-900 dark:text-white text-sm leading-tight mb-1.5 line-clamp-2" title={product.name}>{product.name}</h3>
+                            </div>
+                            <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-col gap-1.5 justify-end">
+                              <div className="flex justify-between items-end">
+                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Price</span>
+                                <span className="font-black text-blue-600 dark:text-blue-400 text-base leading-none">Rs. {Number(product.price).toFixed(2)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-8 text-center text-slate-500 dark:text-slate-400 font-medium">
+                    No products found matching your filter criteria.
+                  </div>
+                );
+              })()}
+            </div>
+          )}
         </div>
       </div>
       )}
       
+      <AnimatePresence>
+        <FilterPanel
+          isOpen={isFilterOpen}
+          onClose={() => setIsFilterOpen(false)}
+          title="Filter Products"
+          onClear={() => { setPrintedFilter('all'); setCategoryFilter('all'); setStockFilter('all'); setIsFilterOpen(false); }}
+          onApply={() => setIsFilterOpen(false)}
+        >
+          <div className="space-y-3">
+            <label className="text-sm font-bold text-slate-900 dark:text-white">Category</label>
+            <CustomSelect
+              value={categoryFilter}
+              onChange={setCategoryFilter}
+              options={[
+                { value: 'all', label: 'All Categories' },
+                ...categories.flatMap(c => [
+                  { value: c.id.toString(), label: c.name },
+                  ...(c.children || []).map((sc: any) => ({ value: sc.id.toString(), label: `-- ${sc.name}` }))
+                ])
+              ]}
+            />
+          </div>
+          
+          <div className="space-y-3">
+            <label className="text-sm font-bold text-slate-900 dark:text-white">Stock Status</label>
+            <CustomSelect
+              value={stockFilter}
+              onChange={setStockFilter}
+              options={[
+                { value: 'all', label: 'All Products' },
+                { value: 'instock', label: 'In Stock (>0)' },
+                { value: 'lowstock', label: 'Low Stock (<10)' },
+                { value: 'outofstock', label: 'Out of Stock (0)' },
+              ]}
+            />
+          </div>
+
+          <div className="space-y-3">
+            <label className="text-sm font-bold text-slate-900 dark:text-white">Printed Status</label>
+            <CustomSelect
+              value={printedFilter}
+              onChange={(val) => setPrintedFilter(val as any)}
+              options={[
+                { value: 'all', label: 'All Products' },
+                { value: 'not-printed', label: 'Not Printed' },
+                { value: 'printed', label: 'Printed' },
+              ]}
+            />
+          </div>
+        </FilterPanel>
+      </AnimatePresence>
+
       <ConfirmDialog 
         isOpen={isConfirmOpen}
         title="Edit Barcode Data"

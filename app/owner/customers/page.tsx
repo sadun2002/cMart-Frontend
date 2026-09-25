@@ -5,7 +5,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { 
   Users, Search, Plus, Edit, Trash2, 
   MapPin, Phone, Mail, FileText, CheckCircle, XCircle, UserCircle,
-  Filter, List, LayoutGrid, Maximize, Minimize, X, Gift, ShoppingBag, Banknote, ChevronDown, Copy
+  Filter, List, LayoutGrid, Maximize, Minimize, X, Gift, ShoppingBag, Banknote, ChevronDown, ChevronUp, Copy
 } from 'lucide-react';
 import { storeOwnerAPI } from '@/lib/api';
 import { toast } from 'sonner';
@@ -14,6 +14,10 @@ import { useSearchParams } from 'next/navigation';
 import { KpiCard } from '@/components/ui/kpi-card';
 import { FilterPanel } from '@/components/ui/filter-panel';
 import { CustomSelect } from '@/components/ui/custom-select';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { MainRightPanel } from '@/components/ui/right-panel';
+import { TableEmptyState } from '@/components/ui/table-empty-state';
+import { ValidationErrorTooltip } from '@/components/ui/validation-error-tooltip';
 
 const CITIES_BY_PROVINCE: Record<string, string[]> = {
   'Western': ['Colombo', 'Gampaha', 'Kalutara', 'Negombo', 'Moratuwa', 'Sri Jayawardenepura Kotte'],
@@ -109,6 +113,18 @@ function CustomersPageContent() {
   
   // Side Panel state
   const [isPanelOpen, setIsPanelOpen] = useState(false);
+
+  const handleClosePanel = () => {
+    setIsPanelOpen(false);
+  };
+
+  const handleDiscardChanges = () => {
+    try {
+      localStorage.removeItem('draft_customer_form');
+    } catch (e) {}
+    resetForm();
+    setIsPanelOpen(false);
+  };
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -127,9 +143,48 @@ function CustomersPageContent() {
     active: true,
     notes: '',
   });
-  
-  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Auto-save draft when adding a new customer
+  useEffect(() => {
+    if (editingId || !isPanelOpen) return;
+    const hasData = Boolean(
+      formData.name || formData.phone || formData.email || formData.address ||
+      formData.city || formData.province || formData.notes || formData.creditLimit
+    );
+    if (hasData) {
+      try {
+        localStorage.setItem('draft_customer_form', JSON.stringify(formData));
+      } catch (e) {}
+    }
+  }, [formData, editingId, isPanelOpen]);
+
+  // Accordion Sections State
+  const [openSections, setOpenSections] = useState<{ [key: string]: boolean }>({
+    basic: true,
+    address: false,
+    customer: false,
+    financial: false,
+    loyalty: false,
+  });
+
+  const toggleSection = (section: string) => {
+    setOpenSections(prev => {
+      if (prev[section]) {
+        return { ...prev, [section]: false };
+      }
+      return {
+        basic: false,
+        address: false,
+        customer: false,
+        financial: false,
+        loyalty: false,
+        [section]: true
+      };
+    });
+  };
   
   const searchParams = useSearchParams();
 
@@ -155,8 +210,39 @@ function CustomersPageContent() {
     }
   };
 
+  // Validation Error State
+  const [validationError, setValidationError] = useState<{ field: string; message: string } | null>(null);
+
+  const triggerValidation = (sectionKey: string, fieldId: string, message: string) => {
+    setValidationError({ field: fieldId, message });
+
+    const focus = () => {
+      setTimeout(() => {
+        const el = document.getElementById(fieldId);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          el.focus();
+        }
+      }, 100);
+    };
+
+    if (sectionKey && !openSections[sectionKey]) {
+      setOpenSections(prev => ({ ...prev, [sectionKey]: true }));
+      setTimeout(focus, 300);
+    } else {
+      focus();
+    }
+
+    setTimeout(() => setValidationError(null), 3500);
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.name.trim()) {
+      triggerValidation('basic', 'field-customer-name', 'Customer name is required');
+      return;
+    }
+
     try {
       setIsSubmitting(true);
       if (editingId) {
@@ -167,6 +253,9 @@ function CustomersPageContent() {
         toast.success('Customer added successfully!');
       }
       setIsPanelOpen(false);
+      try {
+        localStorage.removeItem('draft_customer_form');
+      } catch (e) {}
       resetForm();
       fetchCustomers();
     } catch (err: any) {
@@ -176,9 +265,44 @@ function CustomersPageContent() {
     }
   };
 
+  const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; id: number | null }>({
+    isOpen: false,
+    id: null,
+  });
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDelete = (id: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDeleteConfirm({ isOpen: true, id });
+  };
+
+  const executeDelete = async () => {
+    if (!deleteConfirm.id) return;
+    try {
+      setIsDeleting(true);
+      await storeOwnerAPI.deleteCustomer(deleteConfirm.id);
+      toast.success('Customer deleted successfully');
+      fetchCustomers();
+      setDeleteConfirm({ isOpen: false, id: null });
+    } catch (err) {
+      toast.error('Failed to delete customer');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const openAddPanel = () => {
-    resetForm();
     setEditingId(null);
+    try {
+      const saved = localStorage.getItem('draft_customer_form');
+      if (saved) {
+        setFormData(JSON.parse(saved));
+      } else {
+        resetForm();
+      }
+    } catch (e) {
+      resetForm();
+    }
     setIsPanelOpen(true);
   };
 
@@ -208,19 +332,6 @@ function CustomersPageContent() {
     });
     setEditingId(c.id);
     setIsPanelOpen(true);
-  };
-
-  const handleDelete = async (id: number, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (window.confirm('Are you sure you want to delete this customer?')) {
-      try {
-        await storeOwnerAPI.deleteCustomer(id);
-        toast.success('Customer deleted successfully');
-        fetchCustomers();
-      } catch (err) {
-        toast.error('Failed to delete customer');
-      }
-    }
   };
 
   const resetForm = () => {
@@ -289,58 +400,62 @@ function CustomersPageContent() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#F4F7F6] dark:bg-slate-900 p-6 overflow-hidden">
+    <div className={`flex flex-col bg-slate-50 dark:bg-slate-900/50 overflow-hidden ${isFullscreen ? 'h-full p-2 sm:p-4' : 'h-full p-6'}`}>
       
       {/* ──────────────── HEADER ──────────────── */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
-        <div>
-          <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
-            <Users className="w-8 h-8 text-blue-600" />
-            Customer Management
-          </h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium">Add, update, and manage your loyal customers.</p>
+      {!isFullscreen && (
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+          <div>
+            <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
+              <Users className="w-8 h-8 text-blue-600" />
+              Customer Management
+            </h1>
+            <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium">Add, update, and manage your loyal customers.</p>
+          </div>
+          
+          <button 
+            onClick={openAddPanel}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5 active:translate-y-0"
+          >
+            <Plus className="w-5 h-5" />
+            Add Customer
+          </button>
         </div>
-        
-        <button 
-          onClick={openAddPanel}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5 active:translate-y-0"
-        >
-          <Plus className="w-5 h-5" />
-          Add Customer
-        </button>
-      </div>
+      )}
 
       {/* ──────────────── KPI CARDS ──────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <KpiCard 
-          title="Total Customers" 
-          value={kpis.total} 
-          icon={Users} 
-          iconColorClass="text-blue-600" 
-          iconBgClass="bg-blue-50 dark:bg-blue-500/10" 
-        />
-        <KpiCard 
-          title="Active" 
-          value={kpis.active} 
-          icon={CheckCircle} 
-          iconColorClass="text-emerald-600" 
-          iconBgClass="bg-emerald-50 dark:bg-emerald-500/10" 
-        />
-        <KpiCard 
-          title="Total Spent" 
-          value={`Rs. ${formatCurrency(kpis.totalSpent)}`}
-          icon={Banknote} 
-          iconColorClass="text-orange-600" 
-          iconBgClass="bg-orange-50 dark:bg-orange-500/10" 
-        />
-        <KpiCard 
-          title="New (7 Days)" 
-          value={kpis.recent} 
-          icon={Users} 
-          iconColorClass="text-purple-600" 
-          iconBgClass="bg-purple-50 dark:bg-purple-500/10" 
-        />
-      </div>
+      {!isFullscreen && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <KpiCard 
+            title="Total Customers" 
+            value={kpis.total} 
+            icon={Users} 
+            iconColorClass="text-blue-600" 
+            iconBgClass="bg-blue-50 dark:bg-blue-500/10" 
+          />
+          <KpiCard 
+            title="Active" 
+            value={kpis.active} 
+            icon={CheckCircle} 
+            iconColorClass="text-emerald-600" 
+            iconBgClass="bg-emerald-50 dark:bg-emerald-500/10" 
+          />
+          <KpiCard 
+            title="Total Spent" 
+            value={`Rs. ${formatCurrency(kpis.totalSpent)}`}
+            icon={Banknote} 
+            iconColorClass="text-orange-600" 
+            iconBgClass="bg-orange-50 dark:bg-orange-500/10" 
+          />
+          <KpiCard 
+            title="New (7 Days)" 
+            value={kpis.recent} 
+            icon={Users} 
+            iconColorClass="text-purple-600" 
+            iconBgClass="bg-purple-50 dark:bg-purple-500/10" 
+          />
+        </div>
+      )}
 
       {/* ──────────────── SEARCH BAR & FILTERS ──────────────── */}
       <div className="flex flex-col sm:flex-row gap-4 mb-6">
@@ -357,7 +472,7 @@ function CustomersPageContent() {
           />
         </div>
 
-        <div className="flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm h-12 p-1 overflow-hidden flex-shrink-0 sm:ml-auto">
+        <div className="flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm h-12 p-1 overflow-hidden flex-shrink-0 ml-auto">
           <button 
             onClick={() => setIsFilterOpen(true)}
             className="flex items-center justify-center px-4 h-full rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition-all gap-2 font-bold relative"
@@ -387,32 +502,36 @@ function CustomersPageContent() {
           </button>
           <div className="w-px h-full bg-slate-200 dark:bg-slate-800 mx-1"></div>
           <button 
-            onClick={() => setIsFullscreen(true)}
+            onClick={() => setIsFullscreen(!isFullscreen)}
             title="Full Screen"
             className={`flex items-center justify-center w-12 h-full rounded-xl transition-all text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800`}
           >
-            <Maximize className="w-5 h-5" />
+            {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
           </button>
         </div>
       </div>
 
       {/* ──────────────── DATA TABLE / HISTORY VIEW ──────────────── */}
-      <div className={`flex-1 bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col min-h-[400px] ${isFullscreen ? 'fixed inset-y-0 right-0 left-[68px] z-[100] m-0 rounded-none border-none' : ''}`}>
-        
-        {isFullscreen && (
-          <button 
-            onClick={() => setIsFullscreen(false)} 
-            className="absolute top-4 right-4 z-[110] p-3 bg-slate-900/50 text-white rounded-full hover:bg-slate-900/80 transition-colors backdrop-blur-md shadow-lg"
-          >
-            <Minimize className="w-5 h-5" />
-          </button>
-        )}
+      <div className={`flex-1 bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col min-h-[400px] ${isFullscreen ? 'm-0 rounded-none border-none' : ''}`}>
 
         {selectedCustomer ? (
           <CustomerHistoryView 
             customer={selectedCustomer} 
             onBack={() => setSelectedCustomer(null)} 
             formatCurrency={formatCurrency}
+          />
+        ) : loading ? (
+          <div className="flex flex-col items-center justify-center py-24 text-slate-400">
+            <div className="w-8 h-8 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mb-4" />
+            <p className="font-medium text-sm">Loading customers...</p>
+          </div>
+        ) : filteredCustomers.length === 0 ? (
+          <TableEmptyState
+            icon={Users}
+            title="No customers found"
+            description="You haven't registered any customers yet, or none match your search. Click below to register your first customer."
+            actionLabel="Create First Customer"
+            onAction={openAddPanel}
           />
         ) : viewMode === 'list' ? (
           <>
@@ -437,26 +556,7 @@ function CustomersPageContent() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                  {loading ? (
-                    <tr>
-                      <td colSpan={12} className="px-5 py-20 text-center">
-                        <div className="flex flex-col items-center justify-center text-slate-400">
-                          <div className="w-8 h-8 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mb-4" />
-                          <p className="font-medium text-sm">Loading customers...</p>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : filteredCustomers.length === 0 ? (
-                    <tr>
-                      <td colSpan={12} className="px-5 py-20 text-center">
-                        <div className="flex flex-col items-center justify-center text-slate-400">
-                          <Users className="w-12 h-12 mb-3 opacity-20" />
-                          <p className="font-medium text-sm">No customers found.</p>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredCustomers.map((c) => (
+                  {filteredCustomers.map((c) => (
                       <tr 
                         key={c.id}
                         onClick={() => openHistory(c)}
@@ -582,8 +682,7 @@ function CustomersPageContent() {
                           </div>
                         </td>
                       </tr>
-                    ))
-                  )}
+                    ))}
                 </tbody>
               </table>
             </div>
@@ -591,19 +690,8 @@ function CustomersPageContent() {
         ) : (
           /* Grid View */
           <div className="overflow-y-auto flex-1 p-6 custom-scrollbar">
-            {loading ? (
-              <div className="flex flex-col items-center justify-center h-40 text-slate-400">
-                <div className="w-8 h-8 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mb-4" />
-                <p className="font-medium text-sm">Loading customers...</p>
-              </div>
-            ) : filteredCustomers.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-40 text-slate-400">
-                <Users className="w-12 h-12 mb-3 opacity-20" />
-                <p className="font-medium text-sm">No customers found.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {filteredCustomers.map(c => (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {filteredCustomers.map(c => (
                   <div 
                     key={c.id} 
                     onClick={() => openHistory(c)}
@@ -696,306 +784,381 @@ function CustomersPageContent() {
                   </div>
                 ))}
               </div>
-            )}
-          </div>
-        )}
-      </div>
+            </div>
+          )}
+        </div>
       {/* ──────────────── SLIDE-OUT PANEL ──────────────── */}
-      <AnimatePresence>
-        {isPanelOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsPanelOpen(false)}
-              className="fixed inset-0 bg-slate-900/20 backdrop-blur-sm z-[200]"
-            />
-            
-            <motion.div
-              initial={{ x: '100%', opacity: 0.5 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: '100%', opacity: 0.5 }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed inset-y-0 right-0 w-full max-w-md bg-white dark:bg-slate-900 shadow-2xl z-[210] border-l border-slate-200 dark:border-slate-800 flex flex-col"
-            >
-              <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-slate-800">
-                <div>
-                  <h2 className="text-xl font-black text-slate-900 dark:text-white">{editingId ? 'Edit Customer' : 'Add New Customer'}</h2>
-                  <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">{editingId ? 'Update customer details' : 'Register a new loyal customer'}</p>
-                </div>
-                <button 
-                  onClick={() => setIsPanelOpen(false)}
-                  className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 rounded-full transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
-                <form id="customerForm" onSubmit={handleSave} className="font-sans space-y-6">
-                  {/* Basic Details */}
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider border-b border-slate-200 dark:border-slate-700 pb-2">Basic Details</h3>
-                    <div>
-                      <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Customer Name *</label>
-                      <div className="relative mt-1.5 group">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500">
-                          <UserCircle className="w-5 h-5" />
-                        </div>
-                        <input
-                          type="text"
-                          required
-                          value={formData.name}
-                          onChange={e => setFormData({...formData, name: e.target.value})}
-                          className="w-full pl-10 pr-4 h-11 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl font-medium text-sm text-slate-900 dark:text-white transition-all outline-none"
-                          placeholder="e.g. Nimesha Denuwanthi"
-                        />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Phone</label>
-                        <div className="relative mt-1.5 group">
-                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500">
-                            <Phone className="w-4 h-4" />
+      <MainRightPanel
+        isOpen={isPanelOpen}
+        onClose={handleClosePanel}
+        onDiscard={handleDiscardChanges}
+        title={editingId ? 'Edit Customer' : 'Add New Customer'}
+        subtitle={editingId ? 'Update customer profile and contact' : 'Register a new customer account'}
+        icon={UserCircle}
+        formId="customerForm"
+        isSubmitting={isSubmitting}
+        saveText={editingId ? 'Update Customer' : 'Save Customer'}
+      >
+        <form id="customerForm" onSubmit={handleSave} className="font-sans space-y-6">
+                  {/* Section 1: Basic Details */}
+                  <div className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl overflow-hidden">
+                    <button 
+                      type="button" 
+                      onClick={() => toggleSection("basic")}
+                      className={`w-full px-4 py-3 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors outline-none cursor-pointer ${openSections.basic ? "rounded-t-xl" : "rounded-xl"}`}
+                    >
+                      <span className="font-bold text-slate-900 dark:text-white flex items-center gap-2 text-sm">
+                        <UserCircle className="w-4 h-4 text-blue-600" />
+                        Basic Details
+                      </span>
+                      {openSections.basic ? <ChevronUp className="w-5 h-5 text-slate-500" /> : <ChevronDown className="w-5 h-5 text-slate-500" />}
+                    </button>
+                    <AnimatePresence>
+                      {openSections.basic && (
+                        <motion.div 
+                          initial={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                          animate={{ height: 'auto', opacity: 1, transitionEnd: { overflow: 'visible' } }}
+                          exit={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                        >
+                          <div className="p-4 space-y-4 border-t border-slate-300 dark:border-slate-700">
+                            <div>
+                              <label className="text-sm font-bold text-slate-700 dark:text-slate-300">
+                                Customer Name <span className="text-red-500">*</span>
+                              </label>
+                              <div className="relative mt-1.5 group">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500">
+                                  <UserCircle className="w-5 h-5" />
+                                </div>
+                                <input
+                                  id="field-customer-name"
+                                  type="text"
+                                  value={formData.name}
+                                  onChange={e => {
+                                    if (validationError?.field === 'field-customer-name') setValidationError(null);
+                                    setFormData({...formData, name: e.target.value});
+                                  }}
+                                  className="w-full pl-10 pr-4 h-11 bg-slate-50 dark:bg-slate-800/50 border border-slate-300 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl font-medium text-sm text-slate-900 dark:text-white transition-all outline-none"
+                                  placeholder="e.g. Nimesha Denuwanthi"
+                                />
+                                <ValidationErrorTooltip error={validationError} fieldId="field-customer-name" />
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Phone</label>
+                                <div className="relative mt-1.5 group">
+                                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500">
+                                    <Phone className="w-4 h-4" />
+                                  </div>
+                                  <input
+                                    type="text"
+                                    value={formData.phone}
+                                    onChange={e => setFormData({...formData, phone: e.target.value})}
+                                    className="w-full pl-9 pr-3 h-11 bg-slate-50 dark:bg-slate-800/50 border border-slate-300 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl font-medium text-sm text-slate-900 dark:text-white transition-all outline-none"
+                                    placeholder="07XXXXXXXX"
+                                  />
+                                </div>
+                              </div>
+                              <div>
+                                <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Email</label>
+                                <div className="relative mt-1.5 group">
+                                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500">
+                                    <Mail className="w-4 h-4" />
+                                  </div>
+                                  <input
+                                    type="email"
+                                    value={formData.email}
+                                    onChange={e => setFormData({...formData, email: e.target.value})}
+                                    className="w-full pl-9 pr-3 h-11 bg-slate-50 dark:bg-slate-800/50 border border-slate-300 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl font-medium text-sm text-slate-900 dark:text-white transition-all outline-none"
+                                    placeholder="user@example.com"
+                                  />
+                                </div>
+                              </div>
+                            </div>
                           </div>
-                          <input
-                            type="text"
-                            value={formData.phone}
-                            onChange={e => setFormData({...formData, phone: e.target.value})}
-                            className="w-full pl-9 pr-3 h-11 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl font-medium text-sm text-slate-900 dark:text-white transition-all outline-none"
-                            placeholder="07XXXXXXXX"
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Email</label>
-                        <div className="relative mt-1.5 group">
-                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500">
-                            <Mail className="w-4 h-4" />
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+
+                  {/* Section 2: Address Info */}
+                  <div className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl overflow-hidden">
+                    <button 
+                      type="button" 
+                      onClick={() => toggleSection("address")}
+                      className={`w-full px-4 py-3 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors outline-none cursor-pointer ${openSections.address ? "rounded-t-xl" : "rounded-xl"}`}
+                    >
+                      <span className="font-bold text-slate-900 dark:text-white flex items-center gap-2 text-sm">
+                        <MapPin className="w-4 h-4 text-blue-600" />
+                        Address Info
+                      </span>
+                      {openSections.address ? <ChevronUp className="w-5 h-5 text-slate-500" /> : <ChevronDown className="w-5 h-5 text-slate-500" />}
+                    </button>
+                    <AnimatePresence>
+                      {openSections.address && (
+                        <motion.div 
+                          initial={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                          animate={{ height: 'auto', opacity: 1, transitionEnd: { overflow: 'visible' } }}
+                          exit={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                        >
+                          <div className="p-4 space-y-4 border-t border-slate-300 dark:border-slate-700">
+                            <div>
+                              <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Address</label>
+                              <input
+                                type="text"
+                                value={formData.address}
+                                onChange={e => setFormData({...formData, address: e.target.value})}
+                                className="mt-1.5 w-full px-4 h-11 bg-slate-50 dark:bg-slate-800/50 border border-slate-300 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl font-medium text-sm text-slate-900 dark:text-white transition-all outline-none"
+                                placeholder="123 Main St"
+                              />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Province (Optional)</label>
+                                <CustomSelect
+                                  value={formData.province}
+                                  onChange={val => {
+                                    setFormData({...formData, province: val, city: ''});
+                                  }}
+                                  options={[
+                                    { value: '', label: 'Select Province' },
+                                    ...Object.keys(CITIES_BY_PROVINCE).map(p => ({ value: p, label: p }))
+                                  ]}
+                                  label="Select Province"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-sm font-bold text-slate-700 dark:text-slate-300">City</label>
+                                <CustomSelect
+                                  value={formData.city}
+                                  onChange={val => setFormData({...formData, city: val})}
+                                  options={[
+                                    { value: '', label: 'Select City' },
+                                    ...(formData.province && CITIES_BY_PROVINCE[formData.province] 
+                                        ? CITIES_BY_PROVINCE[formData.province].map(c => ({ value: c, label: c }))
+                                        : [])
+                                  ]}
+                                  label="Select City"
+                                />
+                              </div>
+                            </div>
                           </div>
-                          <input
-                            type="email"
-                            value={formData.email}
-                            onChange={e => setFormData({...formData, email: e.target.value})}
-                            className="w-full pl-9 pr-3 h-11 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl font-medium text-sm text-slate-900 dark:text-white transition-all outline-none"
-                            placeholder="user@example.com"
-                          />
-                        </div>
-                      </div>
-                    </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
 
-                  {/* Address Information */}
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider border-b border-slate-200 dark:border-slate-700 pb-2">Address Info</h3>
-                    <div>
-                      <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Address</label>
-                      <input
-                        type="text"
-                        value={formData.address}
-                        onChange={e => setFormData({...formData, address: e.target.value})}
-                        className="mt-1.5 w-full px-4 h-11 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl font-medium text-sm text-slate-900 dark:text-white transition-all outline-none"
-                        placeholder="123 Main St"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Province (Optional)</label>
-                        <CustomSelect
-                          value={formData.province}
-                          onChange={val => {
-                            setFormData({...formData, province: val, city: ''});
-                          }}
-                          options={[
-                            { value: '', label: 'Select Province' },
-                            ...Object.keys(CITIES_BY_PROVINCE).map(p => ({ value: p, label: p }))
-                          ]}
-                          label="Select Province"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-sm font-bold text-slate-700 dark:text-slate-300">City</label>
-                        <CustomSelect
-                          value={formData.city}
-                          onChange={val => setFormData({...formData, city: val})}
-                          options={[
-                            { value: '', label: 'Select City' },
-                            ...(formData.province && CITIES_BY_PROVINCE[formData.province] 
-                                ? CITIES_BY_PROVINCE[formData.province].map(c => ({ value: c, label: c }))
-                                : [])
-                          ]}
-                          label="Select City"
-                        />
-                      </div>
-                    </div>
+                  {/* Section 3: Customer Info */}
+                  <div className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl overflow-hidden">
+                    <button 
+                      type="button" 
+                      onClick={() => toggleSection("customer")}
+                      className={`w-full px-4 py-3 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors outline-none cursor-pointer ${openSections.customer ? "rounded-t-xl" : "rounded-xl"}`}
+                    >
+                      <span className="font-bold text-slate-900 dark:text-white flex items-center gap-2 text-sm">
+                        <Users className="w-4 h-4 text-blue-600" />
+                        Customer Info
+                      </span>
+                      {openSections.customer ? <ChevronUp className="w-5 h-5 text-slate-500" /> : <ChevronDown className="w-5 h-5 text-slate-500" />}
+                    </button>
+                    <AnimatePresence>
+                      {openSections.customer && (
+                        <motion.div 
+                          initial={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                          animate={{ height: 'auto', opacity: 1, transitionEnd: { overflow: 'visible' } }}
+                          exit={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                        >
+                          <div className="p-4 space-y-4 border-t border-slate-300 dark:border-slate-700">
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Customer Group</label>
+                                <CustomSelect
+                                  value={formData.customerGroup}
+                                  onChange={val => setFormData({...formData, customerGroup: val})}
+                                  options={[
+                                    { value: 'REGULAR', label: 'Regular' },
+                                    { value: 'WHOLESALE', label: 'Wholesale' },
+                                    { value: 'VIP', label: 'VIP' },
+                                  ]}
+                                  label="Select Group"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Gender</label>
+                                <CustomSelect
+                                  value={formData.gender}
+                                  onChange={val => setFormData({...formData, gender: val})}
+                                  options={[
+                                    { value: 'MALE', label: 'Male' },
+                                    { value: 'FEMALE', label: 'Female' },
+                                    { value: 'OTHER', label: 'Other' },
+                                  ]}
+                                  label="Select Gender"
+                                />
+                              </div>
+                              <div className="col-span-2">
+                                <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Date of Birth (Optional)</label>
+                                <input
+                                  type="date"
+                                  value={formData.dateOfBirth}
+                                  onChange={e => setFormData({...formData, dateOfBirth: e.target.value})}
+                                  className="mt-1.5 w-full px-4 h-11 bg-slate-50 dark:bg-slate-800/50 border border-slate-300 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl font-medium text-sm text-slate-900 dark:text-white transition-all outline-none"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
 
-                  {/* Customer Information */}
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider border-b border-slate-200 dark:border-slate-700 pb-2">Customer Info</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Customer Group</label>
-                        <CustomSelect
-                          value={formData.customerGroup}
-                          onChange={val => setFormData({...formData, customerGroup: val})}
-                          options={[
-                            { value: 'REGULAR', label: 'Regular' },
-                            { value: 'WHOLESALE', label: 'Wholesale' },
-                            { value: 'VIP', label: 'VIP' },
-                          ]}
-                          label="Select Group"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Gender</label>
-                        <CustomSelect
-                          value={formData.gender}
-                          onChange={val => setFormData({...formData, gender: val})}
-                          options={[
-                            { value: 'MALE', label: 'Male' },
-                            { value: 'FEMALE', label: 'Female' },
-                            { value: 'OTHER', label: 'Other' },
-                          ]}
-                          label="Select Gender"
-                        />
-                      </div>
-                      <div className="col-span-2">
-                        <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Date of Birth (Optional)</label>
-                        <input
-                          type="date"
-                          value={formData.dateOfBirth}
-                          onChange={e => setFormData({...formData, dateOfBirth: e.target.value})}
-                          className="mt-1.5 w-full px-4 h-11 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl font-medium text-sm text-slate-900 dark:text-white transition-all outline-none"
-                        />
-                      </div>
-                    </div>
+                  {/* Section 4: Financial Info */}
+                  <div className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl overflow-hidden">
+                    <button 
+                      type="button" 
+                      onClick={() => toggleSection("financial")}
+                      className={`w-full px-4 py-3 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors outline-none cursor-pointer ${openSections.financial ? "rounded-t-xl" : "rounded-xl"}`}
+                    >
+                      <span className="font-bold text-slate-900 dark:text-white flex items-center gap-2 text-sm">
+                        <Banknote className="w-4 h-4 text-blue-600" />
+                        Financial Info
+                      </span>
+                      {openSections.financial ? <ChevronUp className="w-5 h-5 text-slate-500" /> : <ChevronDown className="w-5 h-5 text-slate-500" />}
+                    </button>
+                    <AnimatePresence>
+                      {openSections.financial && (
+                        <motion.div 
+                          initial={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                          animate={{ height: 'auto', opacity: 1, transitionEnd: { overflow: 'visible' } }}
+                          exit={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                        >
+                          <div className="p-4 space-y-4 border-t border-slate-300 dark:border-slate-700">
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Opening Balance</label>
+                                <input
+                                  type="number"
+                                  value={formData.openingBalance}
+                                  onChange={e => setFormData({...formData, openingBalance: e.target.value})}
+                                  className="mt-1.5 w-full px-4 h-11 bg-slate-50 dark:bg-slate-800/50 border border-slate-300 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl font-medium text-sm text-slate-900 dark:text-white transition-all outline-none"
+                                  placeholder="0.00"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Credit Limit</label>
+                                <input
+                                  type="number"
+                                  value={formData.creditLimit}
+                                  onChange={e => setFormData({...formData, creditLimit: e.target.value})}
+                                  className="mt-1.5 w-full px-4 h-11 bg-slate-50 dark:bg-slate-800/50 border border-slate-300 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl font-medium text-sm text-slate-900 dark:text-white transition-all outline-none"
+                                  placeholder="0.00"
+                                />
+                              </div>
+                              <div className="col-span-2">
+                                <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Payment Terms</label>
+                                <CustomSelect
+                                  value={formData.paymentTerms}
+                                  onChange={val => setFormData({...formData, paymentTerms: val})}
+                                  options={[
+                                    { value: 'CASH', label: 'Cash' },
+                                    { value: 'NET_7', label: '7 Days' },
+                                    { value: 'NET_15', label: '15 Days' },
+                                    { value: 'NET_30', label: '30 Days' },
+                                  ]}
+                                  label="Select Terms"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
 
-                  {/* Financial Information */}
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider border-b border-slate-200 dark:border-slate-700 pb-2">Financial Info</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Opening Balance</label>
-                        <input
-                          type="number"
-                          value={formData.openingBalance}
-                          onChange={e => setFormData({...formData, openingBalance: e.target.value})}
-                          className="mt-1.5 w-full px-4 h-11 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl font-medium text-sm text-slate-900 dark:text-white transition-all outline-none"
-                          placeholder="0.00"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Credit Limit</label>
-                        <input
-                          type="number"
-                          value={formData.creditLimit}
-                          onChange={e => setFormData({...formData, creditLimit: e.target.value})}
-                          className="mt-1.5 w-full px-4 h-11 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl font-medium text-sm text-slate-900 dark:text-white transition-all outline-none"
-                          placeholder="0.00"
-                        />
-                      </div>
-                      <div className="col-span-2">
-                        <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Payment Terms</label>
-                        <CustomSelect
-                          value={formData.paymentTerms}
-                          onChange={val => setFormData({...formData, paymentTerms: val})}
-                          options={[
-                            { value: 'CASH', label: 'Cash' },
-                            { value: 'NET_7', label: '7 Days' },
-                            { value: 'NET_15', label: '15 Days' },
-                            { value: 'NET_30', label: '30 Days' },
-                          ]}
-                          label="Select Terms"
-                        />
-                      </div>
-                    </div>
+                  {/* Section 5: Loyalty & Options */}
+                  <div className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl overflow-hidden">
+                    <button 
+                      type="button" 
+                      onClick={() => toggleSection("loyalty")}
+                      className={`w-full px-4 py-3 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors outline-none cursor-pointer ${openSections.loyalty ? "rounded-t-xl" : "rounded-xl"}`}
+                    >
+                      <span className="font-bold text-slate-900 dark:text-white flex items-center gap-2 text-sm">
+                        <Gift className="w-4 h-4 text-blue-600" />
+                        Loyalty & Options
+                      </span>
+                      {openSections.loyalty ? <ChevronUp className="w-5 h-5 text-slate-500" /> : <ChevronDown className="w-5 h-5 text-slate-500" />}
+                    </button>
+                    <AnimatePresence>
+                      {openSections.loyalty && (
+                        <motion.div 
+                          initial={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                          animate={{ height: 'auto', opacity: 1, transitionEnd: { overflow: 'visible' } }}
+                          exit={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                        >
+                          <div className="p-4 space-y-4 border-t border-slate-300 dark:border-slate-700">
+                            {/* Toggle: Loyalty Program */}
+                            <label className="flex justify-between items-center cursor-pointer p-4 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                              <div>
+                                <span className="block text-sm font-bold text-slate-900 dark:text-white">Enable Loyalty Program</span>
+                                <span className="block text-xs font-medium text-slate-500 mt-0.5">Allow customer to earn points</span>
+                              </div>
+                              <div className={`w-10 h-5 rounded-full relative transition-colors shrink-0 ml-4 ${formData.loyaltyEnabled ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-600'}`}>
+                                <div className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${formData.loyaltyEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
+                              </div>
+                              <input
+                                type="checkbox"
+                                className="hidden"
+                                checked={formData.loyaltyEnabled}
+                                onChange={e => setFormData({ ...formData, loyaltyEnabled: e.target.checked })}
+                              />
+                            </label>
+
+                            {formData.loyaltyEnabled && (
+                              <div>
+                                <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Opening Loyalty Points</label>
+                                <input
+                                  type="number"
+                                  value={formData.loyaltyPoints}
+                                  onChange={e => setFormData({...formData, loyaltyPoints: e.target.value})}
+                                  className="mt-1.5 w-full px-4 h-11 bg-slate-50 dark:bg-slate-800/50 border border-slate-300 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl font-medium text-sm text-slate-900 dark:text-white transition-all outline-none"
+                                  placeholder="0"
+                                />
+                              </div>
+                            )}
+
+                            {/* Toggle: Active Status */}
+                            <label className="flex justify-between items-center cursor-pointer p-4 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                              <div>
+                                <span className="block text-sm font-bold text-slate-900 dark:text-white">Active Status</span>
+                                <span className="block text-xs font-medium text-slate-500 mt-0.5">Customer account is active</span>
+                              </div>
+                              <div className={`w-10 h-5 rounded-full relative transition-colors shrink-0 ml-4 ${formData.active ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-600'}`}>
+                                <div className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${formData.active ? 'translate-x-5' : 'translate-x-0'}`} />
+                              </div>
+                              <input
+                                type="checkbox"
+                                className="hidden"
+                                checked={formData.active}
+                                onChange={e => setFormData({ ...formData, active: e.target.checked })}
+                              />
+                            </label>
+
+                            <div>
+                              <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Notes / Remarks</label>
+                              <textarea
+                                value={formData.notes}
+                                onChange={e => setFormData({...formData, notes: e.target.value})}
+                                className="mt-1.5 w-full p-4 h-24 bg-slate-50 dark:bg-slate-800/50 border border-slate-300 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl font-medium text-sm text-slate-900 dark:text-white transition-all outline-none resize-none"
+                                placeholder="Any additional notes..."
+                              ></textarea>
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
-
-                  {/* Loyalty & Status */}
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider border-b border-slate-200 dark:border-slate-700 pb-2">Loyalty & Options</h3>
-                    
-                    <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl">
-                      <div>
-                        <p className="font-bold text-sm text-slate-900 dark:text-white">Enable Loyalty Program</p>
-                        <p className="text-xs text-slate-500">Allow customer to earn points</p>
-                      </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" checked={formData.loyaltyEnabled} onChange={e => setFormData({...formData, loyaltyEnabled: e.target.checked})} className="sr-only peer" />
-                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-blue-600"></div>
-                      </label>
-                    </div>
-
-                    {formData.loyaltyEnabled && (
-                      <div>
-                        <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Opening Loyalty Points</label>
-                        <input
-                          type="number"
-                          value={formData.loyaltyPoints}
-                          onChange={e => setFormData({...formData, loyaltyPoints: e.target.value})}
-                          className="mt-1.5 w-full px-4 h-11 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl font-medium text-sm text-slate-900 dark:text-white transition-all outline-none"
-                          placeholder="0"
-                        />
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl">
-                      <div>
-                        <p className="font-bold text-sm text-slate-900 dark:text-white">Active Status</p>
-                        <p className="text-xs text-slate-500">Customer account is active</p>
-                      </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" checked={formData.active} onChange={e => setFormData({...formData, active: e.target.checked})} className="sr-only peer" />
-                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-blue-600"></div>
-                      </label>
-                    </div>
-
-                    <div>
-                      <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Notes / Remarks</label>
-                      <textarea
-                        value={formData.notes}
-                        onChange={e => setFormData({...formData, notes: e.target.value})}
-                        className="mt-1.5 w-full p-4 h-24 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl font-medium text-sm text-slate-900 dark:text-white transition-all outline-none resize-none"
-                        placeholder="Any additional notes..."
-                      ></textarea>
-                    </div>
-                  </div>
-                </form>
-              </div>
-
-              <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
-                <div className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setIsPanelOpen(false)}
-                    className="flex-1 px-4 py-3 rounded-xl font-bold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    form="customerForm"
-                    disabled={isSubmitting}
-                    className="flex-[2] px-4 py-3 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all active:scale-95 disabled:opacity-70 flex justify-center items-center gap-2"
-                  >
-                    {isSubmitting ? (
-                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    ) : (
-                      <>
-                        <CheckCircle className="w-5 h-5" /> Save Customer
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+        </form>
+      </MainRightPanel>
 
       {/* ──────────────── FILTER FLYOUT ──────────────── */}
       <FilterPanel
@@ -1087,9 +1250,20 @@ function CustomersPageContent() {
               ]}
             />
           </div>
-
         </div>
       </FilterPanel>
+
+      {/* ──────────────── DELETE CONFIRMATION ──────────────── */}
+      <ConfirmDialog
+        isOpen={deleteConfirm.isOpen}
+        title="Delete Customer?"
+        message="Are you sure you want to permanently delete this customer? This action cannot be undone."
+        confirmText="Delete Customer"
+        cancelText="Cancel"
+        onConfirm={executeDelete}
+        onCancel={() => setDeleteConfirm({ isOpen: false, id: null })}
+        isLoading={isDeleting}
+      />
 
     </div>
   );

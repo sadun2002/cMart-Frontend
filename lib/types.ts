@@ -47,6 +47,9 @@ export interface Product {
   price: number;
   cost?: number;
   comparePrice?: number;
+  stockQuantity?: number;
+  isBarcodePrinted?: boolean;
+  brand?: string;
   stock: number;
   minStock: number;
   unit: string;

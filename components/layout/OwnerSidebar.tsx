@@ -11,7 +11,7 @@ import {
   CreditCard, Settings as SettingsIcon, ChevronDown, Store, User,
   Database, Bell, DollarSign, Printer, Lock, AlertTriangle,
   PanelLeftClose, PanelLeftOpen, SlidersHorizontal, Barcode, Shield, CalendarDays, Banknote,
-  Palette, FileText, Layout, Search, Image, PieChart, Building2, FolderTree
+  Palette, FileText, Layout, Search, Image, PieChart, Building2, FolderTree, Gift, ShoppingBag, Target, Monitor
 } from 'lucide-react';
 
 interface OwnerSidebarProps {
@@ -25,14 +25,17 @@ const mainNavItems = [
   { href: '/owner/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/owner/pos', label: 'POS', icon: ShoppingCart, hideOnMobile: true },
   { href: '/owner/products', label: 'Products', icon: Package },
-  { href: '/owner/barcode-generator', label: 'Barcode Generator', icon: Barcode, hideOnMobile: true },
+  { href: '/owner/inventory', label: 'Inventory', icon: Warehouse },
+  { href: '/owner/sales', label: 'Sales', icon: Receipt },
+  { href: '/owner/goals', label: 'Goals', icon: Target },
+  { href: '/owner/purchases', label: 'Purchases', icon: ShoppingBag },
+  { href: '/owner/suppliers', label: 'Suppliers', icon: Truck, tier: 'PRO' },
+  { href: '/owner/customers', label: 'Customers', icon: Users, tier: 'PRO' },
   { href: '/owner/categories', label: 'Categories', icon: FolderTree },
   { href: '/owner/brands', label: 'Brands', icon: Tag },
-  { href: '/owner/inventory', label: 'Inventory', icon: Warehouse },
-  { href: '/owner/suppliers', label: 'Suppliers', icon: Truck, tier: 'PRO' },
-  { href: '/owner/sales', label: 'Sales', icon: Receipt },
+  { href: '/owner/promotions', label: 'Promotions', icon: Gift, tier: 'PRO' },
   { href: '/owner/expenses', label: 'Expenses', icon: Banknote },
-  { href: '/owner/customers', label: 'Customers', icon: Users, tier: 'PRO' },
+  { href: '/owner/barcode-generator', label: 'Barcode Generator', icon: Barcode, hideOnMobile: true },
   { href: '/owner/attendance', label: 'Attendance', icon: Clock, tier: 'PRO' },
   { href: '/owner/branches', label: 'Branches', icon: Building2, tier: 'PRO' },
   { href: '/owner/subscription', label: 'Subscription', icon: CreditCard },
@@ -77,6 +80,7 @@ const settingsSubItems = [
   { href: '/owner/settings/notifications', label: 'Notifications', icon: Bell, badge: '3' },
   { href: '/owner/settings/tax', label: 'Tax & Currency', icon: DollarSign },
   { href: '/owner/settings/receipt', label: 'Receipt & Printer', icon: Printer },
+  { href: '/owner/settings/customer-display', label: 'Customer Display', icon: Monitor, badge: 'New' },
   { href: '/owner/settings/language', label: 'Language & Region', icon: Globe },
   { href: '/owner/settings/security', label: 'Security', icon: Lock },
   { href: '/owner/settings/customize', label: 'Customize Dashboard', icon: SlidersHorizontal },
@@ -110,6 +114,37 @@ export default function OwnerSidebar({ collapsed: desktopCollapsed, onToggle, is
   const isEmployeesActive = employeeSubItems.some((item) => pathname === item.href || pathname.startsWith(item.href + '/'));
   const isOnlineStoreActive = onlineStoreSubItems.some((item) => pathname === item.href || pathname.startsWith(item.href + '/'));
   const isReportsActive = reportsSubItems.some((item) => pathname === item.href || pathname.startsWith(item.href + '/'));
+
+  const [isAutoBackupActive, setIsAutoBackupActive] = useState(true);
+
+  useEffect(() => {
+    const checkBackupStatus = () => {
+      try {
+        const stored = localStorage.getItem('cmart_auto_backup_enabled');
+        if (stored !== null) {
+          setIsAutoBackupActive(stored === 'true');
+          return;
+        }
+        const savedSettings = localStorage.getItem('cmart_backup_settings');
+        if (savedSettings) {
+          const parsed = JSON.parse(savedSettings);
+          if (parsed.autoBackupEnabled !== undefined) {
+            setIsAutoBackupActive(Boolean(parsed.autoBackupEnabled));
+            return;
+          }
+        }
+      } catch (e) {}
+      setIsAutoBackupActive(true);
+    };
+
+    checkBackupStatus();
+    window.addEventListener('cmart_backup_settings_updated', checkBackupStatus);
+    window.addEventListener('storage', checkBackupStatus);
+    return () => {
+      window.removeEventListener('cmart_backup_settings_updated', checkBackupStatus);
+      window.removeEventListener('storage', checkBackupStatus);
+    };
+  }, []);
 
   useEffect(() => {
     if (isSettingsActive) setSettingsOpen(true);
@@ -193,8 +228,8 @@ export default function OwnerSidebar({ collapsed: desktopCollapsed, onToggle, is
               onClick={(e) => handleNavigation(e, item)}
               title={collapsed ? item.label : undefined}
               className={`${(item as any).hideOnMobile ? 'hidden lg:flex' : 'flex'} items-center gap-3 text-sm transition-all duration-150 rounded-xl mx-2 my-0.5 ${isActive
-                  ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-bold'
-                  : 'text-gray-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-gray-900 dark:hover:text-slate-200'
+                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-bold'
+                : 'text-gray-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-gray-900 dark:hover:text-slate-200'
                 } ${collapsed ? 'justify-center py-2.5 px-0' : 'py-2.5 pl-3 pr-3'}`}
             >
               <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-blue-600 dark:text-blue-400' : ''}`} />
@@ -217,8 +252,8 @@ export default function OwnerSidebar({ collapsed: desktopCollapsed, onToggle, is
             }}
             title={collapsed ? 'Reports' : undefined}
             className={`w-[calc(100%-1rem)] flex items-center gap-3 text-sm transition-all duration-150 rounded-xl mx-2 my-0.5 ${isReportsActive
-                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-bold'
-                : 'text-gray-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-gray-900 dark:hover:text-slate-200'
+              ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-bold'
+              : 'text-gray-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-gray-900 dark:hover:text-slate-200'
               } ${collapsed ? 'justify-center py-2.5 px-0' : 'py-2.5 pl-3 pr-3'}`}
           >
             <BarChart3 className={`w-5 h-5 flex-shrink-0 ${isReportsActive ? 'text-blue-600 dark:text-blue-400' : ''}`} />
@@ -244,8 +279,8 @@ export default function OwnerSidebar({ collapsed: desktopCollapsed, onToggle, is
                     href={item.href}
                     onClick={(e) => handleNavigation(e, item)}
                     className={`flex items-center gap-3 text-sm py-2 pl-3 pr-3 ml-2 mr-2 my-0.5 rounded-lg transition-all duration-150 ${isActive
-                        ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-bold'
-                        : 'text-gray-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-gray-900 dark:hover:text-slate-200'
+                      ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-bold'
+                      : 'text-gray-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-gray-900 dark:hover:text-slate-200'
                       }`}
                   >
                     <Icon className="w-4 h-4 flex-shrink-0" />
@@ -276,8 +311,8 @@ export default function OwnerSidebar({ collapsed: desktopCollapsed, onToggle, is
             }}
             title={collapsed ? 'Online Store' : undefined}
             className={`w-[calc(100%-1rem)] flex items-center gap-3 text-sm transition-all duration-150 rounded-xl mx-2 my-0.5 ${isOnlineStoreActive
-                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-bold'
-                : 'text-gray-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-gray-900 dark:hover:text-slate-200'
+              ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-bold'
+              : 'text-gray-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-gray-900 dark:hover:text-slate-200'
               } ${collapsed ? 'justify-center py-2.5 px-0' : 'py-2.5 pl-3 pr-3'}`}
           >
             <Globe2 className={`w-5 h-5 flex-shrink-0 ${isOnlineStoreActive ? 'text-blue-600 dark:text-blue-400' : ''}`} />
@@ -307,8 +342,8 @@ export default function OwnerSidebar({ collapsed: desktopCollapsed, onToggle, is
                     href={item.href}
                     onClick={(e) => handleNavigation(e, item)}
                     className={`flex items-center gap-3 text-sm py-2 pl-3 pr-3 ml-2 mr-2 my-0.5 rounded-lg transition-all duration-150 ${isActive
-                        ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-bold'
-                        : 'text-gray-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-gray-900 dark:hover:text-slate-200'
+                      ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-bold'
+                      : 'text-gray-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-gray-900 dark:hover:text-slate-200'
                       }`}
                   >
                     <Icon className="w-4 h-4 flex-shrink-0" />
@@ -339,8 +374,8 @@ export default function OwnerSidebar({ collapsed: desktopCollapsed, onToggle, is
             }}
             title={collapsed ? 'Employees' : undefined}
             className={`w-[calc(100%-1rem)] flex items-center gap-3 text-sm transition-all duration-150 rounded-xl mx-2 my-0.5 ${isEmployeesActive
-                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-bold'
-                : 'text-gray-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-gray-900 dark:hover:text-slate-200'
+              ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-bold'
+              : 'text-gray-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-gray-900 dark:hover:text-slate-200'
               } ${collapsed ? 'justify-center py-2.5 px-0' : 'py-2.5 pl-3 pr-3'}`}
           >
             <UserCheck className={`w-5 h-5 flex-shrink-0 ${isEmployeesActive ? 'text-blue-600 dark:text-blue-400' : ''}`} />
@@ -372,8 +407,8 @@ export default function OwnerSidebar({ collapsed: desktopCollapsed, onToggle, is
                     href={item.href}
                     onClick={(e) => handleNavigation(e, item)}
                     className={`flex items-center gap-3 text-sm py-2 pl-3 pr-3 ml-2 mr-2 my-0.5 rounded-lg transition-all duration-150 ${isActive
-                        ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-bold'
-                        : 'text-gray-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-gray-900 dark:hover:text-slate-200'
+                      ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-bold'
+                      : 'text-gray-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-gray-900 dark:hover:text-slate-200'
                       }`}
                   >
                     <Icon className="w-4 h-4 flex-shrink-0" />
@@ -398,8 +433,8 @@ export default function OwnerSidebar({ collapsed: desktopCollapsed, onToggle, is
             }}
             title={collapsed ? 'Settings' : undefined}
             className={`w-[calc(100%-1rem)] flex items-center gap-3 text-sm transition-all duration-150 rounded-xl mx-2 my-0.5 ${isSettingsActive
-                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-bold'
-                : 'text-gray-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-gray-900 dark:hover:text-slate-200'
+              ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-bold'
+              : 'text-gray-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-gray-900 dark:hover:text-slate-200'
               } ${collapsed ? 'justify-center py-2.5 px-0' : 'py-2.5 pl-3 pr-3'}`}
           >
             <SettingsIcon className={`w-5 h-5 flex-shrink-0 ${isSettingsActive ? 'text-blue-600 dark:text-blue-400' : ''}`} />
@@ -419,26 +454,29 @@ export default function OwnerSidebar({ collapsed: desktopCollapsed, onToggle, is
               {settingsSubItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = pathname.startsWith(item.href);
+                const showBadge = item.href.includes('/backup') 
+                  ? (isAutoBackupActive ? 'Auto' : null) 
+                  : item.badge;
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
                     onClick={(e) => handleNavigation(e, item)}
                     className={`flex items-center gap-3 text-sm py-2 pl-3 pr-3 ml-2 mr-2 my-0.5 rounded-lg transition-all duration-150 ${isActive
-                        ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-bold'
-                        : item.danger
-                          ? 'text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-300'
-                          : 'text-gray-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-gray-900 dark:hover:text-slate-200'
+                      ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-bold'
+                      : item.danger
+                        ? 'text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-300'
+                        : 'text-gray-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-gray-900 dark:hover:text-slate-200'
                       }`}
                   >
                     <Icon className="w-4 h-4 flex-shrink-0" />
                     <span className="truncate">{item.label}</span>
-                    {item.badge && (
-                      <span className={`ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded ${item.badge === '3'
-                          ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
-                          : 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
+                    {showBadge && (
+                      <span className={`ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded ${showBadge === '3'
+                        ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+                        : 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
                         }`}>
-                        {item.badge}
+                        {showBadge}
                       </span>
                     )}
                   </Link>

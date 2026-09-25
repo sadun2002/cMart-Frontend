@@ -1,9 +1,11 @@
 import type { NextConfig } from 'next';
 
+const isProd = process.env.NODE_ENV === 'production';
 const isTauri = process.env.TAURI_ENV_PLATFORM !== undefined;
+const isTauriExport = isProd && isTauri;
 
 const nextConfig: NextConfig = {
-  output: isTauri ? 'export' : undefined,
+  output: isTauriExport ? 'export' : undefined,
   images: {
     unoptimized: true,
     remotePatterns: [
@@ -12,7 +14,7 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: '*.cmart.lk' },
     ],
   },
-  ...(!isTauri && {
+  ...(!isTauriExport && {
     async headers() {
       return [
         {

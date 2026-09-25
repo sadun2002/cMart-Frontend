@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/lib/auth-store';
+import { getSubscriptionStatus } from '@/lib/subscription-utils';
 import { COMPANY_NAME, COMPANY_TAGLINE } from '@/lib/constants';
 import { toast } from 'sonner';
 import { useForm } from 'react-hook-form';
@@ -62,14 +63,27 @@ export default function LoginPage() {
       const searchParams = new URLSearchParams(window.location.search);
       const redirectUrl = searchParams.get('redirect');
       
-      if (user?.tenant?.plan === 'STARTUP' && !isDesktop) {
+      const subStatus = getSubscriptionStatus(user);
+      if (subStatus.isExpired) {
+        // Expired accounts go to the dashboard where the subscription expired lock screen is shown
+        router.push(redirectUrl || redirectTo || '/owner/dashboard');
+      } else if (user?.tenant?.plan === 'STARTUP' && !isDesktop) {
         router.push('/offline-access');
       } else {
         router.push(redirectUrl || redirectTo);
       }
     } catch (err: any) {
-      const msg = err.response?.data?.message || err.message || 'Login failed';
-      const errorMessage = Array.isArray(msg) ? msg[0] : msg;
+      let errorMessage = 'Login failed';
+      if (err.response?.data?.message) {
+        const msg = err.response.data.message;
+        errorMessage = Array.isArray(msg) ? msg[0] : msg;
+      } else if (err.code === 'ERR_NETWORK' || !err.response) {
+        errorMessage = 'Unable to connect to the backend server. Please verify your internet connection or server status.';
+      } else if (err.response?.status === 404) {
+        errorMessage = 'Backend service is currently unavailable (404).';
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
       setError('root', { message: errorMessage });
       toast.error(errorMessage);
     }
@@ -286,7 +300,7 @@ export default function LoginPage() {
                 if (isDesktopEnv) {
                   try {
                     const { open } = await import('@tauri-apps/plugin-shell');
-                    await open('https://cmart.lk');
+                    await open('https://cmart.chathudisa.com');
                   } catch (err) {
                     console.error("Failed to open external URL", err);
                   }
@@ -296,7 +310,7 @@ export default function LoginPage() {
               }}
               className="text-xs text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 transition-colors"
             >
-              <ChevronLeft className="w-3 h-3 inline mr-1" /> Back to {COMPANY_NAME}.lk
+              <ChevronLeft className="w-3 h-3 inline mr-1" /> Back to {COMPANY_NAME}
             </a>
           </div>
         </div>

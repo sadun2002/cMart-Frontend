@@ -69,6 +69,7 @@ export async function getDb() {
         trackExpiry INTEGER DEFAULT 0,
         expiryDate TEXT,
         trackBatch INTEGER DEFAULT 0,
+        isBarcodePrinted INTEGER DEFAULT 0,
         active INTEGER DEFAULT 1,
         createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
         updatedAt TEXT,
@@ -241,6 +242,75 @@ export async function getDb() {
         value TEXT NOT NULL
       );
     `);
+
+    await dbInstance.execute(`
+      CREATE TABLE IF NOT EXISTS promotions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        tenantId INTEGER,
+        offlineId TEXT UNIQUE,
+        name TEXT NOT NULL,
+        type TEXT NOT NULL,
+        offerValue REAL,
+        quantityRequirement INTEGER,
+        rewardQuantity INTEGER,
+        startDate TEXT NOT NULL,
+        endDate TEXT NOT NULL,
+        appliesToType TEXT NOT NULL,
+        appliesToIds TEXT,
+        active INTEGER DEFAULT 1,
+        createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+        updatedAt TEXT,
+        synced INTEGER DEFAULT 0
+      );
+    `);
+
+    await dbInstance.execute(`
+      CREATE TABLE IF NOT EXISTS purchases (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        tenantId INTEGER,
+        branchId INTEGER,
+        purchaseNumber TEXT NOT NULL,
+        supplierId INTEGER,
+        supplierName TEXT,
+        status TEXT DEFAULT 'ORDERED',
+        paymentStatus TEXT DEFAULT 'UNPAID',
+        paymentMethod TEXT DEFAULT 'CASH',
+        subtotal REAL DEFAULT 0,
+        tax REAL DEFAULT 0,
+        discount REAL DEFAULT 0,
+        shippingCost REAL DEFAULT 0,
+        total REAL DEFAULT 0,
+        paidAmount REAL DEFAULT 0,
+        orderDate TEXT DEFAULT CURRENT_TIMESTAMP,
+        expectedDate TEXT,
+        receivedDate TEXT,
+        referenceNo TEXT,
+        notes TEXT,
+        synced INTEGER DEFAULT 0,
+        createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+        updatedAt TEXT
+      );
+    `);
+
+    await dbInstance.execute(`
+      CREATE TABLE IF NOT EXISTS purchase_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        purchaseId INTEGER NOT NULL,
+        productId INTEGER NOT NULL,
+        productName TEXT NOT NULL,
+        sku TEXT,
+        barcode TEXT,
+        unit TEXT,
+        quantity REAL NOT NULL,
+        receivedQuantity REAL DEFAULT 0,
+        unitCost REAL NOT NULL,
+        subtotal REAL NOT NULL,
+        batchNumber TEXT,
+        expiryDate TEXT,
+        synced INTEGER DEFAULT 0,
+        FOREIGN KEY (purchaseId) REFERENCES purchases(id) ON DELETE CASCADE
+      );
+    `);
   }
   
   // Auto-migrate schema for dev environments
@@ -259,7 +329,8 @@ export async function getDb() {
       'supplierId INTEGER',
       'trackExpiry INTEGER DEFAULT 0',
       'expiryDate TEXT',
-      'trackBatch INTEGER DEFAULT 0'
+      'trackBatch INTEGER DEFAULT 0',
+      'isBarcodePrinted INTEGER DEFAULT 0'
     ];
     
     for (const col of columnsToAdd) {
@@ -269,6 +340,16 @@ export async function getDb() {
         // Column might already exist, ignore
       }
     }
+  } catch(e) {}
+  
+  // Auto-migrate schema for sales and sale_items (refunds)
+  try {
+    try {
+      await dbInstance.execute(`ALTER TABLE sales ADD COLUMN refundAmount REAL DEFAULT 0`);
+    } catch(e) {}
+    try {
+      await dbInstance.execute(`ALTER TABLE sale_items ADD COLUMN refundedQuantity INTEGER DEFAULT 0`);
+    } catch(e) {}
   } catch(e) {}
   
   // Auto-migrate schema for expenses
@@ -334,3 +415,144 @@ export async function setSetting(key: string, value: string): Promise<void> {
     console.error('Error setting setting:', error);
   }
 }
+
+/**
+ * Exports all existing tables and records as a complete snapshot
+ */
+export async function exportFullDatabaseSnapshot(): Promise<Record<string, any[]>> {
+  const db = await getDb();
+  const explicitTables = [
+    'categories',
+    'brands',
+    'products',
+    'product_variants',
+    'branch_products',
+    'inventory',
+    'inventory_logs',
+    'barcode_history',
+    'sales',
+    'sale_items',
+    'expenses',
+    'customers',
+    'promotions',
+    'purchases',
+    'purchase_items',
+    'store_settings'
+  ];
+
+  const tableSet = new Set<string>(explicitTables);
+
+  try {
+    const discovered = await db.select(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT IN ('config')"
+    ) as { name: string }[];
+    if (discovered && Array.isArray(discovered)) {
+      discovered.forEach(row => {
+        if (row.name) tableSet.add(row.name);
+      });
+    }
+  } catch (e) {}
+
+  const snapshot: Record<string, any[]> = {};
+  for (const table of Array.from(tableSet)) {
+    try {
+      const rows = await db.select(`SELECT * FROM ${table}`) as any[];
+      snapshot[table] = rows || [];
+    } catch (e) {
+      snapshot[table] = [];
+    }
+  }
+  return snapshot;
+}
+
+export async function restoreFullDatabaseSnapshot(snapshotData: Record<string, any[]>): Promise<void> {
+  const db = await getDb();
+  for (const [table, rows] of Object.entries(snapshotData)) {
+    if (!Array.isArray(rows) || rows.length === 0) continue;
+    
+    // Delete existing data to prevent primary key collisions
+    await db.execute(`DELETE FROM ${table}`);
+    
+    const columns = Object.keys(rows[0]);
+    // SQLite limit is usually 999 parameters, so limit batch size to stay safely under that
+    const batchSize = Math.max(1, Math.floor(900 / columns.length));
+    
+    for (let i = 0; i < rows.length; i += batchSize) {
+      const batchRows = rows.slice(i, i + batchSize);
+      const values: any[] = [];
+      const placeholders = batchRows.map((row, rowIndex) => {
+        return '(' + columns.map((colName, colIndex) => {
+          values.push(row[colName]);
+          return `$${rowIndex * columns.length + colIndex + 1}`;
+        }).join(', ') + ')';
+      }).join(', ');
+      
+      const query = `INSERT INTO ${table} (${columns.join(', ')}) VALUES ${placeholders}`;
+      await db.execute(query, values);
+    }
+  }
+}
+
+/**
+ * Performs a complete factory reset of local business data in SQLite
+ * while preserving system configuration and credentials
+ */
+export async function resetLocalDatabase(): Promise<{ success: boolean; tablesReset: string[] }> {
+  const db = await getDb();
+  const explicitTables = [
+    'sale_items',
+    'sales',
+    'inventory_logs',
+    'inventory',
+    'branch_products',
+    'product_variants',
+    'products',
+    'categories',
+    'brands',
+    'expenses',
+    'customers',
+    'promotions',
+    'purchases',
+    'purchase_items',
+    'barcode_history'
+  ];
+
+  const tablesToClear = new Set<string>(explicitTables);
+
+  // Discover all tables dynamically from sqlite_master
+  try {
+    const discovered = await db.select(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT IN ('config', 'store_settings')"
+    ) as { name: string }[];
+    if (discovered && Array.isArray(discovered)) {
+      discovered.forEach(row => {
+        if (row.name) tablesToClear.add(row.name);
+      });
+    }
+  } catch (e) {
+    console.warn('Could not query sqlite_master:', e);
+  }
+
+  const clearedTables: string[] = [];
+  for (const table of Array.from(tablesToClear)) {
+    try {
+      await db.execute(`DELETE FROM ${table}`);
+      clearedTables.push(table);
+    } catch (e) {
+      console.warn(`Could not clear table ${table}:`, e);
+    }
+  }
+
+  // Reset all auto-increment sequences so all IDs restart cleanly at 1
+  try {
+    await db.execute(`DELETE FROM sqlite_sequence`);
+  } catch (e) {}
+
+  // Clear business and temporary settings from store_settings, keeping only system credentials
+  try {
+    await db.execute(`DELETE FROM store_settings WHERE key NOT IN ('hardware_fingerprint', 'device_id')`);
+  } catch (e) {}
+
+  return { success: true, tablesReset: clearedTables };
+}
+

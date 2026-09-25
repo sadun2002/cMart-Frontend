@@ -14,6 +14,7 @@ import { useSearchParams } from 'next/navigation';
 import { KpiCard } from '@/components/ui/kpi-card';
 import { FilterPanel } from '@/components/ui/filter-panel';
 import { CustomSelect } from '@/components/ui/custom-select';
+import { TableEmptyState } from '@/components/ui/table-empty-state';
 
 const CITIES_BY_PROVINCE: Record<string, string[]> = {
   'Western': ['Colombo', 'Gampaha', 'Kalutara', 'Negombo', 'Moratuwa', 'Sri Jayawardenepura Kotte'],
@@ -414,6 +415,33 @@ function CustomersPageContent() {
             onBack={() => setSelectedCustomer(null)} 
             formatCurrency={formatCurrency}
           />
+        ) : loading ? (
+          <div className="flex-1 flex flex-col items-center justify-center p-12 text-slate-400">
+            <div className="w-8 h-8 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mb-4" />
+            <p className="font-medium text-sm">Loading customers...</p>
+          </div>
+        ) : filteredCustomers.length === 0 ? (
+          <TableEmptyState
+            icon={Users}
+            title="No customers found"
+            description={
+              search || statusFilter !== 'all' || groupFilter !== 'all' || genderFilter !== 'all' || termsFilter !== 'all'
+                ? "No customers match your current search and filter criteria. Try adjusting or clearing your filters."
+                : "You haven't added any customers to your store directory yet. Start adding customers to track their purchases, loyalty points, and store credit."
+            }
+            actionLabel={search || statusFilter !== 'all' || groupFilter !== 'all' || genderFilter !== 'all' || termsFilter !== 'all' ? "Clear Filters" : "Add First Customer"}
+            onAction={
+              search || statusFilter !== 'all' || groupFilter !== 'all' || genderFilter !== 'all' || termsFilter !== 'all'
+                ? () => {
+                    setSearch('');
+                    setStatusFilter('all');
+                    setGroupFilter('all');
+                    setGenderFilter('all');
+                    setTermsFilter('all');
+                  }
+                : openAddPanel
+            }
+          />
         ) : viewMode === 'list' ? (
           <>
             {/* Table wrapper for horizontal scroll */}
@@ -437,31 +465,12 @@ function CustomersPageContent() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                  {loading ? (
-                    <tr>
-                      <td colSpan={12} className="px-5 py-20 text-center">
-                        <div className="flex flex-col items-center justify-center text-slate-400">
-                          <div className="w-8 h-8 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mb-4" />
-                          <p className="font-medium text-sm">Loading customers...</p>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : filteredCustomers.length === 0 ? (
-                    <tr>
-                      <td colSpan={12} className="px-5 py-20 text-center">
-                        <div className="flex flex-col items-center justify-center text-slate-400">
-                          <Users className="w-12 h-12 mb-3 opacity-20" />
-                          <p className="font-medium text-sm">No customers found.</p>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredCustomers.map((c) => (
-                      <tr 
-                        key={c.id}
-                        onClick={() => openHistory(c)}
-                        className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group cursor-pointer"
-                      >
+                  {filteredCustomers.map((c) => (
+                    <tr 
+                      key={c.id}
+                      onClick={() => openHistory(c)}
+                      className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group cursor-pointer"
+                    >
                         <td className="px-5 py-4">
                           <div className="flex items-center gap-4">
                             <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-500/20 text-blue-600 flex items-center justify-center font-bold text-lg flex-shrink-0">
@@ -582,8 +591,7 @@ function CustomersPageContent() {
                           </div>
                         </td>
                       </tr>
-                    ))
-                  )}
+                    ))}
                 </tbody>
               </table>
             </div>
@@ -591,19 +599,8 @@ function CustomersPageContent() {
         ) : (
           /* Grid View */
           <div className="overflow-y-auto flex-1 p-6 custom-scrollbar">
-            {loading ? (
-              <div className="flex flex-col items-center justify-center h-40 text-slate-400">
-                <div className="w-8 h-8 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mb-4" />
-                <p className="font-medium text-sm">Loading customers...</p>
-              </div>
-            ) : filteredCustomers.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-40 text-slate-400">
-                <Users className="w-12 h-12 mb-3 opacity-20" />
-                <p className="font-medium text-sm">No customers found.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {filteredCustomers.map(c => (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {filteredCustomers.map(c => (
                   <div 
                     key={c.id} 
                     onClick={() => openHistory(c)}
@@ -696,7 +693,6 @@ function CustomersPageContent() {
                   </div>
                 ))}
               </div>
-            )}
           </div>
         )}
       </div>

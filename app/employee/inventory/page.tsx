@@ -9,6 +9,7 @@ import {
 import { KpiCard } from '@/components/ui/kpi-card';
 import { FilterPanel } from '@/components/ui/filter-panel';
 import { CustomSelect } from '@/components/ui/custom-select';
+import { TableEmptyState } from '@/components/ui/table-empty-state';
 import { storeOwnerAPI } from '@/lib/api';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -319,6 +320,34 @@ export default function InventoryPage() {
         
         {selectedHistoryItem ? (
           <InventoryHistoryView product={selectedHistoryItem} onBack={() => setSelectedHistoryItem(null)} />
+        ) : loading ? (
+          <div className="flex-1 flex flex-col items-center justify-center p-12 text-slate-400">
+            <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4" />
+            <p className="font-medium text-sm">Loading inventory...</p>
+          </div>
+        ) : filteredProducts.length === 0 ? (
+          <TableEmptyState
+            icon={Package}
+            title="No inventory products found"
+            description={
+              search || stockFilter !== 'all' || categoryFilter !== 'all' || dateFilterType !== 'all'
+                ? "No products match your current search and filter criteria. Try adjusting or clearing your filters."
+                : "No products exist in your inventory database yet."
+            }
+            actionLabel={search || stockFilter !== 'all' || categoryFilter !== 'all' || dateFilterType !== 'all' ? "Clear Filters" : undefined}
+            onAction={
+              search || stockFilter !== 'all' || categoryFilter !== 'all' || dateFilterType !== 'all'
+                ? () => {
+                    setSearch('');
+                    setStockFilter('all');
+                    setCategoryFilter('all');
+                    setDateFilterType('all');
+                    setFromDate('');
+                    setToDate('');
+                  }
+                : undefined
+            }
+          />
         ) : viewMode === 'list' ? (
           <div className="flex-1 flex flex-col overflow-x-auto no-scrollbar">
             <div className="min-w-[1000px] flex flex-col h-full">
@@ -333,18 +362,7 @@ export default function InventoryPage() {
 
               {/* Table Body */}
               <div className="flex-1 overflow-y-auto no-scrollbar relative">
-          {loading ? (
-             <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-4 min-h-[300px]">
-               <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-               <p className="font-medium">Loading inventory...</p>
-             </div>
-          ) : filteredProducts.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-4 min-h-[300px]">
-               <Package className="w-12 h-12 opacity-20" />
-               <p className="font-medium text-lg text-slate-500">No products found matching criteria.</p>
-             </div>
-          ) : (
-            filteredProducts.map((p) => {
+                {filteredProducts.map((p) => {
               const currentStock = adjustments[p.id] !== undefined ? adjustments[p.id] : p.stock;
               const isLowStock = currentStock > 0 && currentStock <= p.minStock;
               const isOutOfStock = currentStock === 0;
@@ -451,26 +469,14 @@ export default function InventoryPage() {
                   </div>
                 </div>
               );
-            })
-          )}
+            })}
               </div>
             </div>
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto no-scrollbar p-6 bg-slate-50/30 dark:bg-slate-900/20">
-            {loading ? (
-              <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-4 min-h-[300px]">
-                <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                <p className="font-medium">Loading inventory...</p>
-              </div>
-            ) : filteredProducts.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-4 min-h-[300px]">
-                <Package className="w-12 h-12 opacity-20" />
-                <p className="font-medium text-lg text-slate-500">No products found matching criteria.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-4 xl:gap-6">
-                {filteredProducts.map(p => {
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-4 xl:gap-6">
+              {filteredProducts.map(p => {
                   const currentStock = adjustments[p.id] !== undefined ? adjustments[p.id] : p.stock;
                   const isLowStock = currentStock > 0 && currentStock <= p.minStock;
                   const isOutOfStock = currentStock === 0;
@@ -569,7 +575,6 @@ export default function InventoryPage() {
                   );
                 })}
               </div>
-            )}
           </div>
         )}
       </div>

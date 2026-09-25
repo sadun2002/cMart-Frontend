@@ -5,6 +5,7 @@ import { DollarSign, Download, Printer, Filter, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { FilterPanel } from '@/components/ui/filter-panel';
 import { CustomSelect } from '@/components/ui/custom-select';
+import { TableEmptyState } from '@/components/ui/table-empty-state';
 import { getYearOptions, getMonthOptions, getWeekOptions, getQuarterOptions, getHalfYearOptions } from '@/lib/report-filter-options';
 
 const dailyFinancial = [
@@ -114,50 +115,62 @@ export default function FinancialReportPage() {
       </div>
 
       <div className="flex-1 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col">
-        <div className="overflow-x-auto flex-1">
-          <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-slate-50 dark:bg-slate-900/80 text-slate-500 font-bold border-b border-slate-200 dark:border-slate-700 sticky top-0">
-              {reportPeriod === 'daily' ? (
-                <tr><th className="px-6 py-4">Txn ID</th><th className="px-6 py-4">Date</th><th className="px-6 py-4">Type</th><th className="px-6 py-4">Category</th><th className="px-6 py-4">Description</th><th className="px-6 py-4 text-right">Amount (LKR)</th><th className="px-6 py-4 text-right">Balance (LKR)</th></tr>
-              ) : (
-                <tr><th className="px-6 py-4">Period / Range</th><th className="px-6 py-4 text-right">Revenue (LKR)</th><th className="px-6 py-4 text-right">Expenses (LKR)</th><th className="px-6 py-4 text-right">Net Profit (LKR)</th><th className="px-6 py-4 text-center">Margin</th></tr>
-              )}
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50 font-medium">
-              {reportPeriod === 'daily' ? (
-                filtered.map((row: any, i) => (
-                  <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/30 transition-colors">
-                    <td className="px-6 py-4 text-slate-500">{row.id}</td>
-                    <td className="px-6 py-4 text-slate-500">{row.date}</td>
-                    <td className="px-6 py-4"><span className={`inline-flex px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ${row.type === 'Revenue' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400'}`}>{row.type}</span></td>
-                    <td className="px-6 py-4 text-slate-700 dark:text-slate-300">{row.category}</td>
-                    <td className="px-6 py-4 text-slate-900 dark:text-white font-bold">{row.description}</td>
-                    <td className="px-6 py-4 text-right font-black"><span className={row.amount >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}>{row.amount >= 0 ? '+' : ''}{row.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></td>
-                    <td className="px-6 py-4 text-right text-slate-900 dark:text-white font-black">{row.balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                  </tr>
-                ))
-              ) : (
-                filtered.map((row: any, i) => (
-                  <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/30 transition-colors">
-                    <td className="px-6 py-4 text-slate-900 dark:text-white font-bold">{row.period}</td>
-                    <td className="px-6 py-4 text-right text-emerald-600 dark:text-emerald-400 font-black">{row.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                    <td className="px-6 py-4 text-right text-red-600 dark:text-red-400 font-bold">{row.totalExpenses.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                    <td className="px-6 py-4 text-right text-slate-900 dark:text-white font-black">{row.netProfit.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                    <td className="px-6 py-4 text-center"><span className="inline-flex px-2 py-1 rounded-md text-[10px] font-black uppercase bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400">{row.profitMargin}</span></td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-        <div className="p-4 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between text-sm bg-slate-50/50 dark:bg-slate-900/30">
-          <span className="text-slate-500 dark:text-slate-400 font-medium">Showing {filtered.length} entries</span>
-          <div className="flex gap-1">
-            <button className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-400 cursor-not-allowed font-medium">Prev</button>
-            <button className="px-3 py-1.5 rounded-lg bg-blue-600 text-white font-bold shadow-sm">1</button>
-            <button className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 font-medium transition-colors">Next</button>
-          </div>
-        </div>
+        {filtered.length === 0 ? (
+          <TableEmptyState
+            icon={DollarSign}
+            title="No financial report data found"
+            description="No financial transactions match the selected period, search term, or filters. Try adjusting your date range or resetting your filters."
+            actionLabel="Reset Filters"
+            onAction={clearFilters}
+          />
+        ) : (
+          <>
+            <div className="overflow-x-auto flex-1">
+              <table className="w-full text-left text-sm whitespace-nowrap">
+                <thead className="bg-slate-50 dark:bg-slate-900/80 text-slate-500 font-bold border-b border-slate-200 dark:border-slate-700 sticky top-0">
+                  {reportPeriod === 'daily' ? (
+                    <tr><th className="px-6 py-4">Txn ID</th><th className="px-6 py-4">Date</th><th className="px-6 py-4">Type</th><th className="px-6 py-4">Category</th><th className="px-6 py-4">Description</th><th className="px-6 py-4 text-right">Amount (LKR)</th><th className="px-6 py-4 text-right">Balance (LKR)</th></tr>
+                  ) : (
+                    <tr><th className="px-6 py-4">Period / Range</th><th className="px-6 py-4 text-right">Revenue (LKR)</th><th className="px-6 py-4 text-right">Expenses (LKR)</th><th className="px-6 py-4 text-right">Net Profit (LKR)</th><th className="px-6 py-4 text-center">Margin</th></tr>
+                  )}
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50 font-medium">
+                  {reportPeriod === 'daily' ? (
+                    filtered.map((row: any, i) => (
+                      <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/30 transition-colors">
+                        <td className="px-6 py-4 text-slate-500">{row.id}</td>
+                        <td className="px-6 py-4 text-slate-500">{row.date}</td>
+                        <td className="px-6 py-4"><span className={`inline-flex px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ${row.type === 'Revenue' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400'}`}>{row.type}</span></td>
+                        <td className="px-6 py-4 text-slate-700 dark:text-slate-300">{row.category}</td>
+                        <td className="px-6 py-4 text-slate-900 dark:text-white font-bold">{row.description}</td>
+                        <td className="px-6 py-4 text-right font-black"><span className={row.amount >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}>{row.amount >= 0 ? '+' : ''}{row.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></td>
+                        <td className="px-6 py-4 text-right text-slate-900 dark:text-white font-black">{row.balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    filtered.map((row: any, i) => (
+                      <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/30 transition-colors">
+                        <td className="px-6 py-4 text-slate-900 dark:text-white font-bold">{row.period}</td>
+                        <td className="px-6 py-4 text-right text-emerald-600 dark:text-emerald-400 font-black">{row.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                        <td className="px-6 py-4 text-right text-red-600 dark:text-red-400 font-bold">{row.totalExpenses.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                        <td className="px-6 py-4 text-right text-slate-900 dark:text-white font-black">{row.netProfit.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                        <td className="px-6 py-4 text-center"><span className="inline-flex px-2 py-1 rounded-md text-[10px] font-black uppercase bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400">{row.profitMargin}</span></td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <div className="p-4 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between text-sm bg-slate-50/50 dark:bg-slate-900/30">
+              <span className="text-slate-500 dark:text-slate-400 font-medium">Showing {filtered.length} entries</span>
+              <div className="flex gap-1">
+                <button className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-400 cursor-not-allowed font-medium">Prev</button>
+                <button className="px-3 py-1.5 rounded-lg bg-blue-600 text-white font-bold shadow-sm">1</button>
+                <button className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 font-medium transition-colors">Next</button>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       <FilterPanel isOpen={isFilterOpen} onClose={() => setIsFilterOpen(false)} title="Filter Financial" onClear={() => { clearFilters(); setIsFilterOpen(false); }} onApply={() => setIsFilterOpen(false)}>

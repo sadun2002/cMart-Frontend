@@ -20,9 +20,25 @@ export async function performBulkSync(): Promise<boolean> {
       return true; // Nothing to sync
     }
 
-    const { accessToken } = useAuthStore.getState();
+    const { accessToken, user } = useAuthStore.getState();
     if (!accessToken) {
       throw new Error('Authentication required for cloud sync');
+    }
+
+    if (user?.tenant?.plan === 'STARTUP' || user?.tenant?.plan === 'FREE') {
+      console.log('Sync skipped: STARTUP plan does not support cloud sync.');
+      return true;
+    }
+
+    // If a database reset occurred while offline, purge cloud data first before syncing
+    if (typeof window !== 'undefined' && localStorage.getItem('cmart_pending_cloud_reset') === 'true') {
+      try {
+        await api.post('/sync/reset-data');
+        localStorage.removeItem('cmart_pending_cloud_reset');
+        console.log('Pending cloud reset executed successfully.');
+      } catch (err) {
+        console.error('Failed to execute pending cloud reset:', err);
+      }
     }
 
     const payload = {

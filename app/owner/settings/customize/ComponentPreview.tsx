@@ -13,6 +13,7 @@ import {
 } from 'recharts';
 import { KpiCard } from '@/components/ui/kpi-card';
 import { getSetting } from '@/lib/db';
+import { GoalWidget } from '@/components/dashboard/GoalWidget';
 
 interface ComponentPreviewProps {
   comp: {
@@ -431,35 +432,14 @@ export function ComponentPreview({ comp, isEnabled, layout, isDashboardView = fa
       );
     }
 
-    /* ═══════════════════ PROGRESS BAR ═══════════════════ */
+    /* ═══════════════════ PROGRESS BAR / GOAL WIDGET ═══════════════════ */
     case 'progress': {
-      // Mock progress of 340000 for demonstration purposes
-      const currentSales = 340000;
-      const target = comp.id === 'progress-monthly-sales-goal' ? salesGoal : 890450;
-      const pct = Math.min(100, Math.round((currentSales / target) * 100)) || 0;
-      const remaining = Math.max(0, target - currentSales);
-      
       return (
-        <div className={`bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 shadow-sm p-6 w-full text-left flex flex-col h-[380px] justify-between ${dim}`}>
-          <div>
-            <h2 className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2 mb-6">
-              <CompIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-              {comp.label}
-            </h2>
-            <div className="space-y-4 mt-6">
-              <div className="flex items-center justify-between text-sm">
-                <span className="font-bold text-gray-800 dark:text-slate-200">{pct}% Completed</span>
-                <span className="text-gray-400 dark:text-slate-500">Target: Rs. {target.toLocaleString()}</span>
-              </div>
-              <div className="h-4 bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden p-0.5 border border-gray-200/50 dark:border-slate-700">
-                <div className="h-full bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full transition-all" style={{ width: `${pct}%` }} />
-              </div>
-              <p className="text-xs text-gray-500 dark:text-slate-400 leading-relaxed">
-                Your store is currently performing well. You need Rs. {remaining.toLocaleString()} more to hit the goal.
-              </p>
-            </div>
-          </div>
-        </div>
+        <GoalWidget
+          componentId={comp.id}
+          isDashboardView={isDashboardView}
+          dim={dim}
+        />
       );
     }
 

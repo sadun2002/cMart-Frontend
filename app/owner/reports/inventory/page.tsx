@@ -5,6 +5,7 @@ import { Warehouse, Download, Printer, Filter, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { FilterPanel } from '@/components/ui/filter-panel';
 import { CustomSelect } from '@/components/ui/custom-select';
+import { TableEmptyState } from '@/components/ui/table-empty-state';
 import { getYearOptions, getMonthOptions, getWeekOptions, getQuarterOptions, getHalfYearOptions } from '@/lib/report-filter-options';
 
 // Mock data structured by periods
@@ -115,74 +116,86 @@ export default function InventoryReportPage() {
 
       {/* Table */}
       <div className="flex-1 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col">
-        <div className="overflow-x-auto flex-1">
-          <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-slate-50 dark:bg-slate-900/80 text-slate-500 font-bold border-b border-slate-200 dark:border-slate-700 sticky top-0">
-              {reportPeriod === 'daily' ? (
-                <tr>
-                  <th className="px-6 py-4">SKU</th>
-                  <th className="px-6 py-4">Product Name</th>
-                  <th className="px-6 py-4">Category</th>
-                  <th className="px-6 py-4">Current Stock</th>
-                  <th className="px-6 py-4 text-right">Unit Price (LKR)</th>
-                  <th className="px-6 py-4 text-right">Valuation (LKR)</th>
-                </tr>
-              ) : (
-                <tr>
-                  <th className="px-6 py-4">Item ID</th>
-                  <th className="px-6 py-4">Product Name</th>
-                  <th className="px-6 py-4 text-center">Opening Stock</th>
-                  <th className="px-6 py-4 text-center">Stock Received</th>
-                  <th className="px-6 py-4 text-center">Quantity Sold</th>
-                  <th className="px-6 py-4 text-center">Adjustments</th>
-                  <th className="px-6 py-4 text-center">Closing Stock</th>
-                  <th className="px-6 py-4 text-right">Unit Price (LKR)</th>
-                  <th className="px-6 py-4 text-right">Total Value (LKR)</th>
-                </tr>
-              )}
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50 font-medium">
-              {reportPeriod === 'daily' ? (
-                filtered.map((row: any, i) => (
-                  <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/30 transition-colors">
-                    <td className="px-6 py-4 text-slate-500">{row.sku}</td>
-                    <td className="px-6 py-4 text-slate-900 dark:text-white font-bold">{row.name}</td>
-                    <td className="px-6 py-4 text-slate-700 dark:text-slate-300">{row.category}</td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ${row.stock > 10 ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400'}`}>{row.stock} in stock</span>
-                    </td>
-                    <td className="px-6 py-4 text-right text-slate-500">{row.unitPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                    <td className="px-6 py-4 text-right text-slate-900 dark:text-white font-black">{row.value.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                  </tr>
-                ))
-              ) : (
-                filtered.map((row: any, i) => (
-                  <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/30 transition-colors">
-                    <td className="px-6 py-4 text-slate-500">{row.sku}</td>
-                    <td className="px-6 py-4 text-slate-900 dark:text-white font-bold">{row.name}</td>
-                    <td className="px-6 py-4 text-center text-slate-700 dark:text-slate-300">{row.opening}</td>
-                    <td className="px-6 py-4 text-center text-slate-700 dark:text-slate-300">+{row.received}</td>
-                    <td className="px-6 py-4 text-center text-slate-700 dark:text-slate-300">-{row.sold}</td>
-                    <td className="px-6 py-4 text-center text-slate-500">{row.adjustments !== 0 ? (row.adjustments > 0 ? `+${row.adjustments}` : row.adjustments) : '-'}</td>
-                    <td className="px-6 py-4 text-center">
-                      <span className={`inline-flex px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ${row.closing > 10 ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400'}`}>{row.closing} in stock</span>
-                    </td>
-                    <td className="px-6 py-4 text-right text-slate-500">{row.unitPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                    <td className="px-6 py-4 text-right text-slate-900 dark:text-white font-black">{row.value.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-        <div className="p-4 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between text-sm bg-slate-50/50 dark:bg-slate-900/30">
-          <span className="text-slate-500 dark:text-slate-400 font-medium">Showing {filtered.length} entries</span>
-          <div className="flex gap-1">
-            <button className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-400 cursor-not-allowed font-medium">Prev</button>
-            <button className="px-3 py-1.5 rounded-lg bg-blue-600 text-white font-bold shadow-sm">1</button>
-            <button className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 font-medium transition-colors">Next</button>
-          </div>
-        </div>
+        {filtered.length === 0 ? (
+          <TableEmptyState
+            icon={Warehouse}
+            title="No inventory report data found"
+            description="No inventory items match the selected period, search term, or category filter. Try adjusting your filters or search terms."
+            actionLabel="Reset Filters"
+            onAction={clearFilters}
+          />
+        ) : (
+          <>
+            <div className="overflow-x-auto flex-1">
+              <table className="w-full text-left text-sm whitespace-nowrap">
+                <thead className="bg-slate-50 dark:bg-slate-900/80 text-slate-500 font-bold border-b border-slate-200 dark:border-slate-700 sticky top-0">
+                  {reportPeriod === 'daily' ? (
+                    <tr>
+                      <th className="px-6 py-4">Item SKU</th>
+                      <th className="px-6 py-4">Product Name</th>
+                      <th className="px-6 py-4">Category</th>
+                      <th className="px-6 py-4">Stock Level</th>
+                      <th className="px-6 py-4 text-right">Unit Price (LKR)</th>
+                      <th className="px-6 py-4 text-right">Total Value (LKR)</th>
+                    </tr>
+                  ) : (
+                    <tr>
+                      <th className="px-6 py-4">Item ID</th>
+                      <th className="px-6 py-4">Product Name</th>
+                      <th className="px-6 py-4 text-center">Opening Stock</th>
+                      <th className="px-6 py-4 text-center">Stock Received</th>
+                      <th className="px-6 py-4 text-center">Quantity Sold</th>
+                      <th className="px-6 py-4 text-center">Adjustments</th>
+                      <th className="px-6 py-4 text-center">Closing Stock</th>
+                      <th className="px-6 py-4 text-right">Unit Price (LKR)</th>
+                      <th className="px-6 py-4 text-right">Total Value (LKR)</th>
+                    </tr>
+                  )}
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50 font-medium">
+                  {reportPeriod === 'daily' ? (
+                    filtered.map((row: any, i) => (
+                      <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/30 transition-colors">
+                        <td className="px-6 py-4 text-slate-500">{row.sku}</td>
+                        <td className="px-6 py-4 text-slate-900 dark:text-white font-bold">{row.name}</td>
+                        <td className="px-6 py-4 text-slate-700 dark:text-slate-300">{row.category}</td>
+                        <td className="px-6 py-4">
+                          <span className={`inline-flex px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ${row.stock > 10 ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400'}`}>{row.stock} in stock</span>
+                        </td>
+                        <td className="px-6 py-4 text-right text-slate-500">{row.unitPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                        <td className="px-6 py-4 text-right text-slate-900 dark:text-white font-black">{row.value.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    filtered.map((row: any, i) => (
+                      <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/30 transition-colors">
+                        <td className="px-6 py-4 text-slate-500">{row.sku}</td>
+                        <td className="px-6 py-4 text-slate-900 dark:text-white font-bold">{row.name}</td>
+                        <td className="px-6 py-4 text-center text-slate-700 dark:text-slate-300">{row.opening}</td>
+                        <td className="px-6 py-4 text-center text-slate-700 dark:text-slate-300">+{row.received}</td>
+                        <td className="px-6 py-4 text-center text-slate-700 dark:text-slate-300">-{row.sold}</td>
+                        <td className="px-6 py-4 text-center text-slate-500">{row.adjustments !== 0 ? (row.adjustments > 0 ? `+${row.adjustments}` : row.adjustments) : '-'}</td>
+                        <td className="px-6 py-4 text-center">
+                          <span className={`inline-flex px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ${row.closing > 10 ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400'}`}>{row.closing} in stock</span>
+                        </td>
+                        <td className="px-6 py-4 text-right text-slate-500">{row.unitPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                        <td className="px-6 py-4 text-right text-slate-900 dark:text-white font-black">{row.value.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <div className="p-4 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between text-sm bg-slate-50/50 dark:bg-slate-900/30">
+              <span className="text-slate-500 dark:text-slate-400 font-medium">Showing {filtered.length} entries</span>
+              <div className="flex gap-1">
+                <button className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-400 cursor-not-allowed font-medium">Prev</button>
+                <button className="px-3 py-1.5 rounded-lg bg-blue-600 text-white font-bold shadow-sm">1</button>
+                <button className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 font-medium transition-colors">Next</button>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       <FilterPanel isOpen={isFilterOpen} onClose={() => setIsFilterOpen(false)} title="Filter Inventory" onClear={() => { clearFilters(); setIsFilterOpen(false); }} onApply={() => setIsFilterOpen(false)}>

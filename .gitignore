@@ -41,3 +41,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# scratch & temporary helper scripts
+fix*.js
+fix*.py
+refactor_*.js
+pos_cart.txt

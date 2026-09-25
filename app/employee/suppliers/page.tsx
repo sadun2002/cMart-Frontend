@@ -964,7 +964,7 @@ export default function SuppliersPage() {
                 <div className="flex gap-3">
                   <button 
                     type="button"
-                    onClick={() => setIsAddOpen(false)}
+                    onClick={() => setIsPanelOpen(false)}
                     className="flex-1 px-4 py-3 rounded-xl font-bold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
                   >
                     Cancel

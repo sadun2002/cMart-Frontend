@@ -2,18 +2,24 @@
 
 import { Suspense, useEffect, useState, useMemo, useRef } from 'react';
 import { 
-  Banknote, Search, Plus, Trash2, LayoutGrid, List, Filter, FileText, CheckCircle, Clock, X, Maximize, Minimize, Calendar, Lock, Upload, Eye, File as FileIcon, Download, RefreshCw, ChevronDown, ChevronUp
+  Banknote, Search, Plus, Trash2, LayoutGrid, List, Filter, FileText, CheckCircle, Clock, X, Maximize, Minimize, Calendar, Lock, Upload, Eye, File as FileIcon, Download, RefreshCw, ChevronDown, ChevronUp, CreditCard, Receipt, SlidersHorizontal
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getDb } from '@/lib/db';
 import { KpiCard } from '@/components/ui/kpi-card';
 import { CustomSelect } from '@/components/ui/custom-select';
+import { FilterPanel } from '@/components/ui/filter-panel';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { MainRightPanel } from '@/components/ui/right-panel';
+import { ValidationErrorTooltip } from '@/components/ui/validation-error-tooltip';
+import { TableEmptyState } from '@/components/ui/table-empty-state';
 import { UpgradeModal } from '@/components/ui/upgrade-modal';
 import { encryptData, decryptData } from '@/lib/local-db';
 import { useAuthStore } from '@/lib/auth-store';
 import { useBranchStore } from '@/lib/branch-store';
 import { storeOwnerAPI } from '@/lib/api';
+import { isTauriEnv } from '@/lib/local-db';
 
 // Generate a random UUID
 function uuidv4() {
@@ -50,9 +56,10 @@ function ExpensesPageContent() {
   const [filterBranch, setFilterBranch] = useState('all');
   const [filterVendor, setFilterVendor] = useState('all');
   
-  // Auth & External Data
   const user = useAuthStore(state => state.user);
-  const isStartup = user?.tenant?.plan?.toUpperCase() === 'STARTUP';
+  const plan = user?.tenant?.plan?.toUpperCase() || 'STARTUP';
+  const isStartup = plan === 'STARTUP' || plan === 'FREE';
+  const isLocalMode = isTauriEnv() || isStartup;
   const branches = useBranchStore(state => state.branches);
   const [suppliers, setSuppliers] = useState<any[]>([]);
 
@@ -74,12 +81,106 @@ function ExpensesPageContent() {
   const [attachment, setAttachment] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [openSections, setOpenSections] = useState({ basic: true, payment: true, additional: true });
+  const [openSections, setOpenSections] = useState({ basic: true, payment: false, additional: false });
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [upgradeFeatureName, setUpgradeFeatureName] = useState('');
 
+  // Validation Error State
+  const [validationError, setValidationError] = useState<{ field: string; message: string } | null>(null);
+
+  const triggerValidation = (sectionKey: string, fieldId: string, message: string) => {
+    setValidationError({ field: fieldId, message });
+
+    const focus = () => {
+      setTimeout(() => {
+        const el = document.getElementById(fieldId);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          el.focus();
+        }
+      }, 100);
+    };
+
+    if (sectionKey && !openSections[sectionKey as keyof typeof openSections]) {
+      setOpenSections(prev => ({ ...prev, [sectionKey]: true }));
+      setTimeout(focus, 300);
+    } else {
+      focus();
+    }
+
+    setTimeout(() => setValidationError(null), 3500);
+  };
+
+  const [deleteConfirmDialog, setDeleteConfirmDialog] = useState<{ isOpen: boolean; id: string | null }>({ isOpen: false, id: null });
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleCloseAdd = () => {
+    setIsAddOpen(false);
+  };
+
+  const handleDiscardChanges = () => {
+    try {
+      localStorage.removeItem('draft_expense_form');
+    } catch (e) {}
+    resetForm();
+    setIsAddOpen(false);
+  };
+
+  // Restore draft when opening add expense panel
+  useEffect(() => {
+    if (isAddOpen) {
+      try {
+        const saved = localStorage.getItem('draft_expense_form');
+        if (saved) {
+          const d = JSON.parse(saved);
+          if (d.name !== undefined) setName(d.name);
+          if (d.category !== undefined) setCategory(d.category);
+          if (d.type !== undefined) setType(d.type);
+          if (d.frequency !== undefined) setFrequency(d.frequency);
+          if (d.amount !== undefined) setAmount(d.amount);
+          if (d.tax !== undefined) setTax(d.tax);
+          if (d.paymentStatus !== undefined) setPaymentStatus(d.paymentStatus);
+          if (d.paymentMethod !== undefined) setPaymentMethod(d.paymentMethod);
+          if (d.paidFromAccount !== undefined) setPaidFromAccount(d.paidFromAccount);
+          if (d.date !== undefined) setDate(d.date);
+          if (d.dueDate !== undefined) setDueDate(d.dueDate);
+          if (d.vendorId !== undefined) setVendorId(d.vendorId);
+          if (d.notes !== undefined) setNotes(d.notes);
+        }
+      } catch (e) {}
+    }
+  }, [isAddOpen]);
+
+  // Auto-save draft for new expense
+  useEffect(() => {
+    if (!isAddOpen) return;
+    const hasData = Boolean(
+      name || amount || notes || vendorId || tax || dueDate
+    );
+    if (hasData) {
+      try {
+        const draft = {
+          name, category, type, frequency, amount, tax,
+          paymentStatus, paymentMethod, paidFromAccount,
+          date, dueDate, vendorId, notes
+        };
+        localStorage.setItem('draft_expense_form', JSON.stringify(draft));
+      } catch (e) {}
+    }
+  }, [name, category, type, frequency, amount, tax, paymentStatus, paymentMethod, paidFromAccount, date, dueDate, vendorId, notes, isAddOpen]);
+
   const toggleSection = (section: keyof typeof openSections) => {
-    setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
+    setOpenSections(prev => {
+      if (prev[section]) {
+        return { ...prev, [section]: false };
+      }
+      return {
+        basic: false,
+        payment: false,
+        additional: false,
+        [section]: true
+      };
+    });
   };
 
   // View Modal State
@@ -87,7 +188,7 @@ function ExpensesPageContent() {
 
   useEffect(() => {
     fetchExpenses();
-    if (!isStartup) {
+    if (!isLocalMode) {
       storeOwnerAPI.getSuppliers().then(res => setSuppliers(res.data || res)).catch(console.error);
     }
   }, [isStartup]);
@@ -170,8 +271,16 @@ function ExpensesPageContent() {
 
   const handleAddExpense = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !amount || isNaN(Number(amount))) {
-      toast.error('Please provide valid expense name and amount');
+    if (!name.trim()) {
+      triggerValidation('basic', 'field-expense-name', 'Expense name is required');
+      return;
+    }
+    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
+      triggerValidation('payment', 'field-expense-amount', 'Valid amount greater than 0 is required');
+      return;
+    }
+    if (!date) {
+      triggerValidation('additional', 'field-expense-date', 'Expense date is required');
       return;
     }
     
@@ -201,6 +310,9 @@ function ExpensesPageContent() {
         ]
       );
       toast.success('Expense added successfully!');
+      try {
+        localStorage.removeItem('draft_expense_form');
+      } catch (e) {}
       setIsAddOpen(false);
       resetForm();
       fetchExpenses();
@@ -212,16 +324,24 @@ function ExpensesPageContent() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this expense?')) return;
+  const handleDelete = (id: string) => {
+    setDeleteConfirmDialog({ isOpen: true, id });
+  };
+
+  const executeDelete = async () => {
+    if (!deleteConfirmDialog.id) return;
     try {
+      setIsDeleting(true);
       const db = await getDb();
-      await db.execute('DELETE FROM expenses WHERE id = ?', [id]);
+      await db.execute('DELETE FROM expenses WHERE id = ?', [deleteConfirmDialog.id]);
       toast.success('Expense deleted');
       setViewingExpense(null);
+      setDeleteConfirmDialog({ isOpen: false, id: null });
       fetchExpenses();
     } catch (error) {
       toast.error('Failed to delete expense');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -294,7 +414,7 @@ function ExpensesPageContent() {
   const isMonthLower = monthDiff < 0;
 
   return (
-    <div className={`flex flex-col h-full bg-[#F4F7F6] dark:bg-slate-900 ${isFullscreen ? 'p-0 fixed inset-0 z-50' : 'p-6'}`}>
+    <div className={`flex flex-col bg-slate-50 dark:bg-slate-900/50 overflow-hidden ${isFullscreen ? 'h-full p-2 sm:p-4' : 'h-full p-6'}`}>
       
       {/* ──────────────── HEADER ──────────────── */}
       {!isFullscreen && (
@@ -375,7 +495,7 @@ function ExpensesPageContent() {
           />
         </div>
 
-        <div className="flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm h-12 p-1 overflow-hidden flex-shrink-0 sm:ml-auto">
+        <div className="flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm h-12 p-1 overflow-hidden flex-shrink-0 ml-auto">
           <button 
             onClick={() => setIsFilterOpen(true)}
             className="flex items-center justify-center px-4 h-full rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition-all gap-2 font-bold relative"
@@ -389,6 +509,7 @@ function ExpensesPageContent() {
           
           <button 
             onClick={() => setViewMode('list')}
+            title="List View"
             className={`flex items-center justify-center w-12 h-full rounded-xl transition-all ${viewMode === 'list' ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'}`}
           >
             <List className="w-5 h-5" />
@@ -396,6 +517,7 @@ function ExpensesPageContent() {
           
           <button 
             onClick={() => setViewMode('grid')}
+            title="Grid View"
             className={`flex items-center justify-center w-12 h-full rounded-xl transition-all ${viewMode === 'grid' ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'}`}
           >
             <LayoutGrid className="w-5 h-5" />
@@ -404,6 +526,7 @@ function ExpensesPageContent() {
           <div className="w-px h-full bg-slate-200 dark:bg-slate-800 mx-1"></div>
           <button 
             onClick={() => setIsFullscreen(!isFullscreen)}
+            title="Full Screen"
             className="flex items-center justify-center w-12 h-full rounded-xl transition-all text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800"
           >
             {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
@@ -419,15 +542,13 @@ function ExpensesPageContent() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
             </div>
           ) : filteredExpenses.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-center p-8">
-              <div className="w-16 h-16 bg-gray-50 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4">
-                <Banknote className="w-8 h-8 text-gray-400" />
-              </div>
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">No expenses found</h3>
-              <p className="text-gray-500 dark:text-slate-400 max-w-sm">
-                You haven't recorded any expenses yet, or none match your search.
-              </p>
-            </div>
+            <TableEmptyState
+              icon={Banknote}
+              title="No expenses found"
+              description="You haven't recorded any expenses yet, or none match your search. Click below to add your first expense."
+              actionLabel="Create First Expense"
+              onAction={() => setIsAddOpen(true)}
+            />
           ) : viewMode === 'list' ? (
             <div className="min-w-full inline-block align-middle">
               <table className="w-full text-left whitespace-nowrap min-w-[1000px]">
@@ -513,38 +634,18 @@ function ExpensesPageContent() {
       </div>
 
       {/* ──────────────── VIEW EXPENSE DETAILS MODAL ──────────────── */}
-      <AnimatePresence>
+      <MainRightPanel
+        isOpen={!!viewingExpense}
+        onClose={() => setViewingExpense(null)}
+        title={viewingExpense?.name || viewingExpense?.description || 'Expense Details'}
+        subtitle={viewingExpense?.id ? `EXP-${viewingExpense.id.substring(0,6).toUpperCase()}` : 'Expense Voucher Details'}
+        icon={Banknote}
+        hideFooter={true}
+        className="!max-w-md"
+      >
         {viewingExpense && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setViewingExpense(null)}
-              className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[200]"
-            />
-            <motion.div
-              initial={{ x: '100%', opacity: 0.5 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: '100%', opacity: 0.5 }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed inset-y-0 right-0 w-full max-w-md bg-white dark:bg-slate-900 shadow-2xl z-[210] border-l border-slate-200 dark:border-slate-800 flex flex-col"
-            >
-              <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
-                <div>
-                  <div className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">
-                    {viewingExpense.id ? `EXP-${viewingExpense.id.substring(0,6).toUpperCase()}` : 'EXP-UNKNOWN'}
-                  </div>
-                  <h2 className="text-2xl font-black text-slate-900 dark:text-white truncate max-w-[280px]">
-                    {viewingExpense.name || viewingExpense.description}
-                  </h2>
-                </div>
-                <button onClick={() => setViewingExpense(null)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors text-slate-500">
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
-              
-              <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
+          <div className="flex flex-col h-full">
+            <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
                 <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
                   <div>
                     <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Total Amount</p>
@@ -639,419 +740,373 @@ function ExpensesPageContent() {
                     )}
                   </div>
                 )}
-              </div>
-
-              <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex gap-3">
-                <button 
-                  onClick={() => handleDelete(viewingExpense.id)}
-                  className="flex-1 px-4 py-3 rounded-xl font-bold text-red-600 bg-white dark:bg-slate-800 border border-red-200 dark:border-red-900/50 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center justify-center gap-2"
-                >
-                  <Trash2 className="w-5 h-5" />
-                  Delete
-                </button>
-              </div>
-            </motion.div>
-          </>
+            </div>
+            
+            <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex gap-3 shrink-0">
+              <button 
+                onClick={() => handleDelete(viewingExpense.id)}
+                className="flex-1 px-4 py-3 rounded-xl font-bold text-red-600 bg-white dark:bg-slate-800 border border-red-200 dark:border-red-900/50 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center justify-center gap-2"
+              >
+                <Trash2 className="w-5 h-5" />
+                Delete
+              </button>
+            </div>
+          </div>
         )}
-      </AnimatePresence>
+      </MainRightPanel>
 
       {/* ──────────────── ADD EXPENSE SLIDE-OUT PANEL ──────────────── */}
-      <AnimatePresence>
-        {isAddOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsAddOpen(false)}
-              className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[200]"
-            />
-            
-            <motion.div
-              initial={{ x: '100%', opacity: 0.5 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: '100%', opacity: 0.5 }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed inset-y-0 right-0 w-full max-w-md bg-white dark:bg-slate-900 shadow-2xl z-[210] border-l border-slate-200 dark:border-slate-800 flex flex-col"
+      <MainRightPanel
+        isOpen={isAddOpen}
+        onClose={handleCloseAdd}
+        onDiscard={handleDiscardChanges}
+        title="Add New Expense"
+        subtitle="Record a new business expense"
+        icon={Banknote}
+        formId="expenseForm"
+        isSubmitting={isSubmitting}
+        saveText="Save Expense"
+      >
+        <form id="expenseForm" onSubmit={handleAddExpense} className="space-y-4 font-sans">
+          
+          {/* 1. Basic Information */}
+          <div className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl overflow-hidden">
+            <button 
+              type="button" 
+              onClick={() => toggleSection('basic')}
+              className={`w-full px-4 py-3 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors outline-none cursor-pointer ${openSections.basic ? "rounded-t-xl" : "rounded-xl"}`}
             >
-              <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
-                <div>
-                  <h2 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-                    <Banknote className="w-5 h-5 text-blue-600" />
-                    Add New Expense
-                  </h2>
-                  <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Record a new business expense</p>
-                </div>
-                <button 
-                  onClick={() => setIsAddOpen(false)}
-                  className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 rounded-full transition-colors"
+              <span className="font-bold text-slate-900 dark:text-white flex items-center gap-2 text-sm">
+                <Receipt className="w-4 h-4 text-blue-600" />
+                Basic Information
+              </span>
+              {openSections.basic ? <ChevronUp className="w-5 h-5 text-slate-500" /> : <ChevronDown className="w-5 h-5 text-slate-500" />}
+            </button>
+            <AnimatePresence initial={false}>
+              {openSections.basic && (
+                <motion.div 
+                  initial={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                  animate={{ height: 'auto', opacity: 1, transitionEnd: { overflow: 'visible' } }}
+                  exit={{ height: 0, opacity: 0, overflow: 'hidden' }}
                 >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
+                  <div className="p-4 space-y-4 border-t border-slate-300 dark:border-slate-700">
+                    <div className="space-y-2 relative">
+                      <label className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                        <span>Expense Name <span className="text-red-500">*</span></span>
+                        <ValidationErrorTooltip error={validationError} fieldId="field-expense-name" />
+                      </label>
+                      <input
+                        id="field-expense-name"
+                        autoFocus
+                        value={name}
+                        onChange={e => {
+                          setName(e.target.value);
+                          if (validationError?.field === 'field-expense-name') setValidationError(null);
+                        }}
+                        className={`w-full px-4 h-11 bg-slate-50 dark:bg-slate-900 border rounded-xl font-medium text-sm text-slate-900 dark:text-white transition-all outline-none ${
+                          validationError?.field === 'field-expense-name' ? 'border-red-500 ring-2 ring-red-500/20' : 'border-slate-300 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
+                        }`}
+                        placeholder="e.g. Electricity Bill"
+                      />
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Category</label>
+                        <CustomSelect 
+                          value={category} 
+                          onChange={setCategory} 
+                          label="Select Category" 
+                          options={FLAT_CATEGORIES.map(c => ({ value: c, label: c }))} 
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Expense Type</label>
+                        <CustomSelect 
+                          value={type} 
+                          onChange={setType} 
+                          label="Select Type" 
+                          options={[
+                            { value: 'One-time', label: 'One-time' },
+                            { value: 'Recurring', label: 'Recurring' }
+                          ]} 
+                        />
+                      </div>
+                    </div>
 
-              <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
-                <form id="expenseForm" onSubmit={handleAddExpense} className="space-y-6 font-sans">
-                  
-                  {/* 1. Basic Information */}
-                  <div className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-500 rounded-xl relative z-30">
-                    <button 
-                      type="button" 
-                      onClick={() => toggleSection('basic')}
-                      className="w-full px-4 py-3 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors outline-none rounded-t-xl"
-                    >
-                      <span className="font-bold text-slate-900 dark:text-white flex items-center gap-2">Basic Information</span>
-                      {openSections.basic ? <ChevronUp className="w-5 h-5 text-slate-500" /> : <ChevronDown className="w-5 h-5 text-slate-500" />}
-                    </button>
-                    <AnimatePresence initial={false}>
-                      {openSections.basic && (
-                        <motion.div 
-                          initial={{ height: 0, opacity: 0, overflow: 'hidden' }}
-                          animate={{ height: 'auto', opacity: 1, transitionEnd: { overflow: 'visible' } }}
-                          exit={{ height: 0, opacity: 0, overflow: 'hidden' }}
-                        >
-                          <div className="p-4 space-y-4 border-t border-slate-300 dark:border-slate-500">
-                            <div className="space-y-2">
-                              <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Expense Name <span className="text-red-500">*</span></label>
-                              <input
-                                required
-                                autoFocus
-                                value={name}
-                                onChange={e => setName(e.target.value)}
-                                className="w-full px-4 py-3 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium dark:text-white"
-                                placeholder="e.g. Electricity Bill"
-                              />
-                            </div>
-                            
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="space-y-2">
-                                <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Category</label>
-                                <CustomSelect 
-                                  value={category} 
-                                  onChange={setCategory} 
-                                  label="Select Category" 
-                                  options={FLAT_CATEGORIES.map(c => ({ value: c, label: c }))} 
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Expense Type</label>
-                                <CustomSelect 
-                                  value={type} 
-                                  onChange={setType} 
-                                  label="Select Type" 
-                                  options={[
-                                    { value: 'One-time', label: 'One-time' },
-                                    { value: 'Recurring', label: 'Recurring' }
-                                  ]} 
-                                />
-                              </div>
-                            </div>
-
-                            {type === 'Recurring' && (
-                              <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="space-y-2 pt-2">
-                                <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Frequency <span className="text-red-500">*</span></label>
-                                <CustomSelect 
-                                  value={frequency} 
-                                  onChange={setFrequency} 
-                                  label="Select Frequency" 
-                                  options={[
-                                    { value: 'Daily', label: 'Daily' },
-                                    { value: 'Weekly', label: 'Weekly' },
-                                    { value: 'Monthly', label: 'Monthly' },
-                                    { value: 'Yearly', label: 'Yearly' }
-                                  ]} 
-                                />
-                              </motion.div>
-                            )}
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-
-                  {/* 2. Amount & Payment Details */}
-                  <div className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-500 rounded-xl relative z-20">
-                    <button 
-                      type="button" 
-                      onClick={() => toggleSection('payment')}
-                      className="w-full px-4 py-3 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors outline-none rounded-t-xl"
-                    >
-                      <span className="font-bold text-slate-900 dark:text-white flex items-center gap-2">Amount & Payment Details</span>
-                      {openSections.payment ? <ChevronUp className="w-5 h-5 text-slate-500" /> : <ChevronDown className="w-5 h-5 text-slate-500" />}
-                    </button>
-                    <AnimatePresence initial={false}>
-                      {openSections.payment && (
-                        <motion.div 
-                          initial={{ height: 0, opacity: 0, overflow: 'hidden' }}
-                          animate={{ height: 'auto', opacity: 1, transitionEnd: { overflow: 'visible' } }}
-                          exit={{ height: 0, opacity: 0, overflow: 'hidden' }}
-                        >
-                          <div className="p-4 space-y-4 border-t border-slate-300 dark:border-slate-500">
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="space-y-2">
-                                <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Amount <span className="text-red-500">*</span></label>
-                                <input
-                                  type="number"
-                                  required
-                                  min="0"
-                                  step="0.01"
-                                  value={amount}
-                                  onChange={e => setAmount(e.target.value)}
-                                  className="w-full px-4 py-3 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium dark:text-white"
-                                  placeholder="Rs. 15,000"
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Tax / VAT (Optional)</label>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  step="0.01"
-                                  value={tax}
-                                  onChange={e => setTax(e.target.value)}
-                                  className="w-full px-4 py-3 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium dark:text-white"
-                                  placeholder="Rs. 0.00"
-                                />
-                              </div>
-                            </div>
-
-                            <div className="p-4 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl flex justify-between items-center">
-                              <span className="font-bold text-slate-700 dark:text-slate-300">Total Amount</span>
-                              <span className="text-2xl font-black text-slate-900 dark:text-white">
-                                Rs. {(Number(amount || 0) + Number(tax || 0)).toLocaleString(undefined, {minimumFractionDigits: 2})}
-                              </span>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="space-y-2">
-                                <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Status</label>
-                                <CustomSelect 
-                                  value={paymentStatus} 
-                                  onChange={setPaymentStatus} 
-                                  label="Select Status" 
-                                  options={[
-                                    { value: 'Paid', label: 'Paid' },
-                                    { value: 'Unpaid', label: 'Unpaid' },
-                                    { value: 'Partially Paid', label: 'Partially Paid' }
-                                  ]} 
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Method</label>
-                                <CustomSelect 
-                                  value={paymentMethod} 
-                                  onChange={setPaymentMethod} 
-                                  label="Select Method" 
-                                  options={[
-                                    { value: 'Cash', label: 'Cash' },
-                                    { value: 'Card', label: 'Card' },
-                                    { value: 'Bank Transfer', label: 'Bank Transfer' },
-                                    { value: 'Cheque', label: 'Cheque' },
-                                    { value: 'Other', label: 'Other' }
-                                  ]} 
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Paid From</label>
-                                <CustomSelect 
-                                  value={paidFromAccount} 
-                                  onChange={setPaidFromAccount} 
-                                  label="Select Account" 
-                                  options={[
-                                    { value: 'Cash Drawer', label: 'Cash Drawer' },
-                                    { value: 'Main Bank', label: 'Main Bank' },
-                                    { value: 'Petty Cash', label: 'Petty Cash' }
-                                  ]} 
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-
-                  {/* 3. Additional Details */}
-                  <div className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-500 rounded-xl relative z-10">
-                    <button 
-                      type="button" 
-                      onClick={() => toggleSection('additional')}
-                      className="w-full px-4 py-3 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors outline-none rounded-t-xl"
-                    >
-                      <span className="font-bold text-slate-900 dark:text-white flex items-center gap-2">Additional Details</span>
-                      {openSections.additional ? <ChevronUp className="w-5 h-5 text-slate-500" /> : <ChevronDown className="w-5 h-5 text-slate-500" />}
-                    </button>
-                    <AnimatePresence initial={false}>
-                      {openSections.additional && (
-                        <motion.div 
-                          initial={{ height: 0, opacity: 0, overflow: 'hidden' }}
-                          animate={{ height: 'auto', opacity: 1, transitionEnd: { overflow: 'visible' } }}
-                          exit={{ height: 0, opacity: 0, overflow: 'hidden' }}
-                        >
-                          <div className="p-4 space-y-4 border-t border-slate-300 dark:border-slate-500">
-                            
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="space-y-2">
-                                <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Expense Date <span className="text-red-500">*</span></label>
-                                <input
-                                  type="date"
-                                  required
-                                  value={date}
-                                  onChange={e => setDate(e.target.value)}
-                                  className="w-full px-4 py-3 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium dark:text-white"
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Due Date (Optional)</label>
-                                <input
-                                  type="date"
-                                  value={dueDate}
-                                  onChange={e => setDueDate(e.target.value)}
-                                  className="w-full px-4 py-3 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium dark:text-white"
-                                />
-                              </div>
-                            </div>
-
-                            <div className="space-y-2">
-                              <label className="text-sm font-bold text-slate-700 dark:text-slate-300">
-                                Vendor / Payee
-                              </label>
-                              <CustomSelect 
-                                value={vendorId} 
-                                onChange={setVendorId} 
-                                label="Select Vendor"
-                                locked={isStartup}
-                                onLockedClick={() => {
-                                  setUpgradeFeatureName('Vendor Management');
-                                  setIsUpgradeModalOpen(true);
-                                }}
-                                options={[
-                                  { value: '', label: '-- None --' },
-                                  ...suppliers.map(s => ({ value: s.id.toString(), label: s.name }))
-                                ]} 
-                              />
-                            </div>
-
-                            <div className="space-y-2">
-                              <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Description / Notes</label>
-                              <textarea
-                                value={notes}
-                                onChange={e => setNotes(e.target.value)}
-                                className="w-full p-4 min-h-[100px] bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium dark:text-white resize-y"
-                                placeholder="e.g. August electricity bill for main branch"
-                              />
-                            </div>
-
-                            <div className="space-y-2">
-                              <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Attach Receipt / Bill</label>
-                              <div 
-                                onClick={() => fileInputRef.current?.click()}
-                                className={`w-full h-32 border-2 border-dashed rounded-xl flex flex-col items-center justify-center cursor-pointer transition-colors ${
-                                  attachment 
-                                    ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/10' 
-                                    : 'border-slate-300 dark:border-slate-600 hover:border-blue-500 bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-700'
-                                }`}
-                              >
-                                {attachment ? (
-                                  <>
-                                    <CheckCircle className="w-8 h-8 text-emerald-500 mb-2" />
-                                    <span className="text-sm font-bold text-emerald-700 dark:text-emerald-400">File Attached Successfully</span>
-                                    <span className="text-xs text-slate-500 mt-1">Click to replace</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <Upload className="w-6 h-6 text-slate-400 mb-2" />
-                                    <span className="text-sm font-bold text-slate-600 dark:text-slate-300">Click to upload bill</span>
-                                    <span className="text-xs text-slate-400 mt-1">JPG, PNG, PDF up to 5MB</span>
-                                  </>
-                                )}
-                              </div>
-                              <input 
-                                type="file" 
-                                ref={fileInputRef} 
-                                className="hidden" 
-                                accept=".jpg,.jpeg,.png,.pdf" 
-                                onChange={handleFileUpload}
-                              />
-                            </div>
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                </form>
-              </div>
-
-              {/* Panel Footer */}
-              <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
-                <div className="flex gap-3">
-                  <button 
-                    type="button"
-                    onClick={() => setIsAddOpen(false)}
-                    className="flex-1 px-4 py-3 rounded-xl font-bold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button 
-                    type="submit"
-                    form="expenseForm"
-                    disabled={isSubmitting}
-                    className="flex-[2] flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-70 transition-colors shadow-lg shadow-blue-500/20"
-                  >
-                    {isSubmitting ? (
-                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    ) : (
-                      <>
-                        <Banknote className="w-5 h-5" />
-                        Save Expense
-                      </>
+                    {type === 'Recurring' && (
+                      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="space-y-2 pt-2">
+                        <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Frequency <span className="text-red-500">*</span></label>
+                        <CustomSelect 
+                          value={frequency} 
+                          onChange={setFrequency} 
+                          label="Select Frequency" 
+                          options={[
+                            { value: 'Daily', label: 'Daily' },
+                            { value: 'Weekly', label: 'Weekly' },
+                            { value: 'Monthly', label: 'Monthly' },
+                            { value: 'Yearly', label: 'Yearly' }
+                          ]} 
+                        />
+                      </motion.div>
                     )}
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* 2. Amount & Payment Details */}
+          <div className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl overflow-hidden">
+            <button 
+              type="button" 
+              onClick={() => toggleSection('payment')}
+              className={`w-full px-4 py-3 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors outline-none cursor-pointer ${openSections.payment ? "rounded-t-xl" : "rounded-xl"}`}
+            >
+              <span className="font-bold text-slate-900 dark:text-white flex items-center gap-2 text-sm">
+                <CreditCard className="w-4 h-4 text-blue-600" />
+                Amount & Payment Details
+              </span>
+              {openSections.payment ? <ChevronUp className="w-5 h-5 text-slate-500" /> : <ChevronDown className="w-5 h-5 text-slate-500" />}
+            </button>
+            <AnimatePresence initial={false}>
+              {openSections.payment && (
+                <motion.div 
+                  initial={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                  animate={{ height: 'auto', opacity: 1, transitionEnd: { overflow: 'visible' } }}
+                  exit={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                >
+                  <div className="p-4 space-y-4 border-t border-slate-300 dark:border-slate-700">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2 relative">
+                        <label className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                          <span>Amount <span className="text-red-500">*</span></span>
+                          <ValidationErrorTooltip error={validationError} fieldId="field-expense-amount" />
+                        </label>
+                        <input
+                          id="field-expense-amount"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={amount}
+                          onChange={e => {
+                            setAmount(e.target.value);
+                            if (validationError?.field === 'field-expense-amount') setValidationError(null);
+                          }}
+                          className={`w-full px-4 h-11 bg-slate-50 dark:bg-slate-900 border rounded-xl font-medium text-sm text-slate-900 dark:text-white transition-all outline-none ${
+                            validationError?.field === 'field-expense-amount' ? 'border-red-500 ring-2 ring-red-500/20' : 'border-slate-300 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
+                          }`}
+                          placeholder="Rs. 15,000"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Tax / VAT (Optional)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={tax}
+                          onChange={e => setTax(e.target.value)}
+                          className="w-full px-4 h-11 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl font-medium text-sm text-slate-900 dark:text-white transition-all outline-none"
+                          placeholder="Rs. 0.00"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="p-4 bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl flex justify-between items-center">
+                      <span className="font-bold text-slate-700 dark:text-slate-300">Total Amount</span>
+                      <span className="text-2xl font-black text-slate-900 dark:text-white">
+                        Rs. {(Number(amount || 0) + Number(tax || 0)).toLocaleString(undefined, {minimumFractionDigits: 2})}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Status</label>
+                        <CustomSelect 
+                          value={paymentStatus} 
+                          onChange={setPaymentStatus} 
+                          label="Select Status" 
+                          options={[
+                            { value: 'Paid', label: 'Paid' },
+                            { value: 'Unpaid', label: 'Unpaid' },
+                            { value: 'Partially Paid', label: 'Partially Paid' }
+                          ]} 
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Method</label>
+                        <CustomSelect 
+                          value={paymentMethod} 
+                          onChange={setPaymentMethod} 
+                          label="Select Method" 
+                          options={[
+                            { value: 'Cash', label: 'Cash' },
+                            { value: 'Card', label: 'Card' },
+                            { value: 'Bank Transfer', label: 'Bank Transfer' },
+                            { value: 'Cheque', label: 'Cheque' },
+                            { value: 'Other', label: 'Other' }
+                          ]} 
+                        />
+                      </div>
+                      <div className="space-y-2 col-span-2">
+                        <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Paid From</label>
+                        <CustomSelect 
+                          value={paidFromAccount} 
+                          onChange={setPaidFromAccount} 
+                          label="Select Account" 
+                          options={[
+                            { value: 'Cash Drawer', label: 'Cash Drawer' },
+                            { value: 'Main Bank', label: 'Main Bank' },
+                            { value: 'Petty Cash', label: 'Petty Cash' }
+                          ]} 
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* 3. Additional Details */}
+          <div className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl overflow-hidden">
+            <button 
+              type="button" 
+              onClick={() => toggleSection('additional')}
+              className={`w-full px-4 py-3 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors outline-none cursor-pointer ${openSections.additional ? "rounded-t-xl" : "rounded-xl"}`}
+            >
+              <span className="font-bold text-slate-900 dark:text-white flex items-center gap-2 text-sm">
+                <SlidersHorizontal className="w-4 h-4 text-blue-600" />
+                Additional Details
+              </span>
+              {openSections.additional ? <ChevronUp className="w-5 h-5 text-slate-500" /> : <ChevronDown className="w-5 h-5 text-slate-500" />}
+            </button>
+            <AnimatePresence initial={false}>
+              {openSections.additional && (
+                <motion.div 
+                  initial={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                  animate={{ height: 'auto', opacity: 1, transitionEnd: { overflow: 'visible' } }}
+                  exit={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                >
+                  <div className="p-4 space-y-4 border-t border-slate-300 dark:border-slate-700">
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2 relative">
+                        <label className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                          <span>Expense Date <span className="text-red-500">*</span></span>
+                          <ValidationErrorTooltip error={validationError} fieldId="field-expense-date" />
+                        </label>
+                        <input
+                          id="field-expense-date"
+                          type="date"
+                          value={date}
+                          onChange={e => {
+                            setDate(e.target.value);
+                            if (validationError?.field === 'field-expense-date') setValidationError(null);
+                          }}
+                          className={`w-full px-4 h-11 bg-slate-50 dark:bg-slate-900 border rounded-xl font-medium text-sm text-slate-900 dark:text-white transition-all outline-none ${
+                            validationError?.field === 'field-expense-date' ? 'border-red-500 ring-2 ring-red-500/20' : 'border-slate-300 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
+                          }`}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Due Date (Optional)</label>
+                        <input
+                          type="date"
+                          value={dueDate}
+                          onChange={e => setDueDate(e.target.value)}
+                          className="w-full px-4 h-11 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl font-medium text-sm text-slate-900 dark:text-white transition-all outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-bold text-slate-700 dark:text-slate-300">
+                        Vendor / Payee
+                      </label>
+                      <CustomSelect 
+                        value={vendorId} 
+                        onChange={setVendorId} 
+                        label="Select Vendor"
+                        locked={isStartup}
+                        onLockedClick={() => {
+                          setUpgradeFeatureName('Vendor Management');
+                          setIsUpgradeModalOpen(true);
+                        }}
+                        options={[
+                          { value: '', label: '-- None --' },
+                          ...suppliers.map(s => ({ value: s.id.toString(), label: s.name }))
+                        ]} 
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Description / Notes</label>
+                      <textarea
+                        value={notes}
+                        onChange={e => setNotes(e.target.value)}
+                        className="w-full p-4 min-h-[100px] bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl font-medium text-sm text-slate-900 dark:text-white resize-y outline-none"
+                        placeholder="e.g. August electricity bill for main branch"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-bold text-slate-700 dark:text-slate-300">Attach Receipt / Bill</label>
+                      <div 
+                        onClick={() => fileInputRef.current?.click()}
+                        className={`w-full h-32 border-2 border-dashed rounded-xl flex flex-col items-center justify-center cursor-pointer transition-colors ${
+                          attachment 
+                            ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/10' 
+                            : 'border-slate-300 dark:border-slate-600 hover:border-blue-500 bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-700'
+                        }`}
+                      >
+                        {attachment ? (
+                          <>
+                            <CheckCircle className="w-8 h-8 text-emerald-500 mb-2" />
+                            <span className="text-sm font-bold text-emerald-700 dark:text-emerald-400">File Attached Successfully</span>
+                            <span className="text-xs text-slate-500 mt-1">Click to replace</span>
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="w-6 h-6 text-slate-400 mb-2" />
+                            <span className="text-sm font-bold text-slate-600 dark:text-slate-300">Click to upload bill</span>
+                            <span className="text-xs text-slate-400 mt-1">JPG, PNG, PDF up to 5MB</span>
+                          </>
+                        )}
+                      </div>
+                      <input 
+                        type="file" 
+                        ref={fileInputRef} 
+                        className="hidden" 
+                        accept=".jpg,.jpeg,.png,.pdf" 
+                        onChange={handleFileUpload}
+                      />
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </form>
+      </MainRightPanel>
 
       {/* ──────────────── FILTER SLIDE-OUT PANEL ──────────────── */}
-      <AnimatePresence>
-        {isFilterOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsFilterOpen(false)}
-              className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[200]"
-            />
-            
-            <motion.div
-              initial={{ x: '100%', opacity: 0.5 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: '100%', opacity: 0.5 }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed inset-y-0 right-0 w-full max-w-sm bg-white dark:bg-slate-900 shadow-2xl z-[210] border-l border-slate-200 dark:border-slate-800 flex flex-col"
-            >
-              <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
-                <div>
-                  <h2 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-                    <Filter className="w-5 h-5 text-blue-600" />
-                    Filters
-                  </h2>
-                  <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Refine expense list</p>
-                </div>
-                <button 
-                  onClick={() => setIsFilterOpen(false)}
-                  className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 rounded-full transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
-                <div>
-                  <label className="text-sm font-bold text-slate-700 dark:text-slate-300 block mb-2">Date Range</label>
+      <FilterPanel
+        isOpen={isFilterOpen}
+        onClose={() => setIsFilterOpen(false)}
+        title="Filter Expenses"
+        onClear={() => {
+          setFilterDateRange('all');
+          setFilterCategory('all');
+          setFilterStatus('all');
+          setIsFilterOpen(false);
+        }}
+        onApply={() => setIsFilterOpen(false)}
+      >
+        <div className="space-y-6">
+          <div>
+            <label className="text-sm font-bold text-slate-700 dark:text-slate-300 block mb-2">Date Range</label>
                   <select
                     value={filterDateRange}
                     onChange={(e) => setFilterDateRange(e.target.value)}
@@ -1122,29 +1177,18 @@ function ExpensesPageContent() {
                     </select>
                   </div>
                 )}
-              </div>
+        </div>
+      </FilterPanel>
 
-              <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
-                <button 
-                  onClick={() => {
-                    setFilterCategory('all');
-                    setFilterStatus('all');
-                    setFilterMethod('all');
-                    setFilterDateRange('all');
-                    setFilterBranch('all');
-                    setFilterVendor('all');
-                    setSearch('');
-                    setIsFilterOpen(false);
-                  }}
-                  className="w-full px-4 py-3 rounded-xl font-bold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-                >
-                  Reset Filters
-                </button>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+      <ConfirmDialog 
+        isOpen={deleteConfirmDialog.isOpen}
+        title="Delete Expense"
+        message="Are you sure you want to delete this expense voucher? This action cannot be undone."
+        confirmText="Delete Expense"
+        onConfirm={executeDelete}
+        onCancel={() => setDeleteConfirmDialog({ isOpen: false, id: null })}
+        isLoading={isDeleting}
+      />
 
       <UpgradeModal 
         isOpen={isUpgradeModalOpen} 

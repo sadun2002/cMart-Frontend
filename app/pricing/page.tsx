@@ -10,13 +10,15 @@ import {
   Building, 
   ChevronDown, 
   ShieldCheck,
-  Minus
+  Minus,
+  AlertCircle
 } from 'lucide-react';
 import { COMPANY_NAME, PLANS, formatLKR } from '@/lib/constants';
 import { SiteHeader } from '@/components/layout/site-header';
 import { SiteFooter } from '@/components/layout/site-footer';
 import { MotionBlurBackground } from '@/components/ui/motion-blur-background';
 import { useAuthStore } from '@/lib/auth-store';
+import { getSubscriptionStatus } from '@/lib/subscription-utils';
 import { toast } from 'sonner';
 
 // FAQ Data
@@ -35,6 +37,7 @@ export default function PricingPage() {
   const [billing, setBilling] = useState<BillingCycle>('yearly');
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const { user } = useAuthStore();
+  const subStatus = getSubscriptionStatus(user);
   const compareScrollRef = useRef<HTMLDivElement>(null);
   const [isComparePaused, setIsComparePaused] = useState(false);
 
@@ -93,6 +96,15 @@ export default function PricingPage() {
           <p className="text-xl text-gray-500 dark:text-slate-400 max-w-2xl mx-auto mb-12">
             No credit card required. Try our POS risk-free and upgrade when you're ready.
           </p>
+
+          {user && subStatus.isExpired && (
+            <div className="mb-10 max-w-2xl mx-auto bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 flex items-center justify-center gap-3 text-amber-700 dark:text-amber-400 shadow-sm">
+              <AlertCircle className="w-5 h-5 shrink-0" />
+              <p className="text-sm font-semibold">
+                Your subscription has expired. Please choose a package below to renew or upgrade your account.
+              </p>
+            </div>
+          )}
           
           {/* Toggle */}
           <div className="flex items-center justify-center gap-1 sm:gap-2 mb-14 bg-gray-100 dark:bg-slate-900 p-1.5 rounded-full w-fit mx-auto">
@@ -168,6 +180,18 @@ export default function PricingPage() {
                 if (isPending) {
                   cta = plan.key === 'STARTUP' ? 'Start 30-Day Free Trial' : `Start with ${plan.name}`;
                   href = '/owner/dashboard';
+                } else if (subStatus.isExpired) {
+                  // User's subscription is expired: allow renewing current plan or switching
+                  if (userRank === plan.rank) {
+                    cta = `Renew ${plan.name}`;
+                    href = `/checkout?plan=${plan.key}&billing=${billing}`;
+                  } else if (userRank < plan.rank) {
+                    cta = `Upgrade to ${plan.name}`;
+                    href = `/checkout?plan=${plan.key}&billing=${billing}`;
+                  } else {
+                    cta = `Downgrade to ${plan.name}`;
+                    href = `/checkout?plan=${plan.key}&billing=${billing}`;
+                  }
                 } else if (userRank === plan.rank) {
                   cta = 'Go to Dashboard';
                   href = '/owner/dashboard';

@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import { 
   Banknote, Search, Filter, CheckCircle, Clock, XCircle, AlertTriangle, 
   Maximize, Minimize, List, LayoutGrid, X, Download, User as UserIcon, 
-  Eye, FileText, Printer, Mail, Plus, ChevronDown, CalendarDays, Wallet, Trash2
+  Eye, FileText, Printer, Mail, Plus, ChevronDown, ChevronUp, CalendarDays, Wallet, Trash2, CreditCard
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { KpiCard } from '@/components/ui/kpi-card';
@@ -320,6 +320,27 @@ export default function PayrollManagementPage() {
     paymentMethod: 'BANK_TRANSFER'
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Accordion Sections State
+  const [openSections, setOpenSections] = useState<{ [key: string]: boolean }>({
+    basic: true,
+    earnings: false,
+    deductions: false,
+  });
+
+  const toggleSection = (section: string) => {
+    setOpenSections(prev => {
+      if (prev[section]) {
+        return { ...prev, [section]: false };
+      }
+      return {
+        basic: false,
+        earnings: false,
+        deductions: false,
+        [section]: true
+      };
+    });
+  };
 
   const handleGeneratePayroll = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -704,94 +725,164 @@ export default function PayrollManagementPage() {
               initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', bounce: 0, duration: 0.4 }}
               className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-white dark:bg-slate-900 shadow-2xl border-l border-slate-200 dark:border-slate-800 flex flex-col"
             >
-              <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-slate-800">
-                <h2 className="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-                  <Banknote className="w-6 h-6 text-blue-500" />
-                  Generate Payroll
-                </h2>
+              <div className="flex items-center justify-between h-[89px] px-6 border-b border-slate-100 dark:border-slate-800 shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0">
+                    <Banknote className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-black text-slate-900 dark:text-white">
+                      Generate Payroll
+                    </h2>
+                    <p className="text-xs text-slate-500 font-medium">Process monthly employee compensation and payslips</p>
+                  </div>
+                </div>
                 <button onClick={() => setIsGeneratePanelOpen(false)} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors">
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
               <div className="flex-1 overflow-y-auto p-6">
-                <form id="generatePayrollForm" onSubmit={handleGeneratePayroll} className="space-y-6">
+                <form id="generatePayrollForm" onSubmit={handleGeneratePayroll} className="space-y-4">
                   
-                  {/* Basic Details */}
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Employee *</label>
-                      <SearchableSelect 
-                        value={generateFormData.employee} 
-                        onChange={v => setGenerateFormData({...generateFormData, employee: v})} 
-                        options={EMPLOYEES} 
-                        placeholder="Select Employee" 
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Salary Month *</label>
-                      <select 
-                        value={generateFormData.month}
-                        onChange={e => setGenerateFormData({...generateFormData, month: e.target.value})}
-                        className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-white"
-                      >
-                        {MONTHS.map(m => <option key={m} value={m}>{m}</option>)}
-                      </select>
-                    </div>
+                  {/* Section 1: Basic Details */}
+                  <div className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl overflow-hidden">
+                    <button 
+                      type="button" 
+                      onClick={() => toggleSection("basic")}
+                      className={`w-full px-4 py-3 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors outline-none cursor-pointer ${openSections.basic ? "rounded-t-xl" : "rounded-xl"}`}
+                    >
+                      <span className="font-bold text-slate-900 dark:text-white flex items-center gap-2 text-sm">
+                        <UserIcon className="w-4 h-4 text-blue-600" />
+                        Basic Details
+                      </span>
+                      {openSections.basic ? <ChevronUp className="w-5 h-5 text-slate-500" /> : <ChevronDown className="w-5 h-5 text-slate-500" />}
+                    </button>
+                    <AnimatePresence>
+                      {openSections.basic && (
+                        <motion.div 
+                          initial={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                          animate={{ height: 'auto', opacity: 1, transitionEnd: { overflow: 'visible' } }}
+                          exit={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                        >
+                          <div className="p-4 space-y-4 border-t border-slate-300 dark:border-slate-700">
+                            <div>
+                              <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Employee *</label>
+                              <SearchableSelect 
+                                value={generateFormData.employee} 
+                                onChange={v => setGenerateFormData({...generateFormData, employee: v})} 
+                                options={EMPLOYEES} 
+                                placeholder="Select Employee" 
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Salary Month *</label>
+                              <select 
+                                value={generateFormData.month}
+                                onChange={e => setGenerateFormData({...generateFormData, month: e.target.value})}
+                                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-4 h-11 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-white"
+                              >
+                                {MONTHS.map(m => <option key={m} value={m}>{m}</option>)}
+                              </select>
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
 
-                  <div className="h-px bg-slate-100 dark:bg-slate-800" />
-
-                  {/* Earnings */}
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Earnings (Rs.)</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Basic Salary *</label>
-                        <input required type="number" min="0" value={generateFormData.basicSalary} onChange={e => setGenerateFormData({...generateFormData, basicSalary: Number(e.target.value)})} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-slate-900 dark:text-white" />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Fixed Allowance</label>
-                        <input type="number" min="0" value={generateFormData.allowance} onChange={e => setGenerateFormData({...generateFormData, allowance: Number(e.target.value)})} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-slate-900 dark:text-white" />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Overtime (OT)</label>
-                        <input type="number" min="0" value={generateFormData.ot} onChange={e => setGenerateFormData({...generateFormData, ot: Number(e.target.value)})} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-slate-900 dark:text-white" />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Bonus / Comm.</label>
-                        <input type="number" min="0" value={generateFormData.bonus} onChange={e => setGenerateFormData({...generateFormData, bonus: Number(e.target.value)})} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-slate-900 dark:text-white" />
-                      </div>
-                    </div>
+                  {/* Section 2: Earnings */}
+                  <div className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl overflow-hidden">
+                    <button 
+                      type="button" 
+                      onClick={() => toggleSection("earnings")}
+                      className={`w-full px-4 py-3 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors outline-none cursor-pointer ${openSections.earnings ? "rounded-t-xl" : "rounded-xl"}`}
+                    >
+                      <span className="font-bold text-slate-900 dark:text-white flex items-center gap-2 text-sm">
+                        <Banknote className="w-4 h-4 text-blue-600" />
+                        Earnings (Rs.)
+                      </span>
+                      {openSections.earnings ? <ChevronUp className="w-5 h-5 text-slate-500" /> : <ChevronDown className="w-5 h-5 text-slate-500" />}
+                    </button>
+                    <AnimatePresence>
+                      {openSections.earnings && (
+                        <motion.div 
+                          initial={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                          animate={{ height: 'auto', opacity: 1, transitionEnd: { overflow: 'visible' } }}
+                          exit={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                        >
+                          <div className="p-4 space-y-4 border-t border-slate-300 dark:border-slate-700">
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Basic Salary *</label>
+                                <input required type="number" min="0" value={generateFormData.basicSalary} onChange={e => setGenerateFormData({...generateFormData, basicSalary: Number(e.target.value)})} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-4 h-11 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-slate-900 dark:text-white" />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Fixed Allowance</label>
+                                <input type="number" min="0" value={generateFormData.allowance} onChange={e => setGenerateFormData({...generateFormData, allowance: Number(e.target.value)})} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-4 h-11 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-slate-900 dark:text-white" />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Overtime (OT)</label>
+                                <input type="number" min="0" value={generateFormData.ot} onChange={e => setGenerateFormData({...generateFormData, ot: Number(e.target.value)})} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-4 h-11 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-slate-900 dark:text-white" />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Bonus / Comm.</label>
+                                <input type="number" min="0" value={generateFormData.bonus} onChange={e => setGenerateFormData({...generateFormData, bonus: Number(e.target.value)})} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-4 h-11 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-slate-900 dark:text-white" />
+                              </div>
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
 
-                  <div className="h-px bg-slate-100 dark:bg-slate-800" />
-
-                  {/* Deductions & Payment */}
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Deductions & Payment</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">EPF Deduction (Rs.)</label>
-                        <input type="number" min="0" value={generateFormData.epf} onChange={e => setGenerateFormData({...generateFormData, epf: Number(e.target.value)})} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-slate-900 dark:text-white" />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Other Deductions (Leave/Advances) Rs.</label>
-                        <input type="number" min="0" value={generateFormData.deduction} onChange={e => setGenerateFormData({...generateFormData, deduction: Number(e.target.value)})} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-slate-900 dark:text-white" />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Payment Method</label>
-                      <select 
-                        value={generateFormData.paymentMethod}
-                        onChange={e => setGenerateFormData({...generateFormData, paymentMethod: e.target.value})}
-                        className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-white"
-                      >
-                        <option value="BANK_TRANSFER">Bank Transfer</option>
-                        <option value="CASH">Cash</option>
-                        <option value="CHEQUE">Cheque</option>
-                      </select>
-                    </div>
+                  {/* Section 3: Deductions & Payment */}
+                  <div className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl overflow-hidden">
+                    <button 
+                      type="button" 
+                      onClick={() => toggleSection("deductions")}
+                      className={`w-full px-4 py-3 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors outline-none cursor-pointer ${openSections.deductions ? "rounded-t-xl" : "rounded-xl"}`}
+                    >
+                      <span className="font-bold text-slate-900 dark:text-white flex items-center gap-2 text-sm">
+                        <CreditCard className="w-4 h-4 text-blue-600" />
+                        Deductions & Payment
+                      </span>
+                      {openSections.deductions ? <ChevronUp className="w-5 h-5 text-slate-500" /> : <ChevronDown className="w-5 h-5 text-slate-500" />}
+                    </button>
+                    <AnimatePresence>
+                      {openSections.deductions && (
+                        <motion.div 
+                          initial={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                          animate={{ height: 'auto', opacity: 1, transitionEnd: { overflow: 'visible' } }}
+                          exit={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                        >
+                          <div className="p-4 space-y-4 border-t border-slate-300 dark:border-slate-700">
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">EPF Deduction (Rs.)</label>
+                                <input type="number" min="0" value={generateFormData.epf} onChange={e => setGenerateFormData({...generateFormData, epf: Number(e.target.value)})} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-4 h-11 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-slate-900 dark:text-white" />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Other Deductions (Rs.)</label>
+                                <input type="number" min="0" value={generateFormData.deduction} onChange={e => setGenerateFormData({...generateFormData, deduction: Number(e.target.value)})} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-4 h-11 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-slate-900 dark:text-white" />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Payment Method</label>
+                              <select 
+                                value={generateFormData.paymentMethod}
+                                onChange={e => setGenerateFormData({...generateFormData, paymentMethod: e.target.value})}
+                                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-4 h-11 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-white"
+                              >
+                                <option value="BANK_TRANSFER">Bank Transfer</option>
+                                <option value="CASH">Cash</option>
+                                <option value="CHEQUE">Cheque</option>
+                              </select>
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
 
                 </form>
