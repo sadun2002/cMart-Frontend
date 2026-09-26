@@ -6,8 +6,9 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { generateSystemBarcode } from '@/lib/barcode-utils';
-import { Plus, Search, Trash2, Package, Tag, Filter, X, Barcode, Edit, List, LayoutGrid, Maximize, Minimize, Copy, ChevronDown, ChevronUp, CircleDollarSign, Printer, Download, Settings, Calendar, Check, Layers, Info, TrendingUp, AlertTriangle, CheckCircle2, ShieldAlert, Boxes, Sparkles, ArrowRight } from 'lucide-react';
+import { Plus, Search, Trash2, Package, Tag, Filter, X, Barcode, Edit, List, LayoutGrid, Maximize, Minimize, Copy, ChevronDown, ChevronUp, CircleDollarSign, Printer, Download, Settings, Calendar, Check, Layers, Info, TrendingUp, AlertTriangle, CheckCircle2, ShieldAlert, Boxes, Sparkles, ArrowRight, AlertCircle, SearchX, BarChart3 } from 'lucide-react';
 import { KpiCard } from '@/components/ui/kpi-card';
+import { ResponsiveContainer, BarChart, Bar, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
 import { FilterPanel } from '@/components/ui/filter-panel';
 import { CustomSelect, CustomSelectOption } from '@/components/ui/custom-select';
 import { storeOwnerAPI } from '@/lib/api';
@@ -259,6 +260,7 @@ interface ProductOverviewDashboardProps {
     categoryDistribution: Array<{ id: number | string; name: string; count: number; valuation: number; stock: number }>;
     restockItems: Array<{ product: any; stock: number; threshold: number; isOutOfStock: boolean }>;
     topCapitalProducts: Array<{ product: any; capital: number; retailValue: number; marginPercent: number }>;
+    chartData: Array<{ name: string; fullName: string; value: number; stock: number; count: number }>;
   };
   categories: any[];
   getCategoryName: (categoryId: number | null) => { main: string; sub: string | null } | null;
@@ -279,236 +281,311 @@ function ProductOverviewDashboard({
   openAddPanel,
   setIsAddCategoryPanelOpen,
 }: ProductOverviewDashboardProps) {
+  const [chartType, setChartType] = useState<'bar' | 'line'>('bar');
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   return (
     <div className="flex-1 overflow-y-auto pr-1 pb-10 space-y-6">
-      {/* ──────────────── 1. SUMMARY KPI STRIP (4 CARDS) ──────────────── */}
+      {/* ──────────────── 1. REUSABLE TOP 4 KPI CARDS (Matching Inventory / Sales / Suppliers Pages) ──────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: Total Products */}
-        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm hover:shadow-md transition-all">
-          <div className="flex items-center justify-between">
-            <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0">
-              <Boxes className="w-6 h-6" />
-            </div>
-            <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-500/10 text-blue-600 border border-blue-200/50 dark:border-blue-800/40">
-              Live Catalog
-            </span>
-          </div>
-          <div className="mt-4">
-            <div className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-              {overviewStats.totalProducts}
-            </div>
-            <div className="text-xs font-bold text-slate-500 mt-1">Total Catalog Products</div>
-            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-400 mt-2">
-              <span>{overviewStats.totalStockQty.toLocaleString()} total units</span>
-              <span>•</span>
-              <span>{categories.length} categories</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Card 2: Total Tied-Up Capital (Cost Valuation) */}
-        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm hover:shadow-md transition-all">
-          <div className="flex items-center justify-between">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0">
-              <CircleDollarSign className="w-6 h-6" />
-            </div>
-            <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 border border-emerald-200/50 dark:border-emerald-800/40">
-              Cost Basis
-            </span>
-          </div>
-          <div className="mt-4">
-            <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight truncate" title={`Rs. ${overviewStats.totalCostValuation.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
-              Rs. {overviewStats.totalCostValuation.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </div>
-            <div className="text-xs font-bold text-slate-500 mt-1">Total Tied-Up Capital</div>
-            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 mt-2 truncate">
-              Retail: Rs. {overviewStats.totalRetailValuation.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </div>
-          </div>
-        </div>
-
-        {/* Card 3: Projected Profit & Margin */}
-        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm hover:shadow-md transition-all">
-          <div className="flex items-center justify-between">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 flex items-center justify-center shrink-0">
-              <TrendingUp className="w-6 h-6" />
-            </div>
-            <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 border border-indigo-200/50 dark:border-indigo-800/40">
-              {overviewStats.avgProfitMargin.toFixed(1)}% Avg Margin
-            </span>
-          </div>
-          <div className="mt-4">
-            <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight truncate" title={`Rs. ${overviewStats.potentialProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
-              Rs. {overviewStats.potentialProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </div>
-            <div className="text-xs font-bold text-slate-500 mt-1">Projected Gross Profit</div>
-            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-400 mt-2">
-              <span>Potential return on 100% sellout</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Card 4: Stock Health Score */}
-        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm hover:shadow-md transition-all">
-          <div className="flex items-center justify-between">
-            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${
-              overviewStats.healthRatio >= 80 ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600' :
-              overviewStats.healthRatio >= 50 ? 'bg-amber-50 dark:bg-amber-500/10 text-amber-600' :
-              'bg-rose-50 dark:bg-rose-500/10 text-rose-600'
-            }`}>
-              <ShieldAlert className="w-6 h-6" />
-            </div>
-            <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full border ${
-              overviewStats.outOfStockCount === 0 
-                ? 'bg-emerald-50 text-emerald-600 border-emerald-200/60 dark:bg-emerald-500/10 dark:text-emerald-400' 
-                : 'bg-rose-50 text-rose-600 border-rose-200/60 dark:bg-rose-500/10 dark:text-rose-400'
-            }`}>
-              {overviewStats.outOfStockCount === 0 ? 'Optimal' : `${overviewStats.outOfStockCount} Out of Stock`}
-            </span>
-          </div>
-          <div className="mt-4">
-            <div className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-              {overviewStats.healthRatio.toFixed(0)}%
-            </div>
-            <div className="text-xs font-bold text-slate-500 mt-1">Stock Health Score</div>
-            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-400 mt-2">
-              <span className="text-emerald-600 font-bold">{overviewStats.inStockCount} In Stock</span>
-              <span>•</span>
-              <span className="text-amber-600 font-bold">{overviewStats.lowStockCount} Low</span>
-            </div>
-          </div>
-        </div>
+        <KpiCard
+          title="Total Products"
+          value={overviewStats.totalProducts.toString()}
+          icon={Package}
+          iconColorClass="text-blue-600"
+          iconBgClass="bg-blue-50 dark:bg-blue-500/10"
+        />
+        <KpiCard
+          title="In Stock"
+          value={overviewStats.inStockCount.toString()}
+          icon={CheckCircle2}
+          iconColorClass="text-emerald-600"
+          iconBgClass="bg-emerald-50 dark:bg-emerald-500/10"
+        />
+        <KpiCard
+          title="Low Stock Alerts"
+          value={overviewStats.lowStockCount.toString()}
+          icon={AlertCircle}
+          iconColorClass="text-amber-600"
+          iconBgClass="bg-amber-50 dark:bg-amber-500/10"
+        />
+        <KpiCard
+          title="Out of Stock"
+          value={overviewStats.outOfStockCount.toString()}
+          icon={SearchX}
+          iconColorClass="text-red-600"
+          iconBgClass="bg-red-50 dark:bg-red-500/10"
+        />
       </div>
 
-      {/* ──────────────── 2. STOCK HEALTH RATIO & COVERAGE METER ──────────────── */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-blue-600" />
-              Inventory Stock Health & Coverage
+      {/* ──────────────── 2. MAIN DASHBOARD-STYLE GRID: CHART (2 Cols) + TOP 5 PRODUCTS (1 Col) ──────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left: Chart Card (Matching Dashboard Sales/Performance Chart) */}
+        <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 w-full text-left flex flex-col h-[380px] justify-between">
+          <div className="flex items-center justify-between mb-4 flex-shrink-0">
+            <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <BarChart3 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              Category Inventory & Stock Valuation
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
-              Live distribution ratio of in-stock availability across your entire catalog.
-            </p>
+            <div className="flex items-center gap-2">
+              {/* Bar / Line toggle button */}
+              <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg text-xs font-bold">
+                <button
+                  type="button"
+                  onClick={() => setChartType('bar')}
+                  className={`px-3 py-1 rounded-md transition-all ${chartType === 'bar' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
+                >
+                  Bar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setChartType('line')}
+                  className={`px-3 py-1 rounded-md transition-all ${chartType === 'line' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
+                >
+                  Line
+                </button>
+              </div>
+            </div>
           </div>
-          <span className="text-xs font-bold text-slate-500">
-            Total: <span className="text-slate-900 dark:text-white font-black">{overviewStats.totalProducts}</span> Products
-          </span>
-        </div>
 
-        {/* Multi-segment stacked progress bar */}
-        <div className="space-y-2">
-          <div className="w-full bg-slate-100 dark:bg-slate-800 h-3.5 rounded-full overflow-hidden flex">
-            {overviewStats.totalProducts > 0 ? (
-              <>
-                <div 
-                  style={{ width: `${(overviewStats.inStockCount / overviewStats.totalProducts) * 100}%` }} 
-                  className="bg-emerald-500 h-full transition-all duration-500" 
-                  title={`In Stock: ${overviewStats.inStockCount}`} 
-                />
-                <div 
-                  style={{ width: `${(overviewStats.lowStockCount / overviewStats.totalProducts) * 100}%` }} 
-                  className="bg-amber-500 h-full transition-all duration-500" 
-                  title={`Low Stock: ${overviewStats.lowStockCount}`} 
-                />
-                <div 
-                  style={{ width: `${(overviewStats.outOfStockCount / overviewStats.totalProducts) * 100}%` }} 
-                  className="bg-rose-500 h-full transition-all duration-500" 
-                  title={`Out of Stock: ${overviewStats.outOfStockCount}`} 
-                />
-              </>
+          <div className="flex-1 min-h-0 w-full relative">
+            {mounted ? (
+              overviewStats.chartData.length === 0 ? (
+                <div className="absolute inset-0 flex items-center justify-center text-xs text-slate-400">
+                  No category data available to plot chart.
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  {chartType === 'bar' ? (
+                    <BarChart data={overviewStats.chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" strokeOpacity={0.4} />
+                      <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`} />
+                      <Tooltip 
+                        formatter={(v: any) => [`Rs. ${Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 'Valuation']} 
+                        labelFormatter={(label, payload) => payload?.[0]?.payload?.fullName || label}
+                        contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.95)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '12px' }}
+                      />
+                      <Bar dataKey="value" fill="#3B82F6" radius={[6, 6, 0, 0]} />
+                    </BarChart>
+                  ) : (
+                    <LineChart data={overviewStats.chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" strokeOpacity={0.4} />
+                      <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`} />
+                      <Tooltip 
+                        formatter={(v: any) => [`Rs. ${Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 'Valuation']} 
+                        labelFormatter={(label, payload) => payload?.[0]?.payload?.fullName || label}
+                        contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.95)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '12px' }}
+                      />
+                      <Line type="monotone" dataKey="value" stroke="#3B82F6" strokeWidth={3} dot={{ r: 4, fill: '#3B82F6' }} activeDot={{ r: 6 }} />
+                    </LineChart>
+                  )}
+                </ResponsiveContainer>
+              )
             ) : (
-              <div className="w-full h-full bg-slate-200 dark:bg-slate-700" />
+              <div className="absolute inset-0 flex items-center justify-center text-xs text-slate-400">
+                Loading chart...
+              </div>
             )}
           </div>
+
+          <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex-shrink-0 font-medium">
+            <span>Overall Inventory Cost Valuation</span>
+            <span className="font-bold text-slate-900 dark:text-white">
+              Rs. {overviewStats.totalCostValuation.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+          </div>
         </div>
 
-        {/* Interactive Filter Pills */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {/* In Stock */}
-          <button
-            type="button"
-            onClick={() => {
-              setStockFilter('instock');
-              setActiveTab('inventory');
-            }}
-            className="flex items-center justify-between p-3.5 rounded-2xl border border-emerald-100 dark:border-emerald-900/30 bg-emerald-50/50 dark:bg-emerald-950/20 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-all text-left group"
-          >
-            <div className="flex items-center gap-3">
-              <span className="w-3 h-3 rounded-full bg-emerald-500 shrink-0" />
-              <div>
-                <div className="text-xs font-bold text-slate-900 dark:text-white">In Stock</div>
-                <div className="text-[11px] text-slate-500">Adequate inventory</div>
-              </div>
+        {/* Right: Top 5 Products Card (Matching Dashboard list-top5-products) */}
+        <div className="lg:col-span-1 bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 w-full text-left flex flex-col h-[380px] justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-4 md:mb-5">
+              <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Package className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                Top 5 Capital Products
+              </h2>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
+                Ranked
+              </span>
             </div>
-            <div className="text-right">
-              <div className="text-base font-black text-emerald-600 dark:text-emerald-400">
-                {overviewStats.inStockCount}
-              </div>
-              <div className="text-[10px] text-slate-400 font-bold group-hover:text-emerald-600 flex items-center gap-0.5 justify-end">
-                View in Table <ArrowRight className="w-2.5 h-2.5" />
-              </div>
-            </div>
-          </button>
 
-          {/* Low Stock */}
-          <button
-            type="button"
-            onClick={() => {
-              setStockFilter('lowstock');
-              setActiveTab('inventory');
-            }}
-            className="flex items-center justify-between p-3.5 rounded-2xl border border-amber-100 dark:border-amber-900/30 bg-amber-50/50 dark:bg-amber-950/20 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-all text-left group"
-          >
-            <div className="flex items-center gap-3">
-              <span className="w-3 h-3 rounded-full bg-amber-500 shrink-0 animate-pulse" />
-              <div>
-                <div className="text-xs font-bold text-slate-900 dark:text-white">Low Stock (&lt;10)</div>
-                <div className="text-[11px] text-slate-500">Restock recommended</div>
-              </div>
+            <div className="space-y-3">
+              {overviewStats.topCapitalProducts.length === 0 ? (
+                <div className="py-12 text-center text-slate-400 text-xs font-medium">
+                  No product data found.
+                </div>
+              ) : (
+                overviewStats.topCapitalProducts.map(({ product: p, capital }, i) => {
+                  const rankColors = [
+                    'bg-amber-500 text-white',
+                    'bg-slate-400 text-white',
+                    'bg-orange-700 text-white',
+                    'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300',
+                    'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                  ];
+                  return (
+                    <div 
+                      key={p.id || i} 
+                      onClick={() => openEditPanel(p)}
+                      className="flex items-center justify-between gap-3 p-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
+                      title="Click to edit product"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 ${rankColors[i] || 'bg-slate-200 text-slate-700'}`}>
+                          {i + 1}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-blue-600 transition-colors">
+                            {p.name}
+                          </div>
+                          <div className="text-[10px] text-slate-400 truncate">
+                            {p.stock} units in stock
+                          </div>
+                        </div>
+                      </div>
+                      <span className="text-xs font-black text-slate-900 dark:text-white flex-shrink-0">
+                        Rs. {capital.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  );
+                })
+              )}
             </div>
-            <div className="text-right">
-              <div className="text-base font-black text-amber-600 dark:text-amber-400">
-                {overviewStats.lowStockCount}
-              </div>
-              <div className="text-[10px] text-slate-400 font-bold group-hover:text-amber-600 flex items-center gap-0.5 justify-end">
-                View in Table <ArrowRight className="w-2.5 h-2.5" />
-              </div>
-            </div>
-          </button>
+          </div>
 
-          {/* Out of Stock */}
-          <button
-            type="button"
-            onClick={() => {
-              setStockFilter('outofstock');
-              setActiveTab('inventory');
-            }}
-            className="flex items-center justify-between p-3.5 rounded-2xl border border-rose-100 dark:border-rose-900/30 bg-rose-50/50 dark:bg-rose-950/20 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-all text-left group"
-          >
-            <div className="flex items-center gap-3">
-              <span className="w-3 h-3 rounded-full bg-rose-500 shrink-0" />
-              <div>
-                <div className="text-xs font-bold text-slate-900 dark:text-white">Out of Stock (0)</div>
-                <div className="text-[11px] text-slate-500">Sales halted for item</div>
-              </div>
-            </div>
-            <div className="text-right">
-              <div className="text-base font-black text-rose-600 dark:text-rose-400">
-                {overviewStats.outOfStockCount}
-              </div>
-              <div className="text-[10px] text-slate-400 font-bold group-hover:text-rose-600 flex items-center gap-0.5 justify-end">
-                View in Table <ArrowRight className="w-2.5 h-2.5" />
-              </div>
-            </div>
-          </button>
+          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-center">
+            <button
+              type="button"
+              onClick={() => setActiveTab('inventory')}
+              className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer"
+            >
+              View All in Inventory Table →
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* ──────────────── 3. TWO-COLUMN DEEP-DIVE GRID ──────────────── */}
+      {/* ──────────────── 3. BOTTOM ROW: CRITICAL RESTOCK ALERTS & CATEGORY BREAKDOWN ──────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Column A: Category Distribution */}
+        {/* Left: Critical Restock Attention List */}
+        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                overviewStats.restockItems.length > 0 
+                  ? 'bg-rose-50 dark:bg-rose-500/10 text-rose-600' 
+                  : 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600'
+              }`}>
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-black text-slate-900 dark:text-white">
+                    Critical Restock Attention List
+                  </h3>
+                  {overviewStats.restockItems.length > 0 && (
+                    <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400 border border-rose-200/60 dark:border-rose-800/40">
+                      {overviewStats.restockItems.length} Urgent
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Items below threshold requiring immediate purchase order.
+                </p>
+              </div>
+            </div>
+
+            {overviewStats.restockItems.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setStockFilter('lowstock');
+                  setActiveTab('inventory');
+                }}
+                className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+              >
+                View in Table <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {overviewStats.restockItems.length === 0 ? (
+            <div className="py-8 flex flex-col items-center justify-center text-center">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 flex items-center justify-center mb-3">
+                <CheckCircle2 className="w-6 h-6" />
+              </div>
+              <h4 className="text-sm font-bold text-slate-900 dark:text-white">All Products Well Stocked</h4>
+              <p className="text-xs text-slate-500 mt-1 max-w-sm">
+                None of your products are currently out of stock or below low stock alert levels.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <div className="min-w-[500px] divide-y divide-slate-100 dark:divide-slate-800">
+                <div className="grid grid-cols-[2fr_1fr_1fr_90px] gap-3 py-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                  <div>Product</div>
+                  <div>Stock Status</div>
+                  <div>Selling Price</div>
+                  <div className="text-right">Action</div>
+                </div>
+
+                {overviewStats.restockItems.slice(0, 6).map(({ product: p, stock, threshold, isOutOfStock }, idx) => (
+                  <div key={p.id || idx} className="grid grid-cols-[2fr_1fr_1fr_90px] gap-3 py-2.5 items-center hover:bg-slate-50 dark:hover:bg-slate-800/40 rounded-xl px-2 transition-all">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 overflow-hidden text-slate-400">
+                        {p.images && p.images.length > 0 ? (
+                          <img src={typeof p.images[0] === 'string' ? p.images[0] : p.images[0].url} alt={p.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <Package className="w-4 h-4" />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-slate-900 dark:text-white truncate">{p.name}</div>
+                        <div className="text-[10px] text-slate-400 font-mono truncate">SKU: {p.sku || 'N/A'}</div>
+                      </div>
+                    </div>
+
+                    <div>
+                      {isOutOfStock ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400 border border-rose-200/60 dark:border-rose-800/40">
+                          <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                          0 in stock
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400 border border-amber-200/60 dark:border-amber-800/40">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                          {stock} left
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="text-xs font-bold text-slate-900 dark:text-white">
+                      Rs. {Number(p.price || 0).toFixed(2)}
+                    </div>
+
+                    <div className="text-right">
+                      <button
+                        type="button"
+                        onClick={() => openEditPanel(p)}
+                        className="px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-500/20 text-xs font-bold transition-all shadow-xs"
+                      >
+                        Restock
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Right: Category Distribution Breakdown */}
         <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-4 flex flex-col">
           <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
             <div className="flex items-center gap-3">
@@ -565,201 +642,6 @@ function ProductOverviewDashboard({
             </div>
           )}
         </div>
-
-        {/* Column B: Highest Capital Assets (Tied-up Capital) */}
-        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-4 flex flex-col">
-          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0">
-                <CircleDollarSign className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="text-base font-black text-slate-900 dark:text-white">Highest Capital Assets</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Products holding the highest inventory value</p>
-              </div>
-            </div>
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Top 5</span>
-          </div>
-
-          {overviewStats.topCapitalProducts.length === 0 ? (
-            <div className="py-12 text-center text-slate-400 text-xs font-medium">
-              No product capital data found.
-            </div>
-          ) : (
-            <div className="space-y-3 flex-1">
-              {overviewStats.topCapitalProducts.map(({ product: p, capital, marginPercent }, idx) => {
-                const catInfo = getCategoryName(p.categoryId);
-                return (
-                  <div 
-                    key={p.id || idx}
-                    onClick={() => openEditPanel(p)}
-                    className="flex items-center justify-between p-3 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800/60 border border-slate-100 dark:border-slate-800 transition-all cursor-pointer group"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-black text-xs text-slate-600 dark:text-slate-300 shrink-0">
-                        #{idx + 1}
-                      </div>
-                      <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 overflow-hidden text-slate-400">
-                        {p.images && p.images.length > 0 ? (
-                          <img src={typeof p.images[0] === 'string' ? p.images[0] : p.images[0].url} alt={p.name} className="w-full h-full object-cover" />
-                        ) : (
-                          <Package className="w-5 h-5" />
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-blue-600 transition-colors">
-                          {p.name}
-                        </div>
-                        <div className="text-[11px] text-slate-500 flex items-center gap-2">
-                          <span>{p.stock} in stock</span>
-                          {catInfo && <span>• {catInfo.main}</span>}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="text-right shrink-0 ml-3">
-                      <div className="text-xs font-black text-slate-900 dark:text-white">
-                        Rs. {capital.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </div>
-                      <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
-                        {marginPercent > 0 ? `${marginPercent.toFixed(1)}% Margin` : `Retail Rs. ${Number(p.price || 0).toFixed(2)}`}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* ──────────────── 4. CRITICAL RESTOCK ATTENTION LIST ──────────────── */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
-          <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-              overviewStats.restockItems.length > 0 
-                ? 'bg-rose-50 dark:bg-rose-500/10 text-rose-600' 
-                : 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600'
-            }`}>
-              <AlertTriangle className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-base font-black text-slate-900 dark:text-white">
-                  Critical Restock Attention List
-                </h3>
-                {overviewStats.restockItems.length > 0 && (
-                  <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400 border border-rose-200/60 dark:border-rose-800/40">
-                    {overviewStats.restockItems.length} Urgent
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Items below their designated threshold requiring immediate supplier purchase order.
-              </p>
-            </div>
-          </div>
-
-          {overviewStats.restockItems.length > 0 && (
-            <button
-              type="button"
-              onClick={() => {
-                setStockFilter('lowstock');
-                setActiveTab('inventory');
-              }}
-              className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
-            >
-              View in Inventory Table <ArrowRight className="w-3.5 h-3.5" />
-            </button>
-          )}
-        </div>
-
-        {overviewStats.restockItems.length === 0 ? (
-          <div className="py-8 flex flex-col items-center justify-center text-center">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 flex items-center justify-center mb-3">
-              <CheckCircle2 className="w-6 h-6" />
-            </div>
-            <h4 className="text-sm font-bold text-slate-900 dark:text-white">All Products Well Stocked</h4>
-            <p className="text-xs text-slate-500 mt-1 max-w-sm">
-              Great news! None of your products are currently out of stock or below low stock alert levels.
-            </p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <div className="min-w-[650px] divide-y divide-slate-100 dark:divide-slate-800">
-              <div className="grid grid-cols-[2fr_1fr_1fr_1fr_120px] gap-4 py-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                <div>Product</div>
-                <div>Category</div>
-                <div>Stock Status</div>
-                <div>Selling Price</div>
-                <div className="text-right">Action</div>
-              </div>
-
-              {overviewStats.restockItems.slice(0, 8).map(({ product: p, stock, threshold, isOutOfStock }, idx) => {
-                const catInfo = getCategoryName(p.categoryId);
-                return (
-                  <div key={p.id || idx} className="grid grid-cols-[2fr_1fr_1fr_1fr_120px] gap-4 py-3 items-center hover:bg-slate-50 dark:hover:bg-slate-800/40 rounded-xl px-2 transition-all">
-                    {/* Product */}
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 overflow-hidden text-slate-400">
-                        {p.images && p.images.length > 0 ? (
-                          <img src={typeof p.images[0] === 'string' ? p.images[0] : p.images[0].url} alt={p.name} className="w-full h-full object-cover" />
-                        ) : (
-                          <Package className="w-4 h-4" />
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                          {p.name}
-                        </div>
-                        <div className="text-[10px] text-slate-400 font-mono truncate">
-                          SKU: {p.sku || 'N/A'}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Category */}
-                    <div className="text-xs text-slate-600 dark:text-slate-300 font-medium truncate">
-                      {catInfo ? catInfo.main : 'Uncategorized'}
-                    </div>
-
-                    {/* Stock Status */}
-                    <div>
-                      {isOutOfStock ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400 border border-rose-200/60 dark:border-rose-800/40">
-                          <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-                          0 in stock
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400 border border-amber-200/60 dark:border-amber-800/40">
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                          {stock} left (alert &le; {threshold})
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Price */}
-                    <div className="text-xs font-bold text-slate-900 dark:text-white">
-                      Rs. {Number(p.price || 0).toFixed(2)}
-                    </div>
-
-                    {/* Action */}
-                    <div className="text-right">
-                      <button
-                        type="button"
-                        onClick={() => openEditPanel(p)}
-                        className="px-3 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-500/20 text-xs font-bold transition-all shadow-sm"
-                      >
-                        Restock
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
@@ -1905,6 +1787,14 @@ function StoreProductsPageContent() {
     const potentialProfit = Math.max(0, totalRetailValuation - totalCostValuation);
     const avgProfitMargin = totalRetailValuation > 0 ? ((totalRetailValuation - totalCostValuation) / totalRetailValuation) * 100 : 0;
 
+    const chartData = categoryDistribution.slice(0, 8).map(c => ({
+      name: c.name.length > 14 ? c.name.slice(0, 14) + '...' : c.name,
+      fullName: c.name,
+      value: c.valuation,
+      stock: c.stock,
+      count: c.count,
+    }));
+
     return {
       totalProducts,
       totalStockQty,
@@ -1919,6 +1809,7 @@ function StoreProductsPageContent() {
       categoryDistribution,
       restockItems,
       topCapitalProducts,
+      chartData,
     };
   }, [products, categories]);
 
