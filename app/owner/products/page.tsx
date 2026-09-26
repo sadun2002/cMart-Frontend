@@ -6,7 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { generateSystemBarcode } from '@/lib/barcode-utils';
-import { Plus, Search, Trash2, Package, Tag, Filter, X, Barcode, Edit, List, LayoutGrid, Maximize, Minimize, Copy, ChevronDown, ChevronUp, CircleDollarSign, Printer, Download, Settings, Calendar, Check, Layers, Info, TrendingUp, AlertTriangle, CheckCircle2, ShieldAlert, Boxes, Sparkles, ArrowRight, AlertCircle, SearchX, BarChart3 } from 'lucide-react';
+import { Plus, Search, Trash2, Package, Tag, Filter, X, Barcode, Edit, List, LayoutGrid, Maximize, Minimize, Copy, ChevronDown, ChevronUp, CircleDollarSign, Printer, Download, Settings, Calendar, Check, Layers, Info, TrendingUp, TrendingDown, Star, AlertTriangle, CheckCircle2, ShieldAlert, Boxes, Sparkles, ArrowRight, AlertCircle, SearchX, BarChart3 } from 'lucide-react';
 import { KpiCard } from '@/components/ui/kpi-card';
 import { ResponsiveContainer, BarChart, Bar, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
 import { FilterPanel } from '@/components/ui/filter-panel';
@@ -260,6 +260,9 @@ interface ProductOverviewDashboardProps {
     categoryDistribution: Array<{ id: number | string; name: string; count: number; valuation: number; stock: number }>;
     restockItems: Array<{ product: any; stock: number; threshold: number; isOutOfStock: boolean }>;
     topCapitalProducts: Array<{ product: any; capital: number; retailValue: number; marginPercent: number }>;
+    worst5Products: Array<{ product: any; capital: number; retailValue: number; marginPercent: number }>;
+    trendingProducts: Array<{ product: any; capital: number; retailValue: number; marginPercent: number }>;
+    featuredProducts: Array<any>;
     chartData: Array<{ name: string; fullName: string; value: number; stock: number; count: number }>;
   };
   categories: any[];
@@ -289,7 +292,7 @@ function ProductOverviewDashboard({
   }, []);
 
   return (
-    <div className="flex-1 overflow-y-auto pr-1 pb-10 space-y-6">
+    <div className="flex-1 overflow-y-auto no-scrollbar pr-1 pb-10 space-y-6">
       {/* ──────────────── 1. REUSABLE TOP 4 KPI CARDS (Matching Inventory / Sales / Suppliers Pages) ──────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
@@ -459,189 +462,234 @@ function ProductOverviewDashboard({
             </div>
           </div>
 
-          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-center">
+          <div className="mt-2 pt-2.5 pb-1 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center">
             <button
               type="button"
               onClick={() => setActiveTab('inventory')}
-              className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer"
+              className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer leading-normal"
             >
-              View All in Inventory Table →
+              View All in Product Table →
             </button>
           </div>
         </div>
       </div>
 
-      {/* ──────────────── 3. BOTTOM ROW: CRITICAL RESTOCK ALERTS & CATEGORY BREAKDOWN ──────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left: Critical Restock Attention List */}
-        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
-            <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                overviewStats.restockItems.length > 0 
-                  ? 'bg-rose-50 dark:bg-rose-500/10 text-rose-600' 
-                  : 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600'
-              }`}>
-                <AlertTriangle className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-base font-black text-slate-900 dark:text-white">
-                    Critical Restock Attention List
-                  </h3>
-                  {overviewStats.restockItems.length > 0 && (
-                    <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400 border border-rose-200/60 dark:border-rose-800/40">
-                      {overviewStats.restockItems.length} Urgent
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Items below threshold requiring immediate purchase order.
-                </p>
-              </div>
+      {/* ──────────────── 3. BOTTOM ROW: 3 RANKINGS & LISTS WIDGETS (Matching Dashboard List Cards) ──────────────── */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        {/* Card 1: Worst 5 Products (Slowest moving / low stock / 0 stock) */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 pb-5 md:pb-5 w-full text-left flex flex-col h-[380px] justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-4 md:mb-5">
+              <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <TrendingDown className="w-5 h-5 text-rose-500 dark:text-rose-400" />
+                Worst 5 Products
+              </h2>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400">
+                Slow / Low
+              </span>
             </div>
 
-            {overviewStats.restockItems.length > 0 && (
-              <button
-                type="button"
-                onClick={() => {
-                  setStockFilter('lowstock');
-                  setActiveTab('inventory');
-                }}
-                className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
-              >
-                View in Table <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            )}
+            <div className="space-y-3">
+              {overviewStats.worst5Products.length === 0 ? (
+                <div className="py-12 text-center text-slate-400 text-xs font-medium">
+                  No product data found.
+                </div>
+              ) : (
+                overviewStats.worst5Products.map(({ product: p, capital }, i) => {
+                  const rankColors = [
+                    'bg-rose-500 text-white',
+                    'bg-rose-400 text-white',
+                    'bg-slate-400 text-white',
+                    'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300',
+                    'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                  ];
+                  const isOutOfStock = Number(p.stock || 0) <= 0;
+                  return (
+                    <div 
+                      key={p.id || i} 
+                      onClick={() => openEditPanel(p)}
+                      className="flex items-center justify-between gap-3 p-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
+                      title="Click to edit product"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 ${rankColors[i] || 'bg-slate-200 text-slate-700'}`}>
+                          {i + 1}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-rose-600 transition-colors">
+                            {p.name}
+                          </div>
+                          <div className="text-[10px] truncate">
+                            {isOutOfStock ? (
+                              <span className="text-rose-600 dark:text-rose-400 font-bold">0 units (Out of stock)</span>
+                            ) : (
+                              <span className="text-slate-400">{p.stock} units in stock</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <span className="text-xs font-black text-slate-900 dark:text-white flex-shrink-0">
+                        Rs. {capital.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  );
+                })
+              )}
+            </div>
           </div>
 
-          {overviewStats.restockItems.length === 0 ? (
-            <div className="py-8 flex flex-col items-center justify-center text-center">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 flex items-center justify-center mb-3">
-                <CheckCircle2 className="w-6 h-6" />
-              </div>
-              <h4 className="text-sm font-bold text-slate-900 dark:text-white">All Products Well Stocked</h4>
-              <p className="text-xs text-slate-500 mt-1 max-w-sm">
-                None of your products are currently out of stock or below low stock alert levels.
-              </p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <div className="min-w-[500px] divide-y divide-slate-100 dark:divide-slate-800">
-                <div className="grid grid-cols-[2fr_1fr_1fr_90px] gap-3 py-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                  <div>Product</div>
-                  <div>Stock Status</div>
-                  <div>Selling Price</div>
-                  <div className="text-right">Action</div>
-                </div>
-
-                {overviewStats.restockItems.slice(0, 6).map(({ product: p, stock, threshold, isOutOfStock }, idx) => (
-                  <div key={p.id || idx} className="grid grid-cols-[2fr_1fr_1fr_90px] gap-3 py-2.5 items-center hover:bg-slate-50 dark:hover:bg-slate-800/40 rounded-xl px-2 transition-all">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 overflow-hidden text-slate-400">
-                        {p.images && p.images.length > 0 ? (
-                          <img src={typeof p.images[0] === 'string' ? p.images[0] : p.images[0].url} alt={p.name} className="w-full h-full object-cover" />
-                        ) : (
-                          <Package className="w-4 h-4" />
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-xs font-bold text-slate-900 dark:text-white truncate">{p.name}</div>
-                        <div className="text-[10px] text-slate-400 font-mono truncate">SKU: {p.sku || 'N/A'}</div>
-                      </div>
-                    </div>
-
-                    <div>
-                      {isOutOfStock ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400 border border-rose-200/60 dark:border-rose-800/40">
-                          <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-                          0 in stock
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400 border border-amber-200/60 dark:border-amber-800/40">
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                          {stock} left
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="text-xs font-bold text-slate-900 dark:text-white">
-                      Rs. {Number(p.price || 0).toFixed(2)}
-                    </div>
-
-                    <div className="text-right">
-                      <button
-                        type="button"
-                        onClick={() => openEditPanel(p)}
-                        className="px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-500/20 text-xs font-bold transition-all shadow-xs"
-                      >
-                        Restock
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Right: Category Distribution Breakdown */}
-        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-4 flex flex-col">
-          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0">
-                <Layers className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="text-base font-black text-slate-900 dark:text-white">Category Distribution</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Inventory volume & capital tied by category</p>
-              </div>
-            </div>
-            <button 
+          <div className="mt-2 pt-2.5 pb-1 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center">
+            <button
               type="button"
-              onClick={() => setIsAddCategoryPanelOpen(true)}
-              className="text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 flex items-center gap-1"
+              onClick={() => setActiveTab('inventory')}
+              className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer leading-normal"
             >
-              <Plus className="w-3.5 h-3.5" /> New Category
+              View All in Product Table →
             </button>
           </div>
-
-          {overviewStats.categoryDistribution.length === 0 ? (
-            <div className="py-12 text-center text-slate-400 text-xs font-medium">
-              No category data available yet.
-            </div>
-          ) : (
-            <div className="space-y-4 flex-1">
-              {overviewStats.categoryDistribution.slice(0, 6).map((cat, idx) => {
-                const maxVal = overviewStats.categoryDistribution[0]?.valuation || 1;
-                const percentage = Math.max(8, Math.round((cat.valuation / maxVal) * 100));
-                return (
-                  <div key={idx} className="space-y-1.5">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-bold text-slate-800 dark:text-slate-200 truncate max-w-[200px]">
-                        {cat.name}
-                      </span>
-                      <div className="flex items-center gap-3">
-                        <span className="text-slate-500 font-medium">
-                          {cat.count} {cat.count === 1 ? 'product' : 'products'} ({cat.stock.toLocaleString()} units)
-                        </span>
-                        <span className="font-black text-slate-900 dark:text-white">
-                          Rs. {cat.valuation.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
-                      <div 
-                        className="bg-blue-600 dark:bg-blue-500 h-full rounded-full transition-all duration-500" 
-                        style={{ width: `${percentage}%` }} 
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
         </div>
+
+        {/* Card 2: Trending Products (High margin / fastest growth) */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 pb-5 md:pb-5 w-full text-left flex flex-col h-[380px] justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-4 md:mb-5">
+              <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
+                Trending Products
+              </h2>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
+                High Margin
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              {overviewStats.trendingProducts.length === 0 ? (
+                <div className="py-12 text-center text-slate-400 text-xs font-medium">
+                  No product data found.
+                </div>
+              ) : (
+                overviewStats.trendingProducts.map(({ product: p, marginPercent }, i) => {
+                  const rankColors = [
+                    'bg-emerald-500 text-white',
+                    'bg-emerald-600 text-white',
+                    'bg-teal-500 text-white',
+                    'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300',
+                    'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                  ];
+                  return (
+                    <div 
+                      key={p.id || i} 
+                      onClick={() => openEditPanel(p)}
+                      className="flex items-center justify-between gap-3 p-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
+                      title="Click to edit product"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 ${rankColors[i] || 'bg-slate-200 text-slate-700'}`}>
+                          {i + 1}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-emerald-600 transition-colors">
+                            {p.name}
+                          </div>
+                          <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold truncate">
+                            {marginPercent > 0 ? `${Math.round(marginPercent)}% profit margin` : `${p.stock || 0} units available`}
+                          </div>
+                        </div>
+                      </div>
+                      <span className="text-xs font-black text-slate-900 dark:text-white flex-shrink-0">
+                        Rs. {Number(p.price || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          <div className="mt-2 pt-2.5 pb-1 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center">
+            <button
+              type="button"
+              onClick={() => setActiveTab('inventory')}
+              className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer leading-normal"
+            >
+              View All in Product Table →
+            </button>
+          </div>
+        </div>
+
+        {/* Card 3: Featured Products (Catalog flagship / highlighted products) */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 pb-5 md:pb-5 w-full text-left flex flex-col h-[380px] justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-4 md:mb-5">
+              <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Star className="w-5 h-5 text-amber-500 fill-amber-500/20 dark:text-amber-400" />
+                Featured Products
+              </h2>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">
+                Catalog
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              {overviewStats.featuredProducts.length === 0 ? (
+                <div className="py-12 text-center text-slate-400 text-xs font-medium">
+                  No product data found.
+                </div>
+              ) : (
+                overviewStats.featuredProducts.map((p, i) => {
+                  const rankColors = [
+                    'bg-amber-500 text-white',
+                    'bg-amber-600 text-white',
+                    'bg-orange-500 text-white',
+                    'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300',
+                    'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                  ];
+                  const catInfo = getCategoryName(p.categoryId);
+                  const subLabel = p.showOnWebsite 
+                    ? 'Online Store Item' 
+                    : (catInfo?.main || p.brand || `${p.stock || 0} units`);
+                  return (
+                    <div 
+                      key={p.id || i} 
+                      onClick={() => openEditPanel(p)}
+                      className="flex items-center justify-between gap-3 p-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
+                      title="Click to edit product"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 ${rankColors[i] || 'bg-slate-200 text-slate-700'}`}>
+                          {i + 1}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-amber-600 transition-colors">
+                            {p.name}
+                          </div>
+                          <div className="text-[10px] text-slate-400 truncate">
+                            {subLabel}
+                          </div>
+                        </div>
+                      </div>
+                      <span className="text-xs font-black text-slate-900 dark:text-white flex-shrink-0">
+                        Rs. {Number(p.price || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          <div className="mt-2 pt-2.5 pb-1 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center">
+            <button
+              type="button"
+              onClick={() => setActiveTab('inventory')}
+              className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer leading-normal"
+            >
+              View All in Product Table →
+            </button>
+          </div>
+        </div>
+
       </div>
     </div>
   );
@@ -1782,6 +1830,31 @@ function StoreProductsPageContent() {
       .sort((a, b) => b.capital - a.capital)
       .slice(0, 5);
 
+    // Worst 5 Products: 0 stock items first, then lowest capital / price
+    const worst5Products = [...productsWithCapital]
+      .sort((a, b) => {
+        const aStock = Number(a.product.stock || 0);
+        const bStock = Number(b.product.stock || 0);
+        if (aStock <= 0 && bStock > 0) return -1;
+        if (aStock > 0 && bStock <= 0) return 1;
+        return a.capital - b.capital;
+      })
+      .slice(0, 5);
+
+    // Trending Products: Highest profit margin products
+    const trendingProducts = [...productsWithCapital]
+      .sort((a, b) => b.marginPercent - a.marginPercent || Number(b.product.price || 0) - Number(a.product.price || 0))
+      .slice(0, 5);
+
+    // Featured Products: Online store featured or highest priced catalog products
+    const featuredProducts = [...products]
+      .sort((a, b) => {
+        if (a.showOnWebsite && !b.showOnWebsite) return -1;
+        if (!a.showOnWebsite && b.showOnWebsite) return 1;
+        return Number(b.price || 0) - Number(a.price || 0);
+      })
+      .slice(0, 5);
+
     const totalProducts = products.length;
     const healthRatio = totalProducts > 0 ? (inStockCount / totalProducts) * 100 : 100;
     const potentialProfit = Math.max(0, totalRetailValuation - totalCostValuation);
@@ -1809,6 +1882,9 @@ function StoreProductsPageContent() {
       categoryDistribution,
       restockItems,
       topCapitalProducts,
+      worst5Products,
+      trendingProducts,
+      featuredProducts,
       chartData,
     };
   }, [products, categories]);
@@ -1839,7 +1915,7 @@ function StoreProductsPageContent() {
 
       {/* ──────────────── NAVIGATION TABS & UNIFIED TOOLBAR ──────────────── */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-        {/* Left: Mode Toggle (Product Overview | Product Inventory) - Exactly h-12 p-1 matching Data & Backup */}
+        {/* Left: Mode Toggle (Product Overview | Product Table) - Exactly h-12 p-1 matching Data & Backup */}
         <div className="flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm h-12 p-1 overflow-hidden shrink-0">
           <button 
             type="button"
@@ -1864,7 +1940,7 @@ function StoreProductsPageContent() {
                 : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
             }`}
           >
-            Product Inventory
+            Product Table
           </button>
         </div>
 
