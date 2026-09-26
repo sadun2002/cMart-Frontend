@@ -10,6 +10,7 @@ import {
 import { PLANS, formatLKR } from '@/lib/constants';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useAuthStore } from '@/lib/auth-store';
+import { getSubscriptionStatus } from '@/lib/subscription-utils';
 
 // Using real billing history now
 
@@ -23,6 +24,7 @@ export default function SubscriptionPage() {
     targetPlan: ''
   });
   const { user, updatePlan } = useAuthStore();
+  const subStatus = getSubscriptionStatus(user);
   const activePlanKey = (user?.tenant?.plan || 'STARTUP').toUpperCase() as keyof typeof PLANS;
   const currentPlanData = PLANS[activePlanKey] || PLANS.STARTUP;
 
@@ -172,10 +174,20 @@ export default function SubscriptionPage() {
               if (activePlanKey === 'PRO') userRank = 1;
               else if (activePlanKey === 'ENTERPRISE') userRank = 2;
 
+              const hasActiveSubscription = subStatus.isActive && !subStatus.isExpired;
+
               if (plan.name.toUpperCase() === 'PRO' || plan.name.toUpperCase() === 'ENTERPRISE') {
                 cta = 'Coming Soon';
               } else if (isUnavailable) {
                 cta = 'Not Available';
+              } else if (!hasActiveSubscription) {
+                if (userRank === i && !isFreeTrial) {
+                  cta = `Renew ${plan.name}`;
+                } else {
+                  cta = `Upgrade to ${plan.name}`;
+                }
+                isDowngrade = false;
+                isCancel = false;
               } else if (userRank === i) {
                 if (activePlanKey === 'STARTUP' && isFreeTrial) {
                   cta = `Free Trial (${trialText})`;

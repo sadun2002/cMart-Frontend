@@ -147,7 +147,7 @@ export default function SubscriptionPage() {
           <div className="flex flex-wrap sm:flex-nowrap gap-3 w-full lg:w-auto z-10">
             {subStatus.isExpired ? (
               <Link 
-                href={`/checkout?plan=${activePlanKey === 'STARTUP' ? 'PRO' : activePlanKey}&billing=${billing}`}
+                href={`/checkout?plan=${activePlanKey}&billing=${billing}`}
                 className="flex-1 lg:flex-none px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl shadow-sm transition-colors text-sm whitespace-nowrap text-center"
               >
                 Renew Now
@@ -238,16 +238,27 @@ export default function SubscriptionPage() {
               const billingParam = billing;
               const isUnavailable = plan.price === null;
               
+              const hasActiveSubscription = subStatus.isActive && !subStatus.isExpired;
+
               if (isUnavailable) {
                 cta = 'Not Available';
                 href = '#';
                 disabled = true;
-              } else if (userRank === plan.rank) {
-                if (subStatus.isExpired) {
+              } else if (!hasActiveSubscription) {
+                // Subscription is expired or inactive: NO active plan exists!
+                // Any plan chosen is an Upgrade or Renew. It should never be treated as a Downgrade.
+                if (userRank === plan.rank && !isFreeTrial) {
                   cta = `Renew ${plan.name}`;
-                  href = `/checkout?plan=${plan.key}&billing=${billingParam}`;
-                  disabled = false;
-                } else if (activePlanKey === 'STARTUP' && isFreeTrial) {
+                } else {
+                  cta = `Upgrade to ${plan.name}`;
+                }
+                href = `/checkout?plan=${plan.key}&billing=${billingParam}`;
+                disabled = false;
+                isDowngrade = false;
+                isCancel = false;
+                isCurrent = userRank === plan.rank;
+              } else if (userRank === plan.rank) {
+                if (activePlanKey === 'STARTUP' && isFreeTrial) {
                   cta = `Free Trial (${trialText})`;
                   disabled = true;
                 } else {

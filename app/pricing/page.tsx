@@ -177,21 +177,20 @@ export default function PricingPage() {
                 if (userPlanStr === 'PRO') userRank = 1;
                 else if (userPlanStr === 'ENTERPRISE') userRank = 2;
                 
+                const hasActiveSubscription = subStatus.isActive && !subStatus.isExpired;
+
                 if (isPending) {
                   cta = plan.key === 'STARTUP' ? 'Start 30-Day Free Trial' : `Start with ${plan.name}`;
                   href = '/owner/dashboard';
-                } else if (subStatus.isExpired) {
-                  // User's subscription is expired: allow renewing current plan or switching
-                  if (userRank === plan.rank) {
+                } else if (!hasActiveSubscription) {
+                  // User has NO active subscription (expired or trial ended).
+                  // Selecting any package is an Upgrade or Renew, never a downgrade.
+                  if (userRank === plan.rank && !subStatus.isTrial) {
                     cta = `Renew ${plan.name}`;
-                    href = `/checkout?plan=${plan.key}&billing=${billing}`;
-                  } else if (userRank < plan.rank) {
-                    cta = `Upgrade to ${plan.name}`;
-                    href = `/checkout?plan=${plan.key}&billing=${billing}`;
                   } else {
-                    cta = `Downgrade to ${plan.name}`;
-                    href = `/checkout?plan=${plan.key}&billing=${billing}`;
+                    cta = `Upgrade to ${plan.name}`;
                   }
+                  href = `/checkout?plan=${plan.key}&billing=${billing}`;
                 } else if (userRank === plan.rank) {
                   cta = 'Go to Dashboard';
                   href = '/owner/dashboard';
