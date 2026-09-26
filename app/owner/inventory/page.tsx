@@ -417,16 +417,17 @@ interface InventoryOverviewDashboardProps {
     lowStockCount: number;
     outOfStockCount: number;
     categoryDistribution: Array<{ id: number | string; name: string; count: number; valuation: number; stock: number }>;
-    topCapitalProducts: Array<{ product: any; capital: number; retailValue: number; marginPercent: number }>;
-    worst5Products: Array<{ product: any; capital: number; retailValue: number; marginPercent: number }>;
-    trendingProducts: Array<{ product: any; capital: number; retailValue: number; marginPercent: number }>;
-    featuredProducts: Array<any>;
-    chartData: Array<{ name: string; fullName: string; value: number; stock: number; count: number }>;
+    topCapitalProducts: Array<{ product: any; capital: number; retailValue: number; stock: number }>;
+    outOfStockProducts: Array<{ product: any; threshold: number; cost: number; price: number }>;
+    lowStockProducts: Array<{ product: any; stock: number; threshold: number; deficit: number }>;
+    reorderPriorityProducts: Array<{ product: any; stock: number; threshold: number; deficit: number; restockCost: number }>;
+    chartData: Array<{ name: string; fullName: string; valuation: number; stock: number; count: number; inStock: number; lowStock: number }>;
   };
   kpis: Array<{ title: string; value: string; icon: any; color: string; bg: string }>;
   getCategoryName: (catId: any) => string;
   setActiveTab: (tab: 'overview' | 'table') => void;
   setStockFilter: (filter: string) => void;
+  setSortMode: (mode: any) => void;
   handleOpenPanel: (action: StockActionType, product?: any) => void;
 }
 
@@ -436,8 +437,10 @@ function InventoryOverviewDashboard({
   getCategoryName,
   setActiveTab,
   setStockFilter,
+  setSortMode,
   handleOpenPanel,
 }: InventoryOverviewDashboardProps) {
+  const [chartMetric, setChartMetric] = useState<'valuation' | 'units'>('valuation');
   const [chartType, setChartType] = useState<'bar' | 'line'>('bar');
   const [mounted, setMounted] = useState(false);
 
@@ -461,28 +464,52 @@ function InventoryOverviewDashboard({
         ))}
       </div>
 
-      {/* ──────────────── 2. MAIN DASHBOARD GRID: CHART (2 Cols) + TOP 5 VALUATION PRODUCTS (1 Col) ──────────────── */}
+      {/* ──────────────── 2. MAIN DASHBOARD GRID: CHART (2 Cols) + TOP OUT OF STOCK (1 Col) ──────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left: Chart Card */}
+        {/* Left: Chart Card (Category Stock Health & Volume / Valuation) */}
         <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 w-full text-left flex flex-col h-[380px] justify-between">
-          <div className="flex items-center justify-between mb-4 flex-shrink-0">
-            <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <BarChart3 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-              Category Inventory & Stock Valuation
-            </h2>
-            <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 flex-shrink-0">
+            <div>
+              <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <BarChart3 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                Category Stock Distribution & Health
+              </h2>
+              <p className="text-[11px] text-slate-400 font-medium">
+                {chartMetric === 'valuation' ? 'Valuation comparison by product category (Rs.)' : 'Physical unit counts across categories'}
+              </p>
+            </div>
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              {/* Metric Toggle: Valuation vs Units */}
+              <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg text-xs font-bold">
+                <button
+                  type="button"
+                  onClick={() => setChartMetric('valuation')}
+                  className={`px-2.5 py-1 rounded-md transition-all ${chartMetric === 'valuation' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
+                >
+                  Value (Rs)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setChartMetric('units')}
+                  className={`px-2.5 py-1 rounded-md transition-all ${chartMetric === 'units' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
+                >
+                  Units
+                </button>
+              </div>
+
+              {/* Bar / Line toggle */}
               <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg text-xs font-bold">
                 <button
                   type="button"
                   onClick={() => setChartType('bar')}
-                  className={`px-3 py-1 rounded-md transition-all ${chartType === 'bar' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
+                  className={`px-2.5 py-1 rounded-md transition-all ${chartType === 'bar' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
                 >
                   Bar
                 </button>
                 <button
                   type="button"
                   onClick={() => setChartType('line')}
-                  className={`px-3 py-1 rounded-md transition-all ${chartType === 'line' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
+                  className={`px-2.5 py-1 rounded-md transition-all ${chartType === 'line' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
                 >
                   Line
                 </button>
@@ -494,7 +521,7 @@ function InventoryOverviewDashboard({
             {mounted ? (
               overviewStats.chartData.length === 0 ? (
                 <div className="absolute inset-0 flex items-center justify-center text-xs text-slate-400">
-                  No category data available to plot chart.
+                  No category inventory data available to plot.
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
@@ -502,95 +529,130 @@ function InventoryOverviewDashboard({
                     <BarChart data={overviewStats.chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" strokeOpacity={0.4} />
                       <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
-                      <YAxis tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`} />
+                      <YAxis 
+                        tick={{ fontSize: 10, fill: '#9CA3AF' }} 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tickFormatter={(v) => chartMetric === 'valuation' ? (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`) : `${v}`} 
+                      />
                       <Tooltip 
-                        formatter={(v: any) => [`Rs. ${Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 'Valuation']} 
+                        formatter={(v: any) => [
+                          chartMetric === 'valuation' 
+                            ? `Rs. ${Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` 
+                            : `${Number(v).toLocaleString()} units`, 
+                          chartMetric === 'valuation' ? 'Valuation' : 'Stock Qty'
+                        ]} 
                         labelFormatter={(label, payload) => payload?.[0]?.payload?.fullName || label}
                         contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.95)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '12px' }}
                       />
-                      <Bar dataKey="value" fill="#3B82F6" radius={[6, 6, 0, 0]} />
+                      <Bar 
+                        dataKey={chartMetric === 'valuation' ? 'valuation' : 'stock'} 
+                        fill={chartMetric === 'valuation' ? '#3B82F6' : '#10B981'} 
+                        radius={[6, 6, 0, 0]} 
+                      />
                     </BarChart>
                   ) : (
                     <LineChart data={overviewStats.chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" strokeOpacity={0.4} />
                       <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
-                      <YAxis tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`} />
+                      <YAxis 
+                        tick={{ fontSize: 10, fill: '#9CA3AF' }} 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tickFormatter={(v) => chartMetric === 'valuation' ? (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`) : `${v}`} 
+                      />
                       <Tooltip 
-                        formatter={(v: any) => [`Rs. ${Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 'Valuation']} 
+                        formatter={(v: any) => [
+                          chartMetric === 'valuation' 
+                            ? `Rs. ${Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` 
+                            : `${Number(v).toLocaleString()} units`, 
+                          chartMetric === 'valuation' ? 'Valuation' : 'Stock Qty'
+                        ]} 
                         labelFormatter={(label, payload) => payload?.[0]?.payload?.fullName || label}
                         contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.95)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '12px' }}
                       />
-                      <Line type="monotone" dataKey="value" stroke="#3B82F6" strokeWidth={3} dot={{ r: 4, fill: '#3B82F6' }} activeDot={{ r: 6 }} />
+                      <Line 
+                        type="monotone" 
+                        dataKey={chartMetric === 'valuation' ? 'valuation' : 'stock'} 
+                        stroke={chartMetric === 'valuation' ? '#3B82F6' : '#10B981'} 
+                        strokeWidth={3} 
+                        dot={{ r: 4, fill: chartMetric === 'valuation' ? '#3B82F6' : '#10B981' }} 
+                        activeDot={{ r: 6 }} 
+                      />
                     </LineChart>
                   )}
                 </ResponsiveContainer>
               )
             ) : (
               <div className="absolute inset-0 flex items-center justify-center text-xs text-slate-400">
-                Loading chart...
+                Loading inventory chart...
               </div>
             )}
           </div>
 
           <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex-shrink-0 font-medium">
-            <span>Total Inventory Cost Valuation</span>
+            <span>
+              {chartMetric === 'valuation' ? 'Total Branch Cost Valuation' : 'Total Physical Units in Stock'}
+            </span>
             <span className="font-bold text-slate-900 dark:text-white">
-              Rs. {overviewStats.totalCostValuation.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {chartMetric === 'valuation' 
+                ? `Rs. ${overviewStats.totalCostValuation.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                : `${overviewStats.totalStockQty.toLocaleString()} units`}
             </span>
           </div>
         </div>
 
-        {/* Right: Top 5 Capital Products */}
+        {/* Right: Card 1 - Top Out of Stock Products (Stock = 0) */}
         <div className="lg:col-span-1 bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 pb-5 md:pb-5 w-full text-left flex flex-col h-[380px] justify-between">
           <div>
             <div className="flex items-center justify-between mb-4 md:mb-5">
               <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <Package className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                Top 5 Capital Products
+                <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />
+                Top Out of Stock
               </h2>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
-                Ranked
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400">
+                {overviewStats.outOfStockCount} Items Zero
               </span>
             </div>
 
             <div className="space-y-3">
-              {overviewStats.topCapitalProducts.length === 0 ? (
-                <div className="py-12 text-center text-slate-400 text-xs font-medium">
-                  No product data found.
+              {overviewStats.outOfStockProducts.length === 0 ? (
+                <div className="py-12 text-center text-emerald-600 dark:text-emerald-400 text-xs font-medium flex flex-col items-center justify-center gap-2">
+                  <CheckCircle2 className="w-8 h-8 text-emerald-500" />
+                  <span>No products out of stock! All items available.</span>
                 </div>
               ) : (
-                overviewStats.topCapitalProducts.map(({ product: p, capital }, i) => {
-                  const rankColors = [
-                    'bg-amber-500 text-white',
-                    'bg-slate-400 text-white',
-                    'bg-orange-700 text-white',
-                    'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300',
-                    'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
-                  ];
-                  const stock = Number(p.stock ?? p.stockQuantity ?? 0);
+                overviewStats.outOfStockProducts.map(({ product: p, threshold }, i) => {
+                  const catName = getCategoryName(p.categoryId);
                   return (
                     <div 
                       key={p.id || i} 
                       onClick={() => handleOpenPanel('Stock In', p)}
-                      className="flex items-center justify-between gap-3 p-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
-                      title="Click to manage stock"
+                      className="flex items-center justify-between gap-3 p-1.5 rounded-xl hover:bg-red-50/50 dark:hover:bg-red-950/20 cursor-pointer transition-colors group"
+                      title="Click to perform Stock In"
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 ${rankColors[i] || 'bg-slate-200 text-slate-700'}`}>
+                        <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-300">
                           {i + 1}
                         </div>
                         <div className="min-w-0">
-                          <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-blue-600 transition-colors">
+                          <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-red-600 transition-colors">
                             {p.name}
                           </div>
-                          <div className="text-[10px] text-slate-400 truncate">
-                            {stock} {p.unit || 'units'} in stock
+                          <div className="text-[10px] text-red-500 dark:text-red-400 font-semibold truncate flex items-center gap-1.5">
+                            <span>0 {p.unit || 'pcs'}</span>
+                            <span className="text-slate-300">•</span>
+                            <span className="text-slate-400">Min: {threshold}</span>
                           </div>
                         </div>
                       </div>
-                      <span className="text-xs font-black text-slate-900 dark:text-white flex-shrink-0">
-                        Rs. {capital.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </span>
+                      <button 
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); handleOpenPanel('Stock In', p); }}
+                        className="px-2 py-1 rounded-lg bg-red-600 hover:bg-red-700 text-white text-[10px] font-bold shrink-0 transition-colors shadow-xs"
+                      >
+                        Restock
+                      </button>
                     </div>
                   );
                 })
@@ -601,191 +663,43 @@ function InventoryOverviewDashboard({
           <div className="mt-2 pt-2.5 pb-1 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center">
             <button
               type="button"
-              onClick={() => setActiveTab('table')}
-              className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer leading-normal"
+              onClick={() => {
+                setStockFilter('out-of-stock');
+                setActiveTab('table');
+              }}
+              className="text-xs text-red-600 dark:text-red-400 font-bold hover:underline cursor-pointer leading-normal flex items-center gap-1"
             >
-              View All in Inventory Table →
+              View All {overviewStats.outOfStockCount} Out of Stock Items →
             </button>
           </div>
         </div>
       </div>
 
-      {/* ──────────────── 3. BOTTOM ROW: 3 RANKINGS & LISTS WIDGETS ──────────────── */}
+      {/* ──────────────── 3. BOTTOM ROW: 3 INVENTORY SPECIFIC RANKINGS / LISTS ──────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         
-        {/* Card 1: Worst 5 Products */}
+        {/* Card 2: Low Stock Alerts */}
         <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 pb-5 md:pb-5 w-full text-left flex flex-col h-[380px] justify-between">
           <div>
             <div className="flex items-center justify-between mb-4 md:mb-5">
               <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <TrendingDown className="w-5 h-5 text-rose-500 dark:text-rose-400" />
-                Worst 5 Products
-              </h2>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400">
-                Slow / Low
-              </span>
-            </div>
-
-            <div className="space-y-3">
-              {overviewStats.worst5Products.length === 0 ? (
-                <div className="py-12 text-center text-slate-400 text-xs font-medium">
-                  No product data found.
-                </div>
-              ) : (
-                overviewStats.worst5Products.map(({ product: p, capital }, i) => {
-                  const rankColors = [
-                    'bg-rose-500 text-white',
-                    'bg-rose-400 text-white',
-                    'bg-slate-400 text-white',
-                    'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300',
-                    'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
-                  ];
-                  const stock = Number(p.stock ?? p.stockQuantity ?? 0);
-                  const isOutOfStock = stock <= 0;
-                  return (
-                    <div 
-                      key={p.id || i} 
-                      onClick={() => handleOpenPanel('Stock In', p)}
-                      className="flex items-center justify-between gap-3 p-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
-                      title="Click to manage stock"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 ${rankColors[i] || 'bg-slate-200 text-slate-700'}`}>
-                          {i + 1}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-rose-600 transition-colors">
-                            {p.name}
-                          </div>
-                          <div className="text-[10px] truncate">
-                            {isOutOfStock ? (
-                              <span className="text-rose-600 dark:text-rose-400 font-bold">0 units (Out of stock)</span>
-                            ) : (
-                              <span className="text-slate-400">{stock} {p.unit || 'units'} in stock</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <span className="text-xs font-black text-slate-900 dark:text-white flex-shrink-0">
-                        Rs. {capital.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </span>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-
-          <div className="mt-2 pt-2.5 pb-1 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center">
-            <button
-              type="button"
-              onClick={() => setActiveTab('table')}
-              className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer leading-normal"
-            >
-              View All in Inventory Table →
-            </button>
-          </div>
-        </div>
-
-        {/* Card 2: Trending Products */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 pb-5 md:pb-5 w-full text-left flex flex-col h-[380px] justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-4 md:mb-5">
-              <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
-                Trending Products
-              </h2>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
-                High Margin
-              </span>
-            </div>
-
-            <div className="space-y-3">
-              {overviewStats.trendingProducts.length === 0 ? (
-                <div className="py-12 text-center text-slate-400 text-xs font-medium">
-                  No product data found.
-                </div>
-              ) : (
-                overviewStats.trendingProducts.map(({ product: p, marginPercent }, i) => {
-                  const rankColors = [
-                    'bg-emerald-500 text-white',
-                    'bg-emerald-600 text-white',
-                    'bg-teal-500 text-white',
-                    'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300',
-                    'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
-                  ];
-                  return (
-                    <div 
-                      key={p.id || i} 
-                      onClick={() => handleOpenPanel('Stock In', p)}
-                      className="flex items-center justify-between gap-3 p-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
-                      title="Click to manage stock"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 ${rankColors[i] || 'bg-slate-200 text-slate-700'}`}>
-                          {i + 1}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-emerald-600 transition-colors">
-                            {p.name}
-                          </div>
-                          <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold truncate">
-                            {marginPercent > 0 ? `${Math.round(marginPercent)}% profit margin` : `${Number(p.stock ?? p.stockQuantity ?? 0)} units available`}
-                          </div>
-                        </div>
-                      </div>
-                      <span className="text-xs font-black text-slate-900 dark:text-white flex-shrink-0">
-                        Rs. {Number(p.price || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </span>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-
-          <div className="mt-2 pt-2.5 pb-1 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center">
-            <button
-              type="button"
-              onClick={() => setActiveTab('table')}
-              className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer leading-normal"
-            >
-              View All in Inventory Table →
-            </button>
-          </div>
-        </div>
-
-        {/* Card 3: Featured Products */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 pb-5 md:pb-5 w-full text-left flex flex-col h-[380px] justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-4 md:mb-5">
-              <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <Star className="w-5 h-5 text-amber-500 fill-amber-500/20 dark:text-amber-400" />
-                Featured Products
+                <AlertCircle className="w-5 h-5 text-amber-500 dark:text-amber-400" />
+                Low Stock Alerts
               </h2>
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">
-                Catalog
+                {overviewStats.lowStockCount} Items Running Low
               </span>
             </div>
 
             <div className="space-y-3">
-              {overviewStats.featuredProducts.length === 0 ? (
-                <div className="py-12 text-center text-slate-400 text-xs font-medium">
-                  No product data found.
+              {overviewStats.lowStockProducts.length === 0 ? (
+                <div className="py-12 text-center text-emerald-600 dark:text-emerald-400 text-xs font-medium flex flex-col items-center justify-center gap-2">
+                  <CheckCircle2 className="w-8 h-8 text-emerald-500" />
+                  <span>All products have safe stock buffers!</span>
                 </div>
               ) : (
-                overviewStats.featuredProducts.map((p, i) => {
-                  const rankColors = [
-                    'bg-amber-500 text-white',
-                    'bg-amber-600 text-white',
-                    'bg-orange-500 text-white',
-                    'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300',
-                    'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
-                  ];
-                  const catName = getCategoryName(p.categoryId);
-                  const subLabel = p.showOnWebsite 
-                    ? 'Online Store Item' 
-                    : (catName || p.brand || `${Number(p.stock ?? p.stockQuantity ?? 0)} units`);
+                overviewStats.lowStockProducts.map(({ product: p, stock, threshold }, i) => {
+                  const ratio = Math.min(100, Math.round((stock / Math.max(1, threshold)) * 100));
                   return (
                     <div 
                       key={p.id || i} 
@@ -794,15 +708,15 @@ function InventoryOverviewDashboard({
                       title="Click to manage stock"
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 ${rankColors[i] || 'bg-slate-200 text-slate-700'}`}>
+                        <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
                           {i + 1}
                         </div>
                         <div className="min-w-0">
                           <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-amber-600 transition-colors">
                             {p.name}
                           </div>
-                          <div className="text-[10px] text-slate-400 truncate">
-                            {subLabel}
+                          <div className="text-[10px] text-amber-600 dark:text-amber-400 font-bold truncate">
+                            {stock} / {threshold} {p.unit || 'pcs'} ({ratio}% buffer)
                           </div>
                         </div>
                       </div>
@@ -819,10 +733,141 @@ function InventoryOverviewDashboard({
           <div className="mt-2 pt-2.5 pb-1 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center">
             <button
               type="button"
-              onClick={() => setActiveTab('table')}
+              onClick={() => {
+                setStockFilter('low-stock');
+                setActiveTab('table');
+              }}
+              className="text-xs text-amber-600 dark:text-amber-400 font-bold hover:underline cursor-pointer leading-normal"
+            >
+              View All {overviewStats.lowStockCount} Low Stock in Table →
+            </button>
+          </div>
+        </div>
+
+        {/* Card 3: Reorder Priority & Replenishment Deficit */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 pb-5 md:pb-5 w-full text-left flex flex-col h-[380px] justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-4 md:mb-5">
+              <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Truck className="w-5 h-5 text-indigo-500 dark:text-indigo-400" />
+                Reorder Priority
+              </h2>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">
+                Replenish Needed
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              {overviewStats.reorderPriorityProducts.length === 0 ? (
+                <div className="py-12 text-center text-slate-400 text-xs font-medium">
+                  No replenishment orders needed.
+                </div>
+              ) : (
+                overviewStats.reorderPriorityProducts.map(({ product: p, deficit, restockCost }, i) => {
+                  return (
+                    <div 
+                      key={p.id || i} 
+                      onClick={() => handleOpenPanel('Stock In', p)}
+                      className="flex items-center justify-between gap-3 p-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
+                      title="Click to perform Stock In"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
+                          {i + 1}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-indigo-600 transition-colors">
+                            {p.name}
+                          </div>
+                          <div className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold truncate">
+                            Need +{deficit} {p.unit || 'pcs'} to reach threshold
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <span className="text-xs font-black text-slate-900 dark:text-white block">
+                          Rs. {restockCost.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                        </span>
+                        <span className="text-[9px] text-slate-400">est. cost</span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          <div className="mt-2 pt-2.5 pb-1 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center">
+            <button
+              type="button"
+              onClick={() => handleOpenPanel('Stock In')}
+              className="text-xs text-indigo-600 dark:text-indigo-400 font-bold hover:underline cursor-pointer leading-normal flex items-center gap-1"
+            >
+              + Quick Stock In Action →
+            </button>
+          </div>
+        </div>
+
+        {/* Card 4: Top Capital Tied-Up */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 pb-5 md:pb-5 w-full text-left flex flex-col h-[380px] justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-4 md:mb-5">
+              <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <DollarSign className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
+                Top Capital Tied-Up
+              </h2>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
+                Highest Valuation
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              {overviewStats.topCapitalProducts.length === 0 ? (
+                <div className="py-12 text-center text-slate-400 text-xs font-medium">
+                  No stock valuation data found.
+                </div>
+              ) : (
+                overviewStats.topCapitalProducts.map(({ product: p, capital, stock }, i) => {
+                  return (
+                    <div 
+                      key={p.id || i} 
+                      onClick={() => handleOpenPanel('Stock In', p)}
+                      className="flex items-center justify-between gap-3 p-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
+                      title="Click to manage stock"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+                          {i + 1}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-emerald-600 transition-colors">
+                            {p.name}
+                          </div>
+                          <div className="text-[10px] text-slate-400 truncate">
+                            {stock} {p.unit || 'units'} in branch
+                          </div>
+                        </div>
+                      </div>
+                      <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 flex-shrink-0">
+                        Rs. {capital.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          <div className="mt-2 pt-2.5 pb-1 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center">
+            <button
+              type="button"
+              onClick={() => {
+                setSortMode('value-desc');
+                setActiveTab('table');
+              }}
               className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer leading-normal"
             >
-              View All in Inventory Table →
+              View High Valuation in Table →
             </button>
           </div>
         </div>
@@ -1229,40 +1274,82 @@ export default function InventoryPage() {
 
     const topCapitalProducts = [...productsWithCapital]
       .sort((a, b) => b.capital - a.capital)
+      .slice(0, 5)
+      .map(item => ({
+        product: item.product,
+        capital: item.capital,
+        retailValue: item.retailValue,
+        stock: Number(item.product.stock ?? item.product.stockQuantity ?? 0)
+      }));
+
+    // 1. Out of Stock: stock <= 0
+    const outOfStockProducts = products
+      .filter(p => Number(p.stock ?? p.stockQuantity ?? 0) <= 0)
+      .map(p => ({
+        product: p,
+        threshold: Number(p.minStock ?? p.lowStockLevel ?? 10),
+        cost: Number(p.cost || 0),
+        price: Number(p.price || 0)
+      }))
       .slice(0, 5);
 
-    // Worst 5 Products: 0 stock items first, then lowest capital / price
-    const worst5Products = [...productsWithCapital]
-      .sort((a, b) => {
-        const aStock = Number(a.product.stock ?? a.product.stockQuantity ?? 0);
-        const bStock = Number(b.product.stock ?? b.product.stockQuantity ?? 0);
-        if (aStock <= 0 && bStock > 0) return -1;
-        if (aStock > 0 && bStock <= 0) return 1;
-        return a.capital - b.capital;
+    // 2. Low Stock: stock > 0 && stock <= threshold
+    const lowStockProducts = products
+      .filter(p => {
+        const s = Number(p.stock ?? p.stockQuantity ?? 0);
+        const th = Number(p.minStock ?? p.lowStockLevel ?? 10);
+        return s > 0 && s <= th;
       })
-      .slice(0, 5);
-
-    // Trending Products: Highest profit margin products
-    const trendingProducts = [...productsWithCapital]
-      .sort((a, b) => b.marginPercent - a.marginPercent || Number(b.product.price || 0) - Number(a.product.price || 0))
-      .slice(0, 5);
-
-    // Featured Products: Online store featured or highest priced catalog products
-    const featuredProducts = [...products]
-      .sort((a, b) => {
-        if (a.showOnWebsite && !b.showOnWebsite) return -1;
-        if (!a.showOnWebsite && b.showOnWebsite) return 1;
-        return Number(b.price || 0) - Number(a.price || 0);
+      .map(p => {
+        const s = Number(p.stock ?? p.stockQuantity ?? 0);
+        const th = Number(p.minStock ?? p.lowStockLevel ?? 10);
+        return {
+          product: p,
+          stock: s,
+          threshold: th,
+          deficit: Math.max(0, th - s)
+        };
       })
+      .sort((a, b) => (a.stock / Math.max(1, a.threshold)) - (b.stock / Math.max(1, b.threshold)))
       .slice(0, 5);
 
-    const chartData = categoryDistribution.slice(0, 8).map(c => ({
-      name: c.name.length > 14 ? c.name.slice(0, 14) + '...' : c.name,
-      fullName: c.name,
-      value: c.valuation,
-      stock: c.stock,
-      count: c.count,
-    }));
+    // 3. Reorder Priority: biggest replenishment gap
+    const reorderPriorityProducts = products
+      .filter(p => {
+        const s = Number(p.stock ?? p.stockQuantity ?? 0);
+        const th = Number(p.minStock ?? p.lowStockLevel ?? 10);
+        return s <= th;
+      })
+      .map(p => {
+        const s = Number(p.stock ?? p.stockQuantity ?? 0);
+        const th = Number(p.minStock ?? p.lowStockLevel ?? 10);
+        const cost = Number(p.cost || 0);
+        const deficit = Math.max(1, th - s);
+        return {
+          product: p,
+          stock: s,
+          threshold: th,
+          deficit,
+          restockCost: deficit * cost
+        };
+      })
+      .sort((a, b) => b.deficit - a.deficit || b.restockCost - a.restockCost)
+      .slice(0, 5);
+
+    const chartData = categoryDistribution.slice(0, 8).map(c => {
+      const catProds = products.filter(p => (p.categoryId || 'uncategorized') === c.id);
+      const inStock = catProds.filter(p => Number(p.stock ?? p.stockQuantity ?? 0) > Number(p.minStock ?? p.lowStockLevel ?? 10)).length;
+      const lowStock = catProds.length - inStock;
+      return {
+        name: c.name.length > 14 ? c.name.slice(0, 14) + '...' : c.name,
+        fullName: c.name,
+        valuation: c.valuation,
+        stock: c.stock,
+        count: c.count,
+        inStock,
+        lowStock,
+      };
+    });
 
     return {
       totalProducts: products.length,
@@ -1274,9 +1361,9 @@ export default function InventoryPage() {
       outOfStockCount,
       categoryDistribution,
       topCapitalProducts,
-      worst5Products,
-      trendingProducts,
-      featuredProducts,
+      outOfStockProducts,
+      lowStockProducts,
+      reorderPriorityProducts,
       chartData,
     };
   }, [products, categories]);
@@ -1928,6 +2015,7 @@ export default function InventoryPage() {
           getCategoryName={getCategoryName}
           setActiveTab={setActiveTab}
           setStockFilter={setStockFilter}
+          setSortMode={setSortMode}
           handleOpenPanel={handleOpenPanel}
         />
       ) : (

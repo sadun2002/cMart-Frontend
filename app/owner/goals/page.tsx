@@ -3,9 +3,10 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { 
   Target, Plus, Search, Filter, List, LayoutGrid, Maximize, Minimize, X, Calendar, Clock, 
-  Edit2, Trash2, CheckCircle2, TrendingUp, AlertTriangle, ChevronRight, DollarSign, 
-  Package, Users, Truck, Receipt, UserCheck, Lock, Zap
+  Edit2, Trash2, CheckCircle2, TrendingUp, TrendingDown, AlertTriangle, ChevronRight, DollarSign, 
+  Package, Users, Truck, Receipt, UserCheck, Lock, Zap, Star, BarChart3, ArrowRight, Award
 } from 'lucide-react';
+import { ResponsiveContainer, BarChart, Bar, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
 import { storeOwnerAPI } from '@/lib/api';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -27,6 +28,483 @@ import {
   GOAL_CATEGORY_OPTIONS 
 } from '@/components/shared/SetGoalPanel';
 
+interface GoalsOverviewDashboardProps {
+  kpis: Array<{ title: string; value: string; icon: any; color: string; bg: string }>;
+  overviewStats: {
+    totalGoals: number;
+    fulfilledCount: number;
+    inProgressCount: number;
+    missedCount: number;
+    completionRate: number;
+    chartData: Array<{ name: string; fullName: string; target: number; achieved: number; pct: number }>;
+    topPerformingGoals: Array<{ goal: SalesGoal; achieved: number; target: number; pct: number; status: string }>;
+    atRiskGoals: Array<{ goal: SalesGoal; achieved: number; target: number; pct: number; status: string }>;
+    categoryBreakdown: Array<{ category: string; label: string; count: number; totalTarget: number; totalAchieved: number; avgPct: number; icon: any; color: string; bg: string }>;
+    recentFulfilledGoals: Array<{ goal: SalesGoal; achieved: number; target: number; pct: number }>;
+  };
+  setActiveTab: (tab: 'overview' | 'table') => void;
+  setGoalStatusFilter: (status: string) => void;
+  setGoalCategoryFilter: (category: string) => void;
+  handleEditGoal: (goal: SalesGoal) => void;
+  setIsGoalPanelOpen: (open: boolean) => void;
+}
+
+function GoalsOverviewDashboard({
+  kpis,
+  overviewStats,
+  setActiveTab,
+  setGoalStatusFilter,
+  setGoalCategoryFilter,
+  handleEditGoal,
+  setIsGoalPanelOpen,
+}: GoalsOverviewDashboardProps) {
+  const [chartMetric, setChartMetric] = useState<'progress' | 'values'>('progress');
+  const [chartType, setChartType] = useState<'bar' | 'line'>('bar');
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const formatGoalVal = (val: number, cat?: string) => {
+    if (cat === 'sales_revenue' || cat === 'expenses' || cat === 'profit') {
+      return `Rs. ${Number(val || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+    }
+    return `${Number(val || 0).toLocaleString()} units`;
+  };
+
+  return (
+    <div className="flex-1 overflow-y-auto no-scrollbar pr-1 pb-10 space-y-6">
+      {/* ──────────────── 1. REUSABLE TOP 4 KPI CARDS ──────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {kpis.map((kpi, idx) => (
+          <KpiCard
+            key={idx}
+            title={kpi.title}
+            value={kpi.value}
+            icon={kpi.icon}
+            iconColorClass={kpi.color}
+            iconBgClass={kpi.bg}
+          />
+        ))}
+      </div>
+
+      {/* ──────────────── 2. MAIN DASHBOARD GRID: CHART (2 Cols) + TOP PERFORMING GOALS (1 Col) ──────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left: Chart Card (Goal Targets vs Achieved Progress) */}
+        <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 w-full text-left flex flex-col h-[380px] justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 flex-shrink-0">
+            <div>
+              <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <BarChart3 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                Goal Progress & Fulfillment Pace
+              </h2>
+              <p className="text-[11px] text-slate-400 font-medium">
+                {chartMetric === 'progress' ? 'Percentage achieved toward target quota (%)' : 'Target vs Achieved comparison'}
+              </p>
+            </div>
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              {/* Metric Toggle: Progress % vs Values */}
+              <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg text-xs font-bold">
+                <button
+                  type="button"
+                  onClick={() => setChartMetric('progress')}
+                  className={`px-2.5 py-1 rounded-md transition-all ${chartMetric === 'progress' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
+                >
+                  Progress (%)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setChartMetric('values')}
+                  className={`px-2.5 py-1 rounded-md transition-all ${chartMetric === 'values' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
+                >
+                  Target vs Actual
+                </button>
+              </div>
+
+              {/* Bar / Line toggle */}
+              <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg text-xs font-bold">
+                <button
+                  type="button"
+                  onClick={() => setChartType('bar')}
+                  className={`px-2.5 py-1 rounded-md transition-all ${chartType === 'bar' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
+                >
+                  Bar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setChartType('line')}
+                  className={`px-2.5 py-1 rounded-md transition-all ${chartType === 'line' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
+                >
+                  Line
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex-1 min-h-0 w-full relative">
+            {mounted ? (
+              overviewStats.chartData.length === 0 ? (
+                <div className="absolute inset-0 flex items-center justify-center text-xs text-slate-400">
+                  No active goals available to plot. Click &apos;New Goal&apos; to create one.
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  {chartType === 'bar' ? (
+                    <BarChart data={overviewStats.chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" strokeOpacity={0.4} />
+                      <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                      <YAxis 
+                        tick={{ fontSize: 10, fill: '#9CA3AF' }} 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tickFormatter={(v) => chartMetric === 'progress' ? `${v}%` : (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`)} 
+                      />
+                      <Tooltip 
+                        formatter={(v: any, name: any) => [
+                          chartMetric === 'progress' ? `${Number(v)}%` : Number(v).toLocaleString(),
+                          name === 'pct' ? 'Achieved %' : name === 'target' ? 'Target' : 'Achieved'
+                        ]} 
+                        labelFormatter={(label, payload) => payload?.[0]?.payload?.fullName || label}
+                        contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.95)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '12px' }}
+                      />
+                      {chartMetric === 'progress' ? (
+                        <Bar dataKey="pct" fill="#3B82F6" radius={[6, 6, 0, 0]} />
+                      ) : (
+                        <>
+                          <Bar dataKey="target" fill="#E2E8F0" radius={[6, 6, 0, 0]} name="target" />
+                          <Bar dataKey="achieved" fill="#10B981" radius={[6, 6, 0, 0]} name="achieved" />
+                        </>
+                      )}
+                    </BarChart>
+                  ) : (
+                    <LineChart data={overviewStats.chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" strokeOpacity={0.4} />
+                      <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                      <YAxis 
+                        tick={{ fontSize: 10, fill: '#9CA3AF' }} 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tickFormatter={(v) => chartMetric === 'progress' ? `${v}%` : (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`)} 
+                      />
+                      <Tooltip 
+                        formatter={(v: any, name: any) => [
+                          chartMetric === 'progress' ? `${Number(v)}%` : Number(v).toLocaleString(),
+                          name === 'pct' ? 'Achieved %' : name === 'target' ? 'Target' : 'Achieved'
+                        ]} 
+                        labelFormatter={(label, payload) => payload?.[0]?.payload?.fullName || label}
+                        contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.95)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '12px' }}
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey={chartMetric === 'progress' ? 'pct' : 'achieved'} 
+                        stroke="#3B82F6" 
+                        strokeWidth={3} 
+                        dot={{ r: 4, fill: '#3B82F6' }} 
+                        activeDot={{ r: 6 }} 
+                      />
+                    </LineChart>
+                  )}
+                </ResponsiveContainer>
+              )
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center text-xs text-slate-400">
+                Loading goal chart...
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex-shrink-0 font-medium">
+            <span>Overall Goals Fulfillment Rate</span>
+            <span className="font-bold text-slate-900 dark:text-white">
+              {overviewStats.completionRate}% ({overviewStats.fulfilledCount} of {overviewStats.totalGoals} completed)
+            </span>
+          </div>
+        </div>
+
+        {/* Right: Card 1 - Top Performing Goals */}
+        <div className="lg:col-span-1 bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 pb-5 md:pb-5 w-full text-left flex flex-col h-[380px] justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-4 md:mb-5">
+              <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
+                Top Performing Goals
+              </h2>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
+                Highest %
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              {overviewStats.topPerformingGoals.length === 0 ? (
+                <div className="py-12 text-center text-slate-400 text-xs font-medium">
+                  No active goals recorded yet.
+                </div>
+              ) : (
+                overviewStats.topPerformingGoals.map(({ goal: g, achieved, target, pct }, i) => {
+                  const rankColors = [
+                    'bg-emerald-500 text-white',
+                    'bg-emerald-600 text-white',
+                    'bg-teal-500 text-white',
+                    'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300',
+                    'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                  ];
+                  return (
+                    <div 
+                      key={g.id || i} 
+                      onClick={() => handleEditGoal(g)}
+                      className="flex items-center justify-between gap-3 p-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
+                      title="Click to view/edit goal"
+                    >
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 ${rankColors[i] || 'bg-slate-200 text-slate-700'}`}>
+                          {i + 1}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-blue-600 transition-colors">
+                            {g.name}
+                          </div>
+                          <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden mt-1">
+                            <div 
+                              className="h-full bg-emerald-500 rounded-full" 
+                              style={{ width: `${Math.min(100, pct)}%` }} 
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right flex-shrink-0 pl-2">
+                        <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 block">
+                          {pct}%
+                        </span>
+                        <span className="text-[10px] text-slate-400 block truncate">
+                          {formatGoalVal(achieved, g.category)}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          <div className="mt-2 pt-2.5 pb-1 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center">
+            <button
+              type="button"
+              onClick={() => setActiveTab('table')}
+              className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer leading-normal"
+            >
+              View All in Goals List →
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ──────────────── 3. BOTTOM ROW: 3 RANKINGS / INSIGHTS CARDS ──────────────── */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        {/* Card 2: At-Risk Goals */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 pb-5 md:pb-5 w-full text-left flex flex-col h-[380px] justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-4 md:mb-5">
+              <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-rose-500 dark:text-rose-400" />
+                At-Risk Goals
+              </h2>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400">
+                Needs Attention
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              {overviewStats.atRiskGoals.length === 0 ? (
+                <div className="py-12 text-center text-emerald-600 dark:text-emerald-400 text-xs font-medium flex flex-col items-center justify-center gap-2">
+                  <CheckCircle2 className="w-8 h-8 text-emerald-500" />
+                  <span>No at-risk goals! All quotas are performing well.</span>
+                </div>
+              ) : (
+                overviewStats.atRiskGoals.map(({ goal: g, achieved, target, pct }, i) => {
+                  const gap = Math.max(0, target - achieved);
+                  return (
+                    <div 
+                      key={g.id || i} 
+                      onClick={() => handleEditGoal(g)}
+                      className="flex items-center justify-between gap-3 p-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
+                      title="Click to edit goal"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300">
+                          {i + 1}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-rose-600 transition-colors">
+                            {g.name}
+                          </div>
+                          <div className="text-[10px] text-rose-500 dark:text-rose-400 font-bold truncate">
+                            Only {pct}% reached • Need {formatGoalVal(gap, g.category)}
+                          </div>
+                        </div>
+                      </div>
+                      <span className="text-xs font-black text-rose-600 dark:text-rose-400 flex-shrink-0">
+                        {pct}%
+                      </span>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          <div className="mt-2 pt-2.5 pb-1 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center">
+            <button
+              type="button"
+              onClick={() => {
+                setGoalStatusFilter('in_progress');
+                setActiveTab('table');
+              }}
+              className="text-xs text-rose-600 dark:text-rose-400 font-bold hover:underline cursor-pointer leading-normal"
+            >
+              Filter In-Progress in Table →
+            </button>
+          </div>
+        </div>
+
+        {/* Card 3: Goals Category Breakdown */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 pb-5 md:pb-5 w-full text-left flex flex-col h-[380px] justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-4 md:mb-5">
+              <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Target className="w-5 h-5 text-blue-500 dark:text-blue-400" />
+                Category Distribution
+              </h2>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
+                Pace
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              {overviewStats.categoryBreakdown.length === 0 ? (
+                <div className="py-12 text-center text-slate-400 text-xs font-medium">
+                  No categories set yet.
+                </div>
+              ) : (
+                overviewStats.categoryBreakdown.map((cat, i) => {
+                  const CatIcon = cat.icon || Target;
+                  return (
+                    <div 
+                      key={i} 
+                      onClick={() => {
+                        setGoalCategoryFilter(cat.category);
+                        setActiveTab('table');
+                      }}
+                      className="flex items-center justify-between gap-3 p-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
+                      title="Click to filter by category"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`w-8 h-8 rounded-xl ${cat.bg || 'bg-blue-50 dark:bg-blue-900/20'} flex items-center justify-center ${cat.color || 'text-blue-500'} flex-shrink-0`}>
+                          <CatIcon className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-blue-600 transition-colors">
+                            {cat.label}
+                          </div>
+                          <div className="text-[10px] text-slate-400 truncate">
+                            {cat.count} goal{cat.count !== 1 ? 's' : ''} • Avg: {cat.avgPct}%
+                          </div>
+                        </div>
+                      </div>
+                      <span className="text-xs font-black text-slate-900 dark:text-white flex-shrink-0">
+                        {cat.avgPct}% avg
+                      </span>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          <div className="mt-2 pt-2.5 pb-1 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center">
+            <button
+              type="button"
+              onClick={() => setActiveTab('table')}
+              className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer leading-normal"
+            >
+              Filter Categories in Table →
+            </button>
+          </div>
+        </div>
+
+        {/* Card 4: Fulfilled Milestones */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 pb-5 md:pb-5 w-full text-left flex flex-col h-[380px] justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-4 md:mb-5">
+              <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
+                Fulfilled Milestones
+              </h2>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
+                100%+ Quota
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              {overviewStats.recentFulfilledGoals.length === 0 ? (
+                <div className="py-12 text-center text-slate-400 text-xs font-medium">
+                  No fulfilled goals yet. Keep pushing towards your targets!
+                </div>
+              ) : (
+                overviewStats.recentFulfilledGoals.map(({ goal: g, achieved, target, pct }, i) => {
+                  return (
+                    <div 
+                      key={g.id || i} 
+                      onClick={() => {
+                        setGoalStatusFilter('fulfilled');
+                        setActiveTab('table');
+                      }}
+                      className="flex items-center justify-between gap-3 p-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
+                      title="Click to view fulfilled goal"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+                          ✓
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-emerald-600 transition-colors">
+                            {g.name}
+                          </div>
+                          <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold truncate">
+                            {formatGoalVal(achieved, g.category)} / {formatGoalVal(target, g.category)}
+                          </div>
+                        </div>
+                      </div>
+                      <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 flex-shrink-0">
+                        {pct}%
+                      </span>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          <div className="mt-2 pt-2.5 pb-1 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center">
+            <button
+              type="button"
+              onClick={() => {
+                setGoalStatusFilter('fulfilled');
+                setActiveTab('table');
+              }}
+              className="text-xs text-emerald-600 dark:text-emerald-400 font-bold hover:underline cursor-pointer leading-normal"
+            >
+              View Fulfilled Goals in Table →
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
 export default function OwnerGoalsPage() {
   const { user } = useAuthStore();
   const userPlan = (user?.tenant?.plan || 'STARTUP').toUpperCase();
@@ -39,6 +517,7 @@ export default function OwnerGoalsPage() {
   const [search, setSearch] = useState('');
 
   // View & Filter State
+  const [activeTab, setActiveTab] = useState<'overview' | 'table'>('overview');
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -223,6 +702,69 @@ export default function OwnerGoalsPage() {
     ];
   }, [goals, sales]);
 
+  const overviewStats = useMemo(() => {
+    const goalsWithProgress = goals.map(g => {
+      const prog = calculateGoalProgress(g, sales);
+      const status = getGoalStatus(g, prog.achieved);
+      const target = Number(g.targetAmount || 0);
+      const pct = prog.percentage ?? (target > 0 ? Math.min(100, Math.round((prog.achieved / target) * 100)) : 0);
+      return { goal: g, progress: prog, status, pct, achieved: prog.achieved, target };
+    });
+
+    const chartData = goalsWithProgress.slice(0, 7).map(({ goal, achieved, target, pct }) => ({
+      name: goal.name.length > 14 ? goal.name.slice(0, 14) + '...' : goal.name,
+      fullName: goal.name,
+      target,
+      achieved,
+      pct
+    }));
+
+    const topPerformingGoals = [...goalsWithProgress].sort((a, b) => b.pct - a.pct).slice(0, 5);
+    const atRiskGoals = [...goalsWithProgress].filter(g => g.status === 'in_progress').sort((a, b) => a.pct - b.pct).slice(0, 5);
+
+    const catMap = new Map<string, { category: string; label: string; count: number; totalTarget: number; totalAchieved: number; sumPct: number; icon: any; color: string; bg: string }>();
+    GOAL_CATEGORY_OPTIONS.forEach(cat => {
+      catMap.set(cat.value, { category: cat.value, label: cat.label, count: 0, totalTarget: 0, totalAchieved: 0, sumPct: 0, icon: cat.icon, color: cat.color, bg: cat.bg });
+    });
+    goalsWithProgress.forEach(({ goal, achieved, target, pct }) => {
+      const entry = catMap.get(goal.category);
+      if (entry) {
+        entry.count += 1;
+        entry.totalTarget += target;
+        entry.totalAchieved += achieved;
+        entry.sumPct += pct;
+      }
+    });
+    const categoryBreakdown = Array.from(catMap.values()).map(c => ({
+      ...c,
+      avgPct: c.count > 0 ? Math.round(c.sumPct / c.count) : 0
+    }));
+
+    const recentFulfilledGoals = [...goalsWithProgress].filter(g => g.status === 'fulfilled').slice(0, 5);
+    const totalGoals = goals.length;
+    let fulfilledCount = 0;
+    let inProgressCount = 0;
+    let missedCount = 0;
+    goalsWithProgress.forEach(g => {
+      if (g.status === 'fulfilled') fulfilledCount++;
+      else if (g.status === 'missed') missedCount++;
+      else inProgressCount++;
+    });
+
+    return {
+      totalGoals,
+      fulfilledCount,
+      inProgressCount,
+      missedCount,
+      completionRate: totalGoals > 0 ? Math.round((fulfilledCount / totalGoals) * 100) : 0,
+      chartData,
+      topPerformingGoals,
+      atRiskGoals,
+      categoryBreakdown,
+      recentFulfilledGoals
+    };
+  }, [goals, sales]);
+
   const activeFilterCount = useMemo(() => {
     let count = 0;
     if (goalCategoryFilter !== 'all') count++;
@@ -277,75 +819,95 @@ export default function OwnerGoalsPage() {
   return (
     <div className={`flex flex-col bg-[#F4F7F6] dark:bg-slate-900 ${isFullscreen ? 'h-full p-2 sm:p-4' : 'h-full p-6 lg:p-8'}`}>
       
-      {/* ──────────────── HEADER & KPIS ──────────────── */}
+      {/* ──────────────── HEADER ──────────────── */}
       {!isFullscreen && (
-        <div className="mb-8">
-          <div className="font-sans flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-            <div>
-              <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
-                <Target className="w-8 h-8 text-blue-600" />
-                Goals History
-              </h1>
-              <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium">
-                Track target milestones, sales quotas, and fulfillment status.
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <button 
-                onClick={() => {
-                  setEditingGoal(null);
-                  setIsGoalPanelOpen(true);
-                }}
-                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
-              >
-                <Plus className="w-5 h-5" />
-                New Goal
-              </button>
-            </div>
+        <div className="font-sans flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+          <div>
+            <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
+              <Target className="w-8 h-8 text-blue-600" />
+              Goals History
+            </h1>
+            <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium">
+              Track target milestones, sales quotas, and fulfillment performance.
+            </p>
           </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {kpis.map((kpi, idx) => (
-              <KpiCard
-                key={idx}
-                title={kpi.title}
-                value={kpi.value}
-                icon={kpi.icon}
-                iconColorClass={kpi.color}
-                iconBgClass={kpi.bg}
-              />
-            ))}
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => {
+                setEditingGoal(null);
+                setIsGoalPanelOpen(true);
+              }}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+            >
+              <Plus className="w-5 h-5" />
+              New Goal
+            </button>
           </div>
         </div>
       )}
 
-      {/* ──────────────── TOOLBAR CARD ──────────────── */}
+      {/* ──────────────── NAVIGATION TABS & UNIFIED TOOLBAR ──────────────── */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-        {/* Search Bar on Left */}
-        <div className="relative w-full sm:w-80 group">
-          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors">
-            <Search className="h-4 w-4" />
-          </div>
-          <input 
-            type="text"
-            placeholder="Search goals..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-11 pr-4 h-12 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-2xl shadow-sm text-slate-900 dark:text-white font-bold placeholder:text-slate-400 placeholder:font-medium transition-all outline-none text-sm"
-          />
-          {search && (
-            <button 
-              type="button"
-              onClick={() => setSearch('')}
-              className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          )}
+        {/* Left: Mode Toggle (Goals Overview | Goals List) */}
+        <div className="flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm h-12 p-1 overflow-hidden shrink-0">
+          <button 
+            type="button"
+            onClick={() => setActiveTab('overview')}
+            className={`flex items-center justify-center px-5 h-full rounded-xl transition-all font-bold text-xs sm:text-sm cursor-pointer ${
+              activeTab === 'overview'
+                ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm'
+                : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
+            }`}
+          >
+            Goals Overview
+          </button>
+
+          <div className="w-px h-full bg-slate-200 dark:bg-slate-800 mx-1"></div>
+
+          <button 
+            type="button"
+            onClick={() => setActiveTab('table')}
+            className={`flex items-center justify-center px-5 h-full rounded-xl transition-all font-bold text-xs sm:text-sm cursor-pointer ${
+              activeTab === 'table'
+                ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm'
+                : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
+            }`}
+          >
+            Goals List
+          </button>
         </div>
 
-        {/* Toolbar Controls on Right: Filter, List/Grid, Fullscreen */}
-        <div className="flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm h-12 p-1 overflow-hidden shrink-0 ml-auto">
+        {/* Right: Unified Toolbar Card (Search, Filters, View Toggles, Fullscreen) */}
+        <div className="flex items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm h-12 p-1 overflow-hidden shrink-0 ml-auto w-full sm:w-auto">
+          {/* Integrated Search Bar on Left */}
+          <div className="relative flex items-center flex-1 sm:w-60 h-full pl-3 pr-2">
+            <Search className="w-4 h-4 text-slate-400 mr-2 shrink-0 pointer-events-none" />
+            <input 
+              type="text"
+              placeholder="Search goals..."
+              value={search}
+              onChange={e => {
+                setSearch(e.target.value);
+                if (activeTab === 'overview' && e.target.value.trim() !== '') {
+                  setActiveTab('table');
+                }
+              }}
+              className="w-full bg-transparent border-0 outline-none text-xs font-bold text-slate-900 dark:text-white placeholder:text-slate-400 placeholder:font-medium"
+            />
+            {search && (
+              <button 
+                type="button"
+                onClick={() => setSearch('')}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 ml-1 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          <div className="w-px h-full bg-slate-200 dark:bg-slate-800 mx-1"></div>
+
+          {/* Filter Button */}
           <button 
             type="button"
             onClick={() => setIsFilterOpen(!isFilterOpen)}
@@ -367,12 +929,16 @@ export default function OwnerGoalsPage() {
 
           <div className="w-px h-full bg-slate-200 dark:bg-slate-800 mx-1"></div>
 
+          {/* List View Toggle */}
           <button 
             type="button"
-            onClick={() => setViewMode('list')}
+            onClick={() => {
+              setActiveTab('table');
+              setViewMode('list');
+            }}
             title="List View"
             className={`flex items-center justify-center w-10 h-full rounded-xl transition-all cursor-pointer ${
-              viewMode === 'list' 
+              viewMode === 'list' && activeTab === 'table'
                 ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm' 
                 : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'
             }`}
@@ -380,12 +946,16 @@ export default function OwnerGoalsPage() {
             <List className="w-4 h-4" />
           </button>
 
+          {/* Grid View Toggle */}
           <button 
             type="button"
-            onClick={() => setViewMode('grid')}
+            onClick={() => {
+              setActiveTab('table');
+              setViewMode('grid');
+            }}
             title="Grid View"
             className={`flex items-center justify-center w-10 h-full rounded-xl transition-all cursor-pointer ${
-              viewMode === 'grid' 
+              viewMode === 'grid' && activeTab === 'table'
                 ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm' 
                 : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'
             }`}
@@ -395,6 +965,7 @@ export default function OwnerGoalsPage() {
 
           <div className="w-px h-full bg-slate-200 dark:bg-slate-800 mx-1"></div>
 
+          {/* Full Screen Toggle */}
           <button 
             type="button"
             onClick={() => setIsFullscreen(!isFullscreen)}
@@ -406,8 +977,19 @@ export default function OwnerGoalsPage() {
         </div>
       </div>
 
-      {/* ──────────────── DATA CONTAINER ──────────────── */}
-      <div className={`flex-1 bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col min-h-[400px] ${isFullscreen ? 'm-0 rounded-none border-none' : ''}`}>
+      {activeTab === 'overview' ? (
+        <GoalsOverviewDashboard
+          kpis={kpis}
+          overviewStats={overviewStats}
+          setActiveTab={setActiveTab}
+          setGoalStatusFilter={setGoalStatusFilter}
+          setGoalCategoryFilter={setGoalCategoryFilter}
+          handleEditGoal={handleEditGoal}
+          setIsGoalPanelOpen={setIsGoalPanelOpen}
+        />
+      ) : (
+        /* ──────────────── DATA CONTAINER ──────────────── */
+        <div className={`flex-1 bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col min-h-[400px] ${isFullscreen ? 'm-0 rounded-none border-none' : ''}`}>
         {loading ? (
           <div className="flex flex-col items-center justify-center py-24 text-slate-400 gap-4">
             <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
@@ -720,6 +1302,7 @@ export default function OwnerGoalsPage() {
             </div>
           )}
         </div>
+      )}
 
       {/* ──────────────── FILTERS SLIDE OUT PANEL ──────────────── */}
       <FilterPanel

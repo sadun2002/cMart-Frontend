@@ -2,8 +2,10 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { 
-  Receipt, Search, Plus, Printer, Eye, ChevronDown, ChevronUp, Copy, CheckCircle, XCircle, Clock, Banknote, ShoppingBag, LayoutGrid, List, Maximize, Minimize, X, Calendar, Filter, FileText, UserCircle, User, Package, CreditCard, DollarSign, QrCode, Minus, ShoppingCart, Lock, Trash2, Tag, RotateCcw
+  Receipt, Search, Plus, Printer, Eye, ChevronDown, ChevronUp, Copy, CheckCircle, XCircle, Clock, Banknote, ShoppingBag, LayoutGrid, List, Maximize, Minimize, X, Calendar, Filter, FileText, UserCircle, User, Package, CreditCard, DollarSign, QrCode, Minus, ShoppingCart, Lock, Trash2, Tag, RotateCcw,
+  TrendingUp, TrendingDown, Star, BarChart3, AlertCircle, CheckCircle2, ArrowRight, Users
 } from 'lucide-react';
+import { ResponsiveContainer, BarChart, Bar, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
 import { storeOwnerAPI } from '@/lib/api';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -16,11 +18,476 @@ import { ValidationErrorTooltip } from '@/components/ui/validation-error-tooltip
 import { getLocalSales, processRefundLocally } from '@/lib/local-services';
 import { useAuthStore } from '@/lib/auth-store';
 
+interface SalesOverviewDashboardProps {
+  kpis: Array<{ title: string; value: string; icon: any; color: string; bg: string }>;
+  overviewStats: {
+    totalRevenue: number;
+    totalTransactions: number;
+    todaysRevenue: number;
+    avgOrderValue: number;
+    chartData: Array<{ date: string; revenue: number; orders: number }>;
+    topSellingProducts: Array<{ name: string; quantity: number; revenue: number }>;
+    topCustomers: Array<{ name: string; count: number; spend: number }>;
+    paymentMethods: Array<{ method: string; count: number; amount: number; percentage: number }>;
+    recentHighValueOrders: Array<{ id: string | number; invoiceNo: string; customerName: string; total: number; createdAt: string; paymentMethod: string }>;
+  };
+  setActiveTab: (tab: 'overview' | 'table') => void;
+  setPaymentMethodFilter: (method: string) => void;
+  openViewPanel: (sale: any) => void;
+  sales: any[];
+}
+
+function SalesOverviewDashboard({
+  kpis,
+  overviewStats,
+  setActiveTab,
+  setPaymentMethodFilter,
+  openViewPanel,
+  sales
+}: SalesOverviewDashboardProps) {
+  const [chartMetric, setChartMetric] = useState<'revenue' | 'orders'>('revenue');
+  const [chartType, setChartType] = useState<'bar' | 'line'>('bar');
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  return (
+    <div className="flex-1 overflow-y-auto no-scrollbar pr-1 pb-10 space-y-6">
+      {/* ──────────────── 1. REUSABLE TOP 4 KPI CARDS ──────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {kpis.map((kpi, idx) => (
+          <KpiCard
+            key={idx}
+            title={kpi.title}
+            value={kpi.value}
+            icon={kpi.icon}
+            iconColorClass={kpi.color}
+            iconBgClass={kpi.bg}
+          />
+        ))}
+      </div>
+
+      {/* ──────────────── 2. MAIN DASHBOARD GRID: CHART (2 Cols) + TOP SELLING PRODUCTS (1 Col) ──────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left: Chart Card (Sales Revenue & Orders Trend) */}
+        <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 w-full text-left flex flex-col h-[380px] justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 flex-shrink-0">
+            <div>
+              <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <BarChart3 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                Sales Performance & Order Velocity
+              </h2>
+              <p className="text-[11px] text-slate-400 font-medium">
+                {chartMetric === 'revenue' ? 'Daily revenue timeline (Rs.)' : 'Transaction count timeline'}
+              </p>
+            </div>
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              {/* Metric Toggle: Revenue vs Orders */}
+              <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg text-xs font-bold">
+                <button
+                  type="button"
+                  onClick={() => setChartMetric('revenue')}
+                  className={`px-2.5 py-1 rounded-md transition-all ${chartMetric === 'revenue' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
+                >
+                  Revenue (Rs)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setChartMetric('orders')}
+                  className={`px-2.5 py-1 rounded-md transition-all ${chartMetric === 'orders' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
+                >
+                  Orders
+                </button>
+              </div>
+
+              {/* Bar / Line toggle */}
+              <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg text-xs font-bold">
+                <button
+                  type="button"
+                  onClick={() => setChartType('bar')}
+                  className={`px-2.5 py-1 rounded-md transition-all ${chartType === 'bar' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
+                >
+                  Bar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setChartType('line')}
+                  className={`px-2.5 py-1 rounded-md transition-all ${chartType === 'line' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
+                >
+                  Line
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex-1 min-h-0 w-full relative">
+            {mounted ? (
+              overviewStats.chartData.length === 0 ? (
+                <div className="absolute inset-0 flex items-center justify-center text-xs text-slate-400">
+                  No sales transaction history available to plot.
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  {chartType === 'bar' ? (
+                    <BarChart data={overviewStats.chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" strokeOpacity={0.4} />
+                      <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                      <YAxis 
+                        tick={{ fontSize: 10, fill: '#9CA3AF' }} 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tickFormatter={(v) => chartMetric === 'revenue' ? (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`) : `${v}`} 
+                      />
+                      <Tooltip 
+                        formatter={(v: any) => [
+                          chartMetric === 'revenue' 
+                            ? `Rs. ${Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` 
+                            : `${Number(v)} orders`, 
+                          chartMetric === 'revenue' ? 'Sales Revenue' : 'Orders'
+                        ]} 
+                        contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.95)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '12px' }}
+                      />
+                      <Bar 
+                        dataKey={chartMetric === 'revenue' ? 'revenue' : 'orders'} 
+                        fill={chartMetric === 'revenue' ? '#3B82F6' : '#8B5CF6'} 
+                        radius={[6, 6, 0, 0]} 
+                      />
+                    </BarChart>
+                  ) : (
+                    <LineChart data={overviewStats.chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" strokeOpacity={0.4} />
+                      <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                      <YAxis 
+                        tick={{ fontSize: 10, fill: '#9CA3AF' }} 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tickFormatter={(v) => chartMetric === 'revenue' ? (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`) : `${v}`} 
+                      />
+                      <Tooltip 
+                        formatter={(v: any) => [
+                          chartMetric === 'revenue' 
+                            ? `Rs. ${Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` 
+                            : `${Number(v)} orders`, 
+                          chartMetric === 'revenue' ? 'Sales Revenue' : 'Orders'
+                        ]} 
+                        contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.95)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '12px' }}
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey={chartMetric === 'revenue' ? 'revenue' : 'orders'} 
+                        stroke={chartMetric === 'revenue' ? '#3B82F6' : '#8B5CF6'} 
+                        strokeWidth={3} 
+                        dot={{ r: 4, fill: chartMetric === 'revenue' ? '#3B82F6' : '#8B5CF6' }} 
+                        activeDot={{ r: 6 }} 
+                      />
+                    </LineChart>
+                  )}
+                </ResponsiveContainer>
+              )
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center text-xs text-slate-400">
+                Loading sales chart...
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex-shrink-0 font-medium">
+            <span>
+              {chartMetric === 'revenue' ? 'Total Period Sales' : 'Total Period Orders'}
+            </span>
+            <span className="font-bold text-slate-900 dark:text-white">
+              {chartMetric === 'revenue' 
+                ? `Rs. ${overviewStats.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                : `${overviewStats.totalTransactions} transactions`}
+            </span>
+          </div>
+        </div>
+
+        {/* Right: Card 1 - Top 5 Selling Products */}
+        <div className="lg:col-span-1 bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 pb-5 md:pb-5 w-full text-left flex flex-col h-[380px] justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-4 md:mb-5">
+              <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <ShoppingBag className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                Top Selling Products
+              </h2>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
+                By Volume
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              {overviewStats.topSellingProducts.length === 0 ? (
+                <div className="py-12 text-center text-slate-400 text-xs font-medium">
+                  No sales items recorded yet.
+                </div>
+              ) : (
+                overviewStats.topSellingProducts.map((item, i) => {
+                  const rankColors = [
+                    'bg-amber-500 text-white',
+                    'bg-slate-400 text-white',
+                    'bg-orange-700 text-white',
+                    'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300',
+                    'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                  ];
+                  return (
+                    <div 
+                      key={i} 
+                      onClick={() => setActiveTab('table')}
+                      className="flex items-center justify-between gap-3 p-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
+                      title="Click to view sales table"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 ${rankColors[i] || 'bg-slate-200 text-slate-700'}`}>
+                          {i + 1}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-blue-600 transition-colors">
+                            {item.name}
+                          </div>
+                          <div className="text-[10px] text-slate-400 truncate">
+                            {item.quantity} units sold
+                          </div>
+                        </div>
+                      </div>
+                      <span className="text-xs font-black text-slate-900 dark:text-white flex-shrink-0">
+                        Rs. {item.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          <div className="mt-2 pt-2.5 pb-1 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center">
+            <button
+              type="button"
+              onClick={() => setActiveTab('table')}
+              className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer leading-normal"
+            >
+              View All in Sales Table →
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ──────────────── 3. BOTTOM ROW: 3 RANKINGS / INSIGHTS CARDS ──────────────── */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        {/* Card 2: Top Customers by Spend */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 pb-5 md:pb-5 w-full text-left flex flex-col h-[380px] justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-4 md:mb-5">
+              <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Users className="w-5 h-5 text-indigo-500 dark:text-indigo-400" />
+                Top Customers
+              </h2>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">
+                By Spend
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              {overviewStats.topCustomers.length === 0 ? (
+                <div className="py-12 text-center text-slate-400 text-xs font-medium">
+                  No customer records found.
+                </div>
+              ) : (
+                overviewStats.topCustomers.map((cust, i) => {
+                  const rankColors = [
+                    'bg-indigo-600 text-white',
+                    'bg-indigo-500 text-white',
+                    'bg-purple-500 text-white',
+                    'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300',
+                    'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                  ];
+                  return (
+                    <div 
+                      key={i} 
+                      onClick={() => setActiveTab('table')}
+                      className="flex items-center justify-between gap-3 p-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
+                      title="Click to view sales table"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 ${rankColors[i] || 'bg-slate-200 text-slate-700'}`}>
+                          {i + 1}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-indigo-600 transition-colors">
+                            {cust.name}
+                          </div>
+                          <div className="text-[10px] text-slate-400 truncate">
+                            {cust.count} orders placed
+                          </div>
+                        </div>
+                      </div>
+                      <span className="text-xs font-black text-slate-900 dark:text-white flex-shrink-0">
+                        Rs. {cust.spend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          <div className="mt-2 pt-2.5 pb-1 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center">
+            <button
+              type="button"
+              onClick={() => setActiveTab('table')}
+              className="text-xs text-indigo-600 dark:text-indigo-400 font-bold hover:underline cursor-pointer leading-normal"
+            >
+              View Customers in Sales Table →
+            </button>
+          </div>
+        </div>
+
+        {/* Card 3: Payment Method Breakdown */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 pb-5 md:pb-5 w-full text-left flex flex-col h-[380px] justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-4 md:mb-5">
+              <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <CreditCard className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
+                Payment Channels
+              </h2>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
+                Share %
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              {overviewStats.paymentMethods.length === 0 ? (
+                <div className="py-12 text-center text-slate-400 text-xs font-medium">
+                  No payment records found.
+                </div>
+              ) : (
+                overviewStats.paymentMethods.map((p, i) => {
+                  const methodLabel = p.method === 'PAYHERE_QR' ? 'Mobile QR' : p.method === 'CARD' ? 'Card Payment' : p.method === 'CASH' ? 'Cash Tendered' : p.method;
+                  return (
+                    <div 
+                      key={i} 
+                      onClick={() => {
+                        setPaymentMethodFilter(p.method.toLowerCase());
+                        setActiveTab('table');
+                      }}
+                      className="flex items-center justify-between gap-3 p-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
+                      title="Click to filter by payment method"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-xs font-bold text-slate-600 dark:text-slate-300 flex-shrink-0">
+                          {p.method === 'CASH' ? <Banknote className="w-4 h-4 text-emerald-500" /> : p.method === 'CARD' ? <CreditCard className="w-4 h-4 text-blue-500" /> : <QrCode className="w-4 h-4 text-purple-500" />}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-emerald-600 transition-colors">
+                            {methodLabel}
+                          </div>
+                          <div className="text-[10px] text-slate-400 truncate">
+                            {p.count} transactions ({p.percentage}%)
+                          </div>
+                        </div>
+                      </div>
+                      <span className="text-xs font-black text-slate-900 dark:text-white flex-shrink-0">
+                        Rs. {p.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          <div className="mt-2 pt-2.5 pb-1 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center">
+            <button
+              type="button"
+              onClick={() => setActiveTab('table')}
+              className="text-xs text-emerald-600 dark:text-emerald-400 font-bold hover:underline cursor-pointer leading-normal"
+            >
+              Filter Payment Methods in Table →
+            </button>
+          </div>
+        </div>
+
+        {/* Card 4: Recent High-Value Orders */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 pb-5 md:pb-5 w-full text-left flex flex-col h-[380px] justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-4 md:mb-5">
+              <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Receipt className="w-5 h-5 text-amber-500 dark:text-amber-400" />
+                Top Value Invoices
+              </h2>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">
+                Highest
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              {overviewStats.recentHighValueOrders.length === 0 ? (
+                <div className="py-12 text-center text-slate-400 text-xs font-medium">
+                  No orders recorded.
+                </div>
+              ) : (
+                overviewStats.recentHighValueOrders.map((ord, i) => {
+                  const actualSale = sales.find(s => s.id === ord.id);
+                  return (
+                    <div 
+                      key={i} 
+                      onClick={() => {
+                        if (actualSale) {
+                          openViewPanel(actualSale);
+                        }
+                        setActiveTab('table');
+                      }}
+                      className="flex items-center justify-between gap-3 p-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
+                      title="Click to view invoice details"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                          {i + 1}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-amber-600 transition-colors">
+                            {ord.invoiceNo}
+                          </div>
+                          <div className="text-[10px] text-slate-400 truncate">
+                            {ord.customerName} • {new Date(ord.createdAt).toLocaleDateString()}
+                          </div>
+                        </div>
+                      </div>
+                      <span className="text-xs font-black text-slate-900 dark:text-white flex-shrink-0">
+                        Rs. {ord.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          <div className="mt-2 pt-2.5 pb-1 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center">
+            <button
+              type="button"
+              onClick={() => setActiveTab('table')}
+              className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer leading-normal"
+            >
+              View Invoices in Sales Table →
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
 export default function SalesPage() {
   const { user } = useAuthStore();
   const [sales, setSales] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [activeTab, setActiveTab] = useState<'overview' | 'table'>('overview');
   
   // View & Filter State
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
@@ -146,6 +613,100 @@ export default function SalesPage() {
     ];
   }, [sales]);
 
+  const overviewStats = useMemo(() => {
+    const dateMap = new Map<string, { date: string; revenue: number; orders: number; timestamp: number }>();
+    const productMap = new Map<string, { name: string; quantity: number; revenue: number }>();
+    const customerMap = new Map<string, { name: string; count: number; spend: number }>();
+    const paymentMap = new Map<string, { method: string; count: number; amount: number }>();
+
+    sales.forEach((s) => {
+      const total = Number(s.total || 0);
+      const d = new Date(s.createdAt);
+      const dateKey = !isNaN(d.getTime()) ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Unknown';
+      const dayTimestamp = !isNaN(d.getTime()) ? new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() : 0;
+
+      const existingDate = dateMap.get(dateKey) || { date: dateKey, revenue: 0, orders: 0, timestamp: dayTimestamp };
+      existingDate.revenue += total;
+      existingDate.orders += 1;
+      dateMap.set(dateKey, existingDate);
+
+      const method = (s.paymentMethod || 'OTHER').toUpperCase();
+      const existingPay = paymentMap.get(method) || { method, count: 0, amount: 0 };
+      existingPay.count += 1;
+      existingPay.amount += total;
+      paymentMap.set(method, existingPay);
+
+      const custName = s.customer?.name || (s.customer?.phone ? `Customer (${s.customer.phone})` : 'Walk-in Customer');
+      const existingCust = customerMap.get(custName) || { name: custName, count: 0, spend: 0 };
+      existingCust.count += 1;
+      existingCust.spend += total;
+      customerMap.set(custName, existingCust);
+
+      if (Array.isArray(s.items)) {
+        s.items.forEach((item: any) => {
+          const name = item.productName || item.name || 'Unknown Product';
+          const qty = Number(item.quantity || 1);
+          const rev = Number(item.subtotal || (item.price ? item.price * qty : 0));
+          const existingProd = productMap.get(name) || { name, quantity: 0, revenue: 0 };
+          existingProd.quantity += qty;
+          existingProd.revenue += rev;
+          productMap.set(name, existingProd);
+        });
+      }
+    });
+
+    const chartData = Array.from(dateMap.values())
+      .sort((a, b) => a.timestamp - b.timestamp)
+      .slice(-10);
+
+    const topSellingProducts = Array.from(productMap.values())
+      .sort((a, b) => b.quantity - a.quantity || b.revenue - a.revenue)
+      .slice(0, 5);
+
+    const topCustomers = Array.from(customerMap.values())
+      .sort((a, b) => b.spend - a.spend)
+      .slice(0, 5);
+
+    const totalSalesRev = sales.reduce((sum, s) => sum + Number(s.total || 0), 0);
+    const paymentMethods = Array.from(paymentMap.values())
+      .map(p => ({
+        ...p,
+        percentage: totalSalesRev > 0 ? Math.round((p.amount / totalSalesRev) * 100) : 0
+      }))
+      .sort((a, b) => b.amount - a.amount);
+
+    const recentHighValueOrders = [...sales]
+      .sort((a, b) => Number(b.total || 0) - Number(a.total || 0))
+      .slice(0, 5)
+      .map(s => ({
+        id: s.id,
+        invoiceNo: s.invoiceNo || `INV-${s.id}`,
+        customerName: s.customer?.name || 'Walk-in Customer',
+        total: Number(s.total || 0),
+        createdAt: s.createdAt,
+        paymentMethod: s.paymentMethod || 'CASH'
+      }));
+
+    const totalTransactions = sales.length;
+    const avgOrderValue = totalTransactions > 0 ? totalSalesRev / totalTransactions : 0;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todaysSales = sales.filter(s => new Date(s.createdAt) >= today);
+    const todaysRevenue = todaysSales.reduce((sum, s) => sum + Number(s.total || 0), 0);
+
+    return {
+      totalRevenue: totalSalesRev,
+      totalTransactions,
+      todaysRevenue,
+      avgOrderValue,
+      chartData,
+      topSellingProducts,
+      topCustomers,
+      paymentMethods,
+      recentHighValueOrders
+    };
+  }, [sales]);
+
   const [expandedSale, setExpandedSale] = useState<number | string | null>(null);
 
   const openViewPanel = (sale: any) => {
@@ -248,72 +809,92 @@ export default function SalesPage() {
   return (
     <div className={`flex flex-col bg-[#F4F7F6] dark:bg-slate-900 ${isFullscreen ? 'h-full p-2 sm:p-4' : 'h-full p-6 lg:p-8'}`}>
       
-      {/* ──────────────── HEADER & KPIS ──────────────── */}
+      {/* ──────────────── HEADER ──────────────── */}
       {!isFullscreen && (
-        <div className="mb-8">
-          <div className="font-sans flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-            <div>
-              <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
-                <Receipt className="w-8 h-8 text-blue-600" />
-                Sales History
-              </h1>
-              <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium">
-                View and manage all transactions elegantly.
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <button 
-                onClick={() => window.location.href = '/owner/pos'}
-                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
-              >
-                <Plus className="w-5 h-5" />
-                New Sale
-              </button>
-            </div>
+        <div className="font-sans flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+          <div>
+            <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
+              <Receipt className="w-8 h-8 text-blue-600" />
+              Sales History
+            </h1>
+            <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium">
+              View and manage all transactions elegantly.
+            </p>
           </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {kpis.map((kpi, idx) => (
-              <KpiCard
-                key={idx}
-                title={kpi.title}
-                value={kpi.value}
-                icon={kpi.icon}
-                iconColorClass={kpi.color}
-                iconBgClass={kpi.bg}
-              />
-            ))}
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => window.location.href = '/owner/pos'}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+            >
+              <Plus className="w-5 h-5" />
+              New Sale
+            </button>
           </div>
         </div>
       )}
 
-      {/* ──────────────── TOOLBAR CARD ──────────────── */}
+      {/* ──────────────── NAVIGATION TABS & UNIFIED TOOLBAR ──────────────── */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-        {/* Search Bar on Left */}
-        <div className="relative w-full sm:w-80 group">
-          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors">
-            <Search className="h-4 w-4" />
-          </div>
-          <input 
-            type="text"
-            placeholder="Search invoice, customer..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-11 pr-4 h-12 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-2xl shadow-sm text-slate-900 dark:text-white font-bold placeholder:text-slate-400 placeholder:font-medium transition-all outline-none text-sm"
-          />
-          {search && (
-            <button 
-              type="button"
-              onClick={() => setSearch('')}
-              className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          )}
+        {/* Left: Mode Toggle (Sales Overview | Sales Orders) */}
+        <div className="flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm h-12 p-1 overflow-hidden shrink-0">
+          <button 
+            type="button"
+            onClick={() => setActiveTab('overview')}
+            className={`flex items-center justify-center px-5 h-full rounded-xl transition-all font-bold text-xs sm:text-sm ${
+              activeTab === 'overview'
+                ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm'
+                : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
+            }`}
+          >
+            Sales Overview
+          </button>
+
+          <div className="w-px h-full bg-slate-200 dark:bg-slate-800 mx-1"></div>
+
+          <button 
+            type="button"
+            onClick={() => setActiveTab('table')}
+            className={`flex items-center justify-center px-5 h-full rounded-xl transition-all font-bold text-xs sm:text-sm ${
+              activeTab === 'table'
+                ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm'
+                : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
+            }`}
+          >
+            Sales Orders
+          </button>
         </div>
 
-        {/* Toolbar Controls on Right: Filter, List/Grid, Fullscreen */}
-        <div className="flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm h-12 p-1 overflow-hidden shrink-0 ml-auto">
+        {/* Right: Unified Toolbar Card (Search, Filters, View Toggles, Fullscreen) */}
+        <div className="flex items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm h-12 p-1 overflow-hidden shrink-0 ml-auto w-full sm:w-auto">
+          {/* Integrated Search Bar on Left */}
+          <div className="relative flex items-center flex-1 sm:w-60 h-full pl-3 pr-2">
+            <Search className="w-4 h-4 text-slate-400 mr-2 shrink-0 pointer-events-none" />
+            <input 
+              type="text"
+              placeholder="Search invoice, customer..."
+              value={search}
+              onChange={e => {
+                setSearch(e.target.value);
+                if (activeTab === 'overview' && e.target.value.trim() !== '') {
+                  setActiveTab('table');
+                }
+              }}
+              className="w-full bg-transparent border-0 outline-none text-xs font-bold text-slate-900 dark:text-white placeholder:text-slate-400 placeholder:font-medium"
+            />
+            {search && (
+              <button 
+                type="button"
+                onClick={() => setSearch('')}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 ml-1"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          <div className="w-px h-full bg-slate-200 dark:bg-slate-800 mx-1"></div>
+
+          {/* Filter Button */}
           <button 
             type="button"
             onClick={() => setIsFilterOpen(!isFilterOpen)}
@@ -333,12 +914,16 @@ export default function SalesPage() {
 
           <div className="w-px h-full bg-slate-200 dark:bg-slate-800 mx-1"></div>
 
+          {/* List View Toggle */}
           <button 
             type="button"
-            onClick={() => setViewMode('list')}
+            onClick={() => {
+              setActiveTab('table');
+              setViewMode('list');
+            }}
             title="List View"
             className={`flex items-center justify-center w-10 h-full rounded-xl transition-all cursor-pointer ${
-              viewMode === 'list' 
+              viewMode === 'list' && activeTab === 'table'
                 ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm' 
                 : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'
             }`}
@@ -346,12 +931,16 @@ export default function SalesPage() {
             <List className="w-4 h-4" />
           </button>
 
+          {/* Grid View Toggle */}
           <button 
             type="button"
-            onClick={() => setViewMode('grid')}
+            onClick={() => {
+              setActiveTab('table');
+              setViewMode('grid');
+            }}
             title="Grid View"
             className={`flex items-center justify-center w-10 h-full rounded-xl transition-all cursor-pointer ${
-              viewMode === 'grid' 
+              viewMode === 'grid' && activeTab === 'table'
                 ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm' 
                 : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'
             }`}
@@ -361,6 +950,7 @@ export default function SalesPage() {
 
           <div className="w-px h-full bg-slate-200 dark:bg-slate-800 mx-1"></div>
 
+          {/* Full Screen Toggle */}
           <button 
             type="button"
             onClick={() => setIsFullscreen(!isFullscreen)}
@@ -372,8 +962,19 @@ export default function SalesPage() {
         </div>
       </div>
 
-      {/* ──────────────── DATA CONTAINER ──────────────── */}
-      <div className={`flex-1 bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col min-h-[400px] ${isFullscreen ? 'm-0 rounded-none border-none' : ''}`}>
+      {/* ──────────────── TAB CONTENT: OVERVIEW OR TABLE ──────────────── */}
+      {activeTab === 'overview' ? (
+        <SalesOverviewDashboard
+          kpis={kpis}
+          overviewStats={overviewStats}
+          setActiveTab={setActiveTab}
+          setPaymentMethodFilter={setPaymentMethodFilter}
+          openViewPanel={openViewPanel}
+          sales={sales}
+        />
+      ) : (
+        /* ──────────────── DATA CONTAINER ──────────────── */
+        <div className={`flex-1 bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col min-h-[400px] ${isFullscreen ? 'm-0 rounded-none border-none' : ''}`}>
         {loading ? (
           <div className="flex flex-col items-center justify-center py-24 text-slate-400 gap-4">
             <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
@@ -609,6 +1210,7 @@ export default function SalesPage() {
             )
           }
       </div>
+      )}
 
       {/* ──────────────── FILTERS SLIDE OUT PANEL ──────────────── */}
       <FilterPanel
