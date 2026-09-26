@@ -4,7 +4,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { 
   Target, Plus, Search, Filter, List, LayoutGrid, Maximize, Minimize, X, Calendar, Clock, 
   Edit2, Trash2, CheckCircle2, TrendingUp, AlertTriangle, ChevronRight, DollarSign, 
-  Package, Users, Truck, Receipt, UserCheck
+  Package, Users, Truck, Receipt, UserCheck, Lock, Zap
 } from 'lucide-react';
 import { storeOwnerAPI } from '@/lib/api';
 import { toast } from 'sonner';
@@ -17,6 +17,7 @@ import { CustomSelect } from '@/components/ui/custom-select';
 import { TableEmptyState } from '@/components/ui/table-empty-state';
 import { getLocalSales } from '@/lib/local-services';
 import { useAuthStore } from '@/lib/auth-store';
+import { UpgradeModal } from '@/components/ui/upgrade-modal';
 import { 
   SetGoalPanel, 
   SalesGoal, 
@@ -28,6 +29,10 @@ import {
 
 export default function OwnerGoalsPage() {
   const { user } = useAuthStore();
+  const userPlan = (user?.tenant?.plan || 'STARTUP').toUpperCase();
+  const isLockedForStartup = userPlan === 'FREE' || userPlan === 'STARTUP';
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+
   const [sales, setSales] = useState<any[]>([]);
   const [goals, setGoals] = useState<SalesGoal[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,9 +54,10 @@ export default function OwnerGoalsPage() {
   const [goalToDelete, setGoalToDelete] = useState<SalesGoal | null>(null);
 
   useEffect(() => {
+    if (isLockedForStartup) return;
     fetchSales();
     loadGoals();
-  }, [user?.tenantId]);
+  }, [user?.tenantId, isLockedForStartup]);
 
   const loadGoals = async () => {
     try {
@@ -224,6 +230,49 @@ export default function OwnerGoalsPage() {
     if (goalStatusFilter !== 'all') count++;
     return count;
   }, [goalCategoryFilter, goalPeriodFilter, goalStatusFilter]);
+
+  if (isLockedForStartup) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-6 text-center min-h-[70vh]">
+        <div className="relative mb-6">
+          <div className="w-20 h-20 rounded-3xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/40 flex items-center justify-center shadow-lg shadow-blue-500/10">
+            <Target className="w-10 h-10 text-blue-600 dark:text-blue-400" />
+          </div>
+          <div className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center shadow-md">
+            <Lock className="w-4 h-4" />
+          </div>
+        </div>
+
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 text-xs font-bold uppercase tracking-wider mb-4">
+          <Zap className="w-3.5 h-3.5" />
+          Pro & Enterprise Feature
+        </div>
+
+        <h2 className="text-3xl font-black text-gray-900 dark:text-white mb-3 tracking-tight">
+          Sales & Business Goals
+        </h2>
+
+        <p className="text-base text-gray-500 dark:text-slate-400 max-w-md mb-8 leading-relaxed">
+          Set customized revenue milestones, product sales targets, and track real-time pace and completion. Upgrade to Pro to unlock Goals.
+        </p>
+
+        <button
+          onClick={() => setIsUpgradeModalOpen(true)}
+          className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold text-sm shadow-lg shadow-blue-500/25 transition-all cursor-pointer"
+        >
+          <Zap className="w-4 h-4" />
+          Upgrade to Pro
+        </button>
+
+        <UpgradeModal
+          isOpen={isUpgradeModalOpen}
+          onClose={() => setIsUpgradeModalOpen(false)}
+          featureName="Goals"
+          requiredTier="Pro"
+        />
+      </div>
+    );
+  }
 
   return (
     <div className={`flex flex-col bg-[#F4F7F6] dark:bg-slate-900 ${isFullscreen ? 'h-full p-2 sm:p-4' : 'h-full p-6 lg:p-8'}`}>

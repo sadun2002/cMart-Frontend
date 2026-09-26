@@ -27,7 +27,7 @@ const mainNavItems = [
   { href: '/owner/products', label: 'Products', icon: Package },
   { href: '/owner/inventory', label: 'Inventory', icon: Warehouse },
   { href: '/owner/sales', label: 'Sales', icon: Receipt },
-  { href: '/owner/goals', label: 'Goals', icon: Target },
+  { href: '/owner/goals', label: 'Goals', icon: Target, tier: 'PRO' },
   { href: '/owner/purchases', label: 'Purchases', icon: ShoppingBag },
   { href: '/owner/suppliers', label: 'Suppliers', icon: Truck, tier: 'PRO' },
   { href: '/owner/customers', label: 'Customers', icon: Users, tier: 'PRO' },
