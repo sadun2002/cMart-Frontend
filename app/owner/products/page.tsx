@@ -1,12 +1,12 @@
 'use client';
 import { Suspense } from 'react';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { generateSystemBarcode } from '@/lib/barcode-utils';
-import { Plus, Search, Trash2, Package, Tag, Filter, X, Barcode, Edit, List, LayoutGrid, Maximize, Minimize, Copy, ChevronDown, ChevronUp, CircleDollarSign, Printer, Download, Settings, Calendar, Check, Layers, Info } from 'lucide-react';
+import { Plus, Search, Trash2, Package, Tag, Filter, X, Barcode, Edit, List, LayoutGrid, Maximize, Minimize, Copy, ChevronDown, ChevronUp, CircleDollarSign, Printer, Download, Settings, Calendar, Check, Layers, Info, TrendingUp, AlertTriangle, CheckCircle2, ShieldAlert, Boxes, Sparkles, ArrowRight } from 'lucide-react';
 import { KpiCard } from '@/components/ui/kpi-card';
 import { FilterPanel } from '@/components/ui/filter-panel';
 import { CustomSelect, CustomSelectOption } from '@/components/ui/custom-select';
@@ -244,6 +244,527 @@ function ProductHistoryView({ product, categoryName, onClose, onUpdate, onDelete
   );
 }
 
+interface ProductOverviewDashboardProps {
+  overviewStats: {
+    totalProducts: number;
+    totalStockQty: number;
+    totalCostValuation: number;
+    totalRetailValuation: number;
+    potentialProfit: number;
+    avgProfitMargin: number;
+    inStockCount: number;
+    lowStockCount: number;
+    outOfStockCount: number;
+    healthRatio: number;
+    categoryDistribution: Array<{ id: number | string; name: string; count: number; valuation: number; stock: number }>;
+    restockItems: Array<{ product: any; stock: number; threshold: number; isOutOfStock: boolean }>;
+    topCapitalProducts: Array<{ product: any; capital: number; retailValue: number; marginPercent: number }>;
+  };
+  categories: any[];
+  getCategoryName: (categoryId: number | null) => { main: string; sub: string | null } | null;
+  setActiveTab: (tab: 'overview' | 'inventory') => void;
+  setStockFilter: (filter: string) => void;
+  openEditPanel: (product: any) => void;
+  openAddPanel: () => void;
+  setIsAddCategoryPanelOpen: (open: boolean) => void;
+}
+
+function ProductOverviewDashboard({
+  overviewStats,
+  categories,
+  getCategoryName,
+  setActiveTab,
+  setStockFilter,
+  openEditPanel,
+  openAddPanel,
+  setIsAddCategoryPanelOpen,
+}: ProductOverviewDashboardProps) {
+  return (
+    <div className="flex-1 overflow-y-auto pr-1 pb-10 space-y-6">
+      {/* ──────────────── 1. SUMMARY KPI STRIP (4 CARDS) ──────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Card 1: Total Products */}
+        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm hover:shadow-md transition-all">
+          <div className="flex items-center justify-between">
+            <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0">
+              <Boxes className="w-6 h-6" />
+            </div>
+            <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-500/10 text-blue-600 border border-blue-200/50 dark:border-blue-800/40">
+              Live Catalog
+            </span>
+          </div>
+          <div className="mt-4">
+            <div className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+              {overviewStats.totalProducts}
+            </div>
+            <div className="text-xs font-bold text-slate-500 mt-1">Total Catalog Products</div>
+            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-400 mt-2">
+              <span>{overviewStats.totalStockQty.toLocaleString()} total units</span>
+              <span>•</span>
+              <span>{categories.length} categories</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Card 2: Total Tied-Up Capital (Cost Valuation) */}
+        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm hover:shadow-md transition-all">
+          <div className="flex items-center justify-between">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0">
+              <CircleDollarSign className="w-6 h-6" />
+            </div>
+            <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 border border-emerald-200/50 dark:border-emerald-800/40">
+              Cost Basis
+            </span>
+          </div>
+          <div className="mt-4">
+            <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight truncate" title={`Rs. ${overviewStats.totalCostValuation.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+              Rs. {overviewStats.totalCostValuation.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
+            <div className="text-xs font-bold text-slate-500 mt-1">Total Tied-Up Capital</div>
+            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 mt-2 truncate">
+              Retail: Rs. {overviewStats.totalRetailValuation.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
+          </div>
+        </div>
+
+        {/* Card 3: Projected Profit & Margin */}
+        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm hover:shadow-md transition-all">
+          <div className="flex items-center justify-between">
+            <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 flex items-center justify-center shrink-0">
+              <TrendingUp className="w-6 h-6" />
+            </div>
+            <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 border border-indigo-200/50 dark:border-indigo-800/40">
+              {overviewStats.avgProfitMargin.toFixed(1)}% Avg Margin
+            </span>
+          </div>
+          <div className="mt-4">
+            <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight truncate" title={`Rs. ${overviewStats.potentialProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+              Rs. {overviewStats.potentialProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
+            <div className="text-xs font-bold text-slate-500 mt-1">Projected Gross Profit</div>
+            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-400 mt-2">
+              <span>Potential return on 100% sellout</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Card 4: Stock Health Score */}
+        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm hover:shadow-md transition-all">
+          <div className="flex items-center justify-between">
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${
+              overviewStats.healthRatio >= 80 ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600' :
+              overviewStats.healthRatio >= 50 ? 'bg-amber-50 dark:bg-amber-500/10 text-amber-600' :
+              'bg-rose-50 dark:bg-rose-500/10 text-rose-600'
+            }`}>
+              <ShieldAlert className="w-6 h-6" />
+            </div>
+            <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full border ${
+              overviewStats.outOfStockCount === 0 
+                ? 'bg-emerald-50 text-emerald-600 border-emerald-200/60 dark:bg-emerald-500/10 dark:text-emerald-400' 
+                : 'bg-rose-50 text-rose-600 border-rose-200/60 dark:bg-rose-500/10 dark:text-rose-400'
+            }`}>
+              {overviewStats.outOfStockCount === 0 ? 'Optimal' : `${overviewStats.outOfStockCount} Out of Stock`}
+            </span>
+          </div>
+          <div className="mt-4">
+            <div className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+              {overviewStats.healthRatio.toFixed(0)}%
+            </div>
+            <div className="text-xs font-bold text-slate-500 mt-1">Stock Health Score</div>
+            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-400 mt-2">
+              <span className="text-emerald-600 font-bold">{overviewStats.inStockCount} In Stock</span>
+              <span>•</span>
+              <span className="text-amber-600 font-bold">{overviewStats.lowStockCount} Low</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ──────────────── 2. STOCK HEALTH RATIO & COVERAGE METER ──────────────── */}
+      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-blue-600" />
+              Inventory Stock Health & Coverage
+            </h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
+              Live distribution ratio of in-stock availability across your entire catalog.
+            </p>
+          </div>
+          <span className="text-xs font-bold text-slate-500">
+            Total: <span className="text-slate-900 dark:text-white font-black">{overviewStats.totalProducts}</span> Products
+          </span>
+        </div>
+
+        {/* Multi-segment stacked progress bar */}
+        <div className="space-y-2">
+          <div className="w-full bg-slate-100 dark:bg-slate-800 h-3.5 rounded-full overflow-hidden flex">
+            {overviewStats.totalProducts > 0 ? (
+              <>
+                <div 
+                  style={{ width: `${(overviewStats.inStockCount / overviewStats.totalProducts) * 100}%` }} 
+                  className="bg-emerald-500 h-full transition-all duration-500" 
+                  title={`In Stock: ${overviewStats.inStockCount}`} 
+                />
+                <div 
+                  style={{ width: `${(overviewStats.lowStockCount / overviewStats.totalProducts) * 100}%` }} 
+                  className="bg-amber-500 h-full transition-all duration-500" 
+                  title={`Low Stock: ${overviewStats.lowStockCount}`} 
+                />
+                <div 
+                  style={{ width: `${(overviewStats.outOfStockCount / overviewStats.totalProducts) * 100}%` }} 
+                  className="bg-rose-500 h-full transition-all duration-500" 
+                  title={`Out of Stock: ${overviewStats.outOfStockCount}`} 
+                />
+              </>
+            ) : (
+              <div className="w-full h-full bg-slate-200 dark:bg-slate-700" />
+            )}
+          </div>
+        </div>
+
+        {/* Interactive Filter Pills */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {/* In Stock */}
+          <button
+            type="button"
+            onClick={() => {
+              setStockFilter('instock');
+              setActiveTab('inventory');
+            }}
+            className="flex items-center justify-between p-3.5 rounded-2xl border border-emerald-100 dark:border-emerald-900/30 bg-emerald-50/50 dark:bg-emerald-950/20 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-all text-left group"
+          >
+            <div className="flex items-center gap-3">
+              <span className="w-3 h-3 rounded-full bg-emerald-500 shrink-0" />
+              <div>
+                <div className="text-xs font-bold text-slate-900 dark:text-white">In Stock</div>
+                <div className="text-[11px] text-slate-500">Adequate inventory</div>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-base font-black text-emerald-600 dark:text-emerald-400">
+                {overviewStats.inStockCount}
+              </div>
+              <div className="text-[10px] text-slate-400 font-bold group-hover:text-emerald-600 flex items-center gap-0.5 justify-end">
+                View in Table <ArrowRight className="w-2.5 h-2.5" />
+              </div>
+            </div>
+          </button>
+
+          {/* Low Stock */}
+          <button
+            type="button"
+            onClick={() => {
+              setStockFilter('lowstock');
+              setActiveTab('inventory');
+            }}
+            className="flex items-center justify-between p-3.5 rounded-2xl border border-amber-100 dark:border-amber-900/30 bg-amber-50/50 dark:bg-amber-950/20 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-all text-left group"
+          >
+            <div className="flex items-center gap-3">
+              <span className="w-3 h-3 rounded-full bg-amber-500 shrink-0 animate-pulse" />
+              <div>
+                <div className="text-xs font-bold text-slate-900 dark:text-white">Low Stock (&lt;10)</div>
+                <div className="text-[11px] text-slate-500">Restock recommended</div>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-base font-black text-amber-600 dark:text-amber-400">
+                {overviewStats.lowStockCount}
+              </div>
+              <div className="text-[10px] text-slate-400 font-bold group-hover:text-amber-600 flex items-center gap-0.5 justify-end">
+                View in Table <ArrowRight className="w-2.5 h-2.5" />
+              </div>
+            </div>
+          </button>
+
+          {/* Out of Stock */}
+          <button
+            type="button"
+            onClick={() => {
+              setStockFilter('outofstock');
+              setActiveTab('inventory');
+            }}
+            className="flex items-center justify-between p-3.5 rounded-2xl border border-rose-100 dark:border-rose-900/30 bg-rose-50/50 dark:bg-rose-950/20 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-all text-left group"
+          >
+            <div className="flex items-center gap-3">
+              <span className="w-3 h-3 rounded-full bg-rose-500 shrink-0" />
+              <div>
+                <div className="text-xs font-bold text-slate-900 dark:text-white">Out of Stock (0)</div>
+                <div className="text-[11px] text-slate-500">Sales halted for item</div>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-base font-black text-rose-600 dark:text-rose-400">
+                {overviewStats.outOfStockCount}
+              </div>
+              <div className="text-[10px] text-slate-400 font-bold group-hover:text-rose-600 flex items-center gap-0.5 justify-end">
+                View in Table <ArrowRight className="w-2.5 h-2.5" />
+              </div>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      {/* ──────────────── 3. TWO-COLUMN DEEP-DIVE GRID ──────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Column A: Category Distribution */}
+        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-4 flex flex-col">
+          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0">
+                <Layers className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-slate-900 dark:text-white">Category Distribution</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Inventory volume & capital tied by category</p>
+              </div>
+            </div>
+            <button 
+              type="button"
+              onClick={() => setIsAddCategoryPanelOpen(true)}
+              className="text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 flex items-center gap-1"
+            >
+              <Plus className="w-3.5 h-3.5" /> New Category
+            </button>
+          </div>
+
+          {overviewStats.categoryDistribution.length === 0 ? (
+            <div className="py-12 text-center text-slate-400 text-xs font-medium">
+              No category data available yet.
+            </div>
+          ) : (
+            <div className="space-y-4 flex-1">
+              {overviewStats.categoryDistribution.slice(0, 6).map((cat, idx) => {
+                const maxVal = overviewStats.categoryDistribution[0]?.valuation || 1;
+                const percentage = Math.max(8, Math.round((cat.valuation / maxVal) * 100));
+                return (
+                  <div key={idx} className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-bold text-slate-800 dark:text-slate-200 truncate max-w-[200px]">
+                        {cat.name}
+                      </span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-slate-500 font-medium">
+                          {cat.count} {cat.count === 1 ? 'product' : 'products'} ({cat.stock.toLocaleString()} units)
+                        </span>
+                        <span className="font-black text-slate-900 dark:text-white">
+                          Rs. {cat.valuation.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                      <div 
+                        className="bg-blue-600 dark:bg-blue-500 h-full rounded-full transition-all duration-500" 
+                        style={{ width: `${percentage}%` }} 
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Column B: Highest Capital Assets (Tied-up Capital) */}
+        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-4 flex flex-col">
+          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0">
+                <CircleDollarSign className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-slate-900 dark:text-white">Highest Capital Assets</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Products holding the highest inventory value</p>
+              </div>
+            </div>
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Top 5</span>
+          </div>
+
+          {overviewStats.topCapitalProducts.length === 0 ? (
+            <div className="py-12 text-center text-slate-400 text-xs font-medium">
+              No product capital data found.
+            </div>
+          ) : (
+            <div className="space-y-3 flex-1">
+              {overviewStats.topCapitalProducts.map(({ product: p, capital, marginPercent }, idx) => {
+                const catInfo = getCategoryName(p.categoryId);
+                return (
+                  <div 
+                    key={p.id || idx}
+                    onClick={() => openEditPanel(p)}
+                    className="flex items-center justify-between p-3 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800/60 border border-slate-100 dark:border-slate-800 transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-black text-xs text-slate-600 dark:text-slate-300 shrink-0">
+                        #{idx + 1}
+                      </div>
+                      <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 overflow-hidden text-slate-400">
+                        {p.images && p.images.length > 0 ? (
+                          <img src={typeof p.images[0] === 'string' ? p.images[0] : p.images[0].url} alt={p.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <Package className="w-5 h-5" />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-blue-600 transition-colors">
+                          {p.name}
+                        </div>
+                        <div className="text-[11px] text-slate-500 flex items-center gap-2">
+                          <span>{p.stock} in stock</span>
+                          {catInfo && <span>• {catInfo.main}</span>}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="text-right shrink-0 ml-3">
+                      <div className="text-xs font-black text-slate-900 dark:text-white">
+                        Rs. {capital.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </div>
+                      <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                        {marginPercent > 0 ? `${marginPercent.toFixed(1)}% Margin` : `Retail Rs. ${Number(p.price || 0).toFixed(2)}`}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ──────────────── 4. CRITICAL RESTOCK ATTENTION LIST ──────────────── */}
+      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+              overviewStats.restockItems.length > 0 
+                ? 'bg-rose-50 dark:bg-rose-500/10 text-rose-600' 
+                : 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600'
+            }`}>
+              <AlertTriangle className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-black text-slate-900 dark:text-white">
+                  Critical Restock Attention List
+                </h3>
+                {overviewStats.restockItems.length > 0 && (
+                  <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400 border border-rose-200/60 dark:border-rose-800/40">
+                    {overviewStats.restockItems.length} Urgent
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Items below their designated threshold requiring immediate supplier purchase order.
+              </p>
+            </div>
+          </div>
+
+          {overviewStats.restockItems.length > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                setStockFilter('lowstock');
+                setActiveTab('inventory');
+              }}
+              className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+            >
+              View in Inventory Table <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+
+        {overviewStats.restockItems.length === 0 ? (
+          <div className="py-8 flex flex-col items-center justify-center text-center">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 flex items-center justify-center mb-3">
+              <CheckCircle2 className="w-6 h-6" />
+            </div>
+            <h4 className="text-sm font-bold text-slate-900 dark:text-white">All Products Well Stocked</h4>
+            <p className="text-xs text-slate-500 mt-1 max-w-sm">
+              Great news! None of your products are currently out of stock or below low stock alert levels.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <div className="min-w-[650px] divide-y divide-slate-100 dark:divide-slate-800">
+              <div className="grid grid-cols-[2fr_1fr_1fr_1fr_120px] gap-4 py-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                <div>Product</div>
+                <div>Category</div>
+                <div>Stock Status</div>
+                <div>Selling Price</div>
+                <div className="text-right">Action</div>
+              </div>
+
+              {overviewStats.restockItems.slice(0, 8).map(({ product: p, stock, threshold, isOutOfStock }, idx) => {
+                const catInfo = getCategoryName(p.categoryId);
+                return (
+                  <div key={p.id || idx} className="grid grid-cols-[2fr_1fr_1fr_1fr_120px] gap-4 py-3 items-center hover:bg-slate-50 dark:hover:bg-slate-800/40 rounded-xl px-2 transition-all">
+                    {/* Product */}
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 overflow-hidden text-slate-400">
+                        {p.images && p.images.length > 0 ? (
+                          <img src={typeof p.images[0] === 'string' ? p.images[0] : p.images[0].url} alt={p.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <Package className="w-4 h-4" />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                          {p.name}
+                        </div>
+                        <div className="text-[10px] text-slate-400 font-mono truncate">
+                          SKU: {p.sku || 'N/A'}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Category */}
+                    <div className="text-xs text-slate-600 dark:text-slate-300 font-medium truncate">
+                      {catInfo ? catInfo.main : 'Uncategorized'}
+                    </div>
+
+                    {/* Stock Status */}
+                    <div>
+                      {isOutOfStock ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400 border border-rose-200/60 dark:border-rose-800/40">
+                          <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                          0 in stock
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400 border border-amber-200/60 dark:border-amber-800/40">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                          {stock} left (alert &le; {threshold})
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Price */}
+                    <div className="text-xs font-bold text-slate-900 dark:text-white">
+                      Rs. {Number(p.price || 0).toFixed(2)}
+                    </div>
+
+                    {/* Action */}
+                    <div className="text-right">
+                      <button
+                        type="button"
+                        onClick={() => openEditPanel(p)}
+                        className="px-3 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-500/20 text-xs font-bold transition-all shadow-sm"
+                      >
+                        Restock
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function StoreProductsPageContent() {
   const { user } = useAuthStore();
   const isProOrEnterprise = user?.tenant?.plan === 'PRO' || user?.tenant?.plan === 'ENTERPRISE';
@@ -282,6 +803,7 @@ function StoreProductsPageContent() {
   const [toDate, setToDate] = useState('');
   
   // View & Sort
+  const [activeTab, setActiveTab] = useState<'overview' | 'inventory'>('overview');
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [viewingProduct, setViewingProduct] = useState<any>(null);
@@ -1309,6 +1831,97 @@ function StoreProductsPageContent() {
     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(); // default newest first
   });
 
+  const overviewStats = useMemo(() => {
+    let totalStockQty = 0;
+    let totalCostValuation = 0;
+    let totalRetailValuation = 0;
+    let inStockCount = 0;
+    let lowStockCount = 0;
+    let outOfStockCount = 0;
+
+    const catMap = new Map<number | string, { id: number | string; name: string; count: number; valuation: number; stock: number }>();
+    const productsWithCapital: Array<{ product: any; capital: number; retailValue: number; marginPercent: number }> = [];
+    const restockItems: Array<{ product: any; stock: number; threshold: number; isOutOfStock: boolean }> = [];
+
+    products.forEach((p) => {
+      const stock = Number(p.stock || 0);
+      const cost = Number(p.cost || 0);
+      const price = Number(p.price || 0);
+      const threshold = Number(p.lowStockLevel) > 0 ? Number(p.lowStockLevel) : 5;
+
+      totalStockQty += stock;
+      const itemCostVal = cost * stock;
+      const itemRetailVal = price * stock;
+      totalCostValuation += itemCostVal;
+      totalRetailValuation += itemRetailVal;
+
+      if (stock <= 0) {
+        outOfStockCount++;
+        restockItems.push({ product: p, stock, threshold, isOutOfStock: true });
+      } else if (stock <= threshold) {
+        lowStockCount++;
+        restockItems.push({ product: p, stock, threshold, isOutOfStock: false });
+      } else {
+        inStockCount++;
+      }
+
+      // Category breakdown
+      const catId = p.categoryId || 'uncategorized';
+      const catInfo = getCategoryName(p.categoryId);
+      const catName = catInfo ? (catInfo.sub ? `${catInfo.main} > ${catInfo.sub}` : catInfo.main) : 'Uncategorized';
+
+      const existing = catMap.get(catId) || { id: catId, name: catName, count: 0, valuation: 0, stock: 0 };
+      existing.count += 1;
+      existing.stock += stock;
+      existing.valuation += itemCostVal > 0 ? itemCostVal : itemRetailVal;
+      catMap.set(catId, existing);
+
+      // Capital calculation
+      const capital = itemCostVal > 0 ? itemCostVal : itemRetailVal;
+      const margin = price > 0 && cost > 0 ? ((price - cost) / price) * 100 : 0;
+      productsWithCapital.push({
+        product: p,
+        capital,
+        retailValue: itemRetailVal,
+        marginPercent: margin,
+      });
+    });
+
+    const categoryDistribution = Array.from(catMap.values())
+      .sort((a, b) => b.valuation - a.valuation);
+
+    restockItems.sort((a, b) => {
+      if (a.isOutOfStock && !b.isOutOfStock) return -1;
+      if (!a.isOutOfStock && b.isOutOfStock) return 1;
+      return a.stock - b.stock;
+    });
+
+    const topCapitalProducts = [...productsWithCapital]
+      .sort((a, b) => b.capital - a.capital)
+      .slice(0, 5);
+
+    const totalProducts = products.length;
+    const healthRatio = totalProducts > 0 ? (inStockCount / totalProducts) * 100 : 100;
+    const potentialProfit = Math.max(0, totalRetailValuation - totalCostValuation);
+    const avgProfitMargin = totalRetailValuation > 0 ? ((totalRetailValuation - totalCostValuation) / totalRetailValuation) * 100 : 0;
+
+    return {
+      totalProducts,
+      totalStockQty,
+      totalCostValuation,
+      totalRetailValuation,
+      potentialProfit,
+      avgProfitMargin,
+      inStockCount,
+      lowStockCount,
+      outOfStockCount,
+      healthRatio,
+      categoryDistribution,
+      restockItems,
+      topCapitalProducts,
+    };
+  }, [products, categories]);
+
   return (
     <div className={`flex flex-col bg-slate-50 dark:bg-slate-900/50 overflow-hidden ${isFullscreen ? 'h-full p-2 sm:p-4' : 'h-full p-6'}`}>
       
@@ -1333,62 +1946,142 @@ function StoreProductsPageContent() {
         </div>
       )}
 
-      {/* ──────────────── SEARCH & FILTER BAR ──────────────── */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-6">
-        <div className="relative w-full sm:w-80 flex-shrink-0 group">
-          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors">
-            <Search className="h-5 w-5" />
-          </div>
-          <input
-            type="text"
-            placeholder="Search products..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-12 pr-4 h-12 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-2xl shadow-sm text-slate-900 dark:text-white font-bold placeholder:text-slate-400 placeholder:font-medium transition-all outline-none"
-          />
+      {/* ──────────────── NAVIGATION TABS & UNIFIED TOOLBAR ──────────────── */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+        {/* Left: Mode Toggle (Product Overview | Product Inventory) - Exactly h-12 p-1 matching Data & Backup */}
+        <div className="flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm h-12 p-1 overflow-hidden shrink-0">
+          <button 
+            type="button"
+            onClick={() => setActiveTab('overview')}
+            className={`flex items-center justify-center px-5 h-full rounded-xl transition-all font-bold text-xs sm:text-sm ${
+              activeTab === 'overview'
+                ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm'
+                : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
+            }`}
+          >
+            Product Overview
+          </button>
+
+          <div className="w-px h-full bg-slate-200 dark:bg-slate-800 mx-1"></div>
+
+          <button 
+            type="button"
+            onClick={() => setActiveTab('inventory')}
+            className={`flex items-center justify-center px-5 h-full rounded-xl transition-all font-bold text-xs sm:text-sm ${
+              activeTab === 'inventory'
+                ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm'
+                : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
+            }`}
+          >
+            Product Inventory
+          </button>
         </div>
 
-        <div className="flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm h-12 p-1 overflow-hidden flex-shrink-0 ml-auto">
+        {/* Right: Unified Toolbar Card (Search, Filters, View Toggles, Fullscreen) */}
+        <div className="flex items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm h-12 p-1 overflow-hidden shrink-0 ml-auto w-full sm:w-auto">
+          {/* Integrated Search Bar on Left */}
+          <div className="relative flex items-center flex-1 sm:w-60 h-full pl-3 pr-2">
+            <Search className="w-4 h-4 text-slate-400 mr-2 shrink-0 pointer-events-none" />
+            <input 
+              type="text"
+              placeholder="Search products..."
+              value={search}
+              onChange={e => {
+                setSearch(e.target.value);
+                if (activeTab === 'overview' && e.target.value.trim() !== '') {
+                  setActiveTab('inventory');
+                }
+              }}
+              className="w-full bg-transparent border-0 outline-none text-xs font-bold text-slate-900 dark:text-white placeholder:text-slate-400 placeholder:font-medium"
+            />
+            {search && (
+              <button 
+                type="button"
+                onClick={() => setSearch('')}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 ml-1"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          <div className="w-px h-full bg-slate-200 dark:bg-slate-800 mx-1"></div>
+
+          {/* Filter Button */}
           <button 
             onClick={() => setIsFilterOpen(true)}
             className="flex items-center justify-center px-4 h-full rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition-all gap-2 font-bold relative"
             title="Filter & Sort"
           >
             <Filter className="w-5 h-5" />
-            <span className="hidden sm:inline">Filters</span>
-            {(stockFilter !== 'all' || categoryFilter !== 'all' || sortMode !== 'default' || dateFilterType !== 'all') && <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-blue-600"></span>}
+            <span className="hidden sm:inline text-xs">Filters</span>
+            {(stockFilter !== 'all' || categoryFilter !== 'all' || sortMode !== 'default' || dateFilterType !== 'all') && (
+              <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-blue-600"></span>
+            )}
           </button>
           
           <div className="w-px h-full bg-slate-200 dark:bg-slate-800 mx-1"></div>
           
+          {/* List View Toggle */}
           <button 
-            onClick={() => setViewMode('list')}
+            onClick={() => {
+              setActiveTab('inventory');
+              setViewMode('list');
+            }}
             title="List View"
-            className={`flex items-center justify-center w-12 h-full rounded-xl transition-all ${viewMode === 'list' ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+            className={`flex items-center justify-center w-12 h-full rounded-xl transition-all ${
+              viewMode === 'list' && activeTab === 'inventory'
+                ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 shadow-sm' 
+                : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'
+            }`}
           >
             <List className="w-5 h-5" />
           </button>
           
+          {/* Grid View Toggle */}
           <button 
-            onClick={() => setViewMode('grid')}
+            onClick={() => {
+              setActiveTab('inventory');
+              setViewMode('grid');
+            }}
             title="Grid View"
-            className={`flex items-center justify-center w-12 h-full rounded-xl transition-all ${viewMode === 'grid' ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+            className={`flex items-center justify-center w-12 h-full rounded-xl transition-all ${
+              viewMode === 'grid' && activeTab === 'inventory'
+                ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 shadow-sm' 
+                : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'
+            }`}
           >
             <LayoutGrid className="w-5 h-5" />
           </button>
+
           <div className="w-px h-full bg-slate-200 dark:bg-slate-800 mx-1"></div>
+
+          {/* Full Screen Toggle */}
           <button 
             onClick={() => setIsFullscreen(!isFullscreen)}
-            title="Full Screen"
-            className={`flex items-center justify-center w-12 h-full rounded-xl transition-all text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800`}
+            title={isFullscreen ? "Exit Full Screen" : "Full Screen"}
+            className="flex items-center justify-center w-12 h-full rounded-xl transition-all text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800"
           >
             {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
           </button>
         </div>
       </div>
 
-      {/* ──────────────── DATA TABLE (CARD LIST) ──────────────── */}
-      <div className={`flex-1 bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col min-h-[400px] ${isFullscreen ? 'm-0 rounded-none border-none' : ''}`}>
+      {/* ──────────────── TAB CONTENT: OVERVIEW OR INVENTORY ──────────────── */}
+      {activeTab === 'overview' ? (
+        <ProductOverviewDashboard
+          overviewStats={overviewStats}
+          categories={categories}
+          getCategoryName={getCategoryName}
+          setActiveTab={setActiveTab}
+          setStockFilter={setStockFilter}
+          openEditPanel={openEditPanel}
+          openAddPanel={openAddPanel}
+          setIsAddCategoryPanelOpen={setIsAddCategoryPanelOpen}
+        />
+      ) : (
+        /* ──────────────── DATA TABLE (CARD LIST) ──────────────── */
+        <div className={`flex-1 bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col min-h-[400px] ${isFullscreen ? 'm-0 rounded-none border-none' : ''}`}>
         {loading ? (
           <div className="flex flex-col items-center justify-center py-24 text-slate-400 gap-4">
             <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
@@ -1660,6 +2353,7 @@ function StoreProductsPageContent() {
             </div>
           )}
         </div>
+      )}
 
       {/* ──────────────── FILTERS SLIDE OUT PANEL ──────────────── */}
       <AnimatePresence>
