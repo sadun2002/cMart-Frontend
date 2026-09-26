@@ -1207,9 +1207,8 @@ export default function SalesPage() {
                   ))}
                 </div>
               </div>
-            )
-          }
-      </div>
+            )}
+        </div>
       )}
 
       {/* ──────────────── FILTERS SLIDE OUT PANEL ──────────────── */}
