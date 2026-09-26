@@ -8,8 +8,10 @@ import {
   Layers, ChevronDown, ChevronUp, ChevronRight, History, FileWarning, 
   CalendarDays, Building2, Check, AlertTriangle, Info, Clock, 
   CheckCircle2, ArrowRight, Truck, ShieldAlert, FileText, Sparkles, UserCircle, Lock,
-  Barcode, Tag, CircleDollarSign, Copy, Calendar, Users, Plus, Circle
+  Barcode, Tag, CircleDollarSign, Copy, Calendar, Users, Plus, Circle,
+  TrendingDown, TrendingUp, Star, BarChart3
 } from 'lucide-react';
+import { ResponsiveContainer, BarChart, Bar, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -405,6 +407,431 @@ function InventoryProductDetailView({
   );
 }
 
+interface InventoryOverviewDashboardProps {
+  overviewStats: {
+    totalProducts: number;
+    totalStockQty: number;
+    totalCostValuation: number;
+    totalRetailValuation: number;
+    inStockCount: number;
+    lowStockCount: number;
+    outOfStockCount: number;
+    categoryDistribution: Array<{ id: number | string; name: string; count: number; valuation: number; stock: number }>;
+    topCapitalProducts: Array<{ product: any; capital: number; retailValue: number; marginPercent: number }>;
+    worst5Products: Array<{ product: any; capital: number; retailValue: number; marginPercent: number }>;
+    trendingProducts: Array<{ product: any; capital: number; retailValue: number; marginPercent: number }>;
+    featuredProducts: Array<any>;
+    chartData: Array<{ name: string; fullName: string; value: number; stock: number; count: number }>;
+  };
+  kpis: Array<{ title: string; value: string; icon: any; color: string; bg: string }>;
+  getCategoryName: (catId: any) => string;
+  setActiveTab: (tab: 'overview' | 'table') => void;
+  setStockFilter: (filter: string) => void;
+  handleOpenPanel: (action: StockActionType, product?: any) => void;
+}
+
+function InventoryOverviewDashboard({
+  overviewStats,
+  kpis,
+  getCategoryName,
+  setActiveTab,
+  setStockFilter,
+  handleOpenPanel,
+}: InventoryOverviewDashboardProps) {
+  const [chartType, setChartType] = useState<'bar' | 'line'>('bar');
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  return (
+    <div className="flex-1 overflow-y-auto no-scrollbar pr-1 pb-10 space-y-6">
+      {/* ──────────────── 1. REUSABLE TOP 4 KPI CARDS ──────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {kpis.map((kpi, idx) => (
+          <KpiCard
+            key={idx}
+            title={kpi.title}
+            value={kpi.value}
+            icon={kpi.icon}
+            iconColorClass={kpi.color}
+            iconBgClass={kpi.bg}
+          />
+        ))}
+      </div>
+
+      {/* ──────────────── 2. MAIN DASHBOARD GRID: CHART (2 Cols) + TOP 5 VALUATION PRODUCTS (1 Col) ──────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left: Chart Card */}
+        <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 w-full text-left flex flex-col h-[380px] justify-between">
+          <div className="flex items-center justify-between mb-4 flex-shrink-0">
+            <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <BarChart3 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              Category Inventory & Stock Valuation
+            </h2>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg text-xs font-bold">
+                <button
+                  type="button"
+                  onClick={() => setChartType('bar')}
+                  className={`px-3 py-1 rounded-md transition-all ${chartType === 'bar' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
+                >
+                  Bar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setChartType('line')}
+                  className={`px-3 py-1 rounded-md transition-all ${chartType === 'line' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
+                >
+                  Line
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex-1 min-h-0 w-full relative">
+            {mounted ? (
+              overviewStats.chartData.length === 0 ? (
+                <div className="absolute inset-0 flex items-center justify-center text-xs text-slate-400">
+                  No category data available to plot chart.
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  {chartType === 'bar' ? (
+                    <BarChart data={overviewStats.chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" strokeOpacity={0.4} />
+                      <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`} />
+                      <Tooltip 
+                        formatter={(v: any) => [`Rs. ${Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 'Valuation']} 
+                        labelFormatter={(label, payload) => payload?.[0]?.payload?.fullName || label}
+                        contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.95)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '12px' }}
+                      />
+                      <Bar dataKey="value" fill="#3B82F6" radius={[6, 6, 0, 0]} />
+                    </BarChart>
+                  ) : (
+                    <LineChart data={overviewStats.chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" strokeOpacity={0.4} />
+                      <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`} />
+                      <Tooltip 
+                        formatter={(v: any) => [`Rs. ${Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 'Valuation']} 
+                        labelFormatter={(label, payload) => payload?.[0]?.payload?.fullName || label}
+                        contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.95)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '12px' }}
+                      />
+                      <Line type="monotone" dataKey="value" stroke="#3B82F6" strokeWidth={3} dot={{ r: 4, fill: '#3B82F6' }} activeDot={{ r: 6 }} />
+                    </LineChart>
+                  )}
+                </ResponsiveContainer>
+              )
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center text-xs text-slate-400">
+                Loading chart...
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex-shrink-0 font-medium">
+            <span>Total Inventory Cost Valuation</span>
+            <span className="font-bold text-slate-900 dark:text-white">
+              Rs. {overviewStats.totalCostValuation.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+          </div>
+        </div>
+
+        {/* Right: Top 5 Capital Products */}
+        <div className="lg:col-span-1 bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 pb-5 md:pb-5 w-full text-left flex flex-col h-[380px] justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-4 md:mb-5">
+              <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Package className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                Top 5 Capital Products
+              </h2>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
+                Ranked
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              {overviewStats.topCapitalProducts.length === 0 ? (
+                <div className="py-12 text-center text-slate-400 text-xs font-medium">
+                  No product data found.
+                </div>
+              ) : (
+                overviewStats.topCapitalProducts.map(({ product: p, capital }, i) => {
+                  const rankColors = [
+                    'bg-amber-500 text-white',
+                    'bg-slate-400 text-white',
+                    'bg-orange-700 text-white',
+                    'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300',
+                    'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                  ];
+                  const stock = Number(p.stock ?? p.stockQuantity ?? 0);
+                  return (
+                    <div 
+                      key={p.id || i} 
+                      onClick={() => handleOpenPanel('Stock In', p)}
+                      className="flex items-center justify-between gap-3 p-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
+                      title="Click to manage stock"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 ${rankColors[i] || 'bg-slate-200 text-slate-700'}`}>
+                          {i + 1}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-blue-600 transition-colors">
+                            {p.name}
+                          </div>
+                          <div className="text-[10px] text-slate-400 truncate">
+                            {stock} {p.unit || 'units'} in stock
+                          </div>
+                        </div>
+                      </div>
+                      <span className="text-xs font-black text-slate-900 dark:text-white flex-shrink-0">
+                        Rs. {capital.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          <div className="mt-2 pt-2.5 pb-1 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center">
+            <button
+              type="button"
+              onClick={() => setActiveTab('table')}
+              className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer leading-normal"
+            >
+              View All in Inventory Table →
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ──────────────── 3. BOTTOM ROW: 3 RANKINGS & LISTS WIDGETS ──────────────── */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        {/* Card 1: Worst 5 Products */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 pb-5 md:pb-5 w-full text-left flex flex-col h-[380px] justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-4 md:mb-5">
+              <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <TrendingDown className="w-5 h-5 text-rose-500 dark:text-rose-400" />
+                Worst 5 Products
+              </h2>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400">
+                Slow / Low
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              {overviewStats.worst5Products.length === 0 ? (
+                <div className="py-12 text-center text-slate-400 text-xs font-medium">
+                  No product data found.
+                </div>
+              ) : (
+                overviewStats.worst5Products.map(({ product: p, capital }, i) => {
+                  const rankColors = [
+                    'bg-rose-500 text-white',
+                    'bg-rose-400 text-white',
+                    'bg-slate-400 text-white',
+                    'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300',
+                    'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                  ];
+                  const stock = Number(p.stock ?? p.stockQuantity ?? 0);
+                  const isOutOfStock = stock <= 0;
+                  return (
+                    <div 
+                      key={p.id || i} 
+                      onClick={() => handleOpenPanel('Stock In', p)}
+                      className="flex items-center justify-between gap-3 p-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
+                      title="Click to manage stock"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 ${rankColors[i] || 'bg-slate-200 text-slate-700'}`}>
+                          {i + 1}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-rose-600 transition-colors">
+                            {p.name}
+                          </div>
+                          <div className="text-[10px] truncate">
+                            {isOutOfStock ? (
+                              <span className="text-rose-600 dark:text-rose-400 font-bold">0 units (Out of stock)</span>
+                            ) : (
+                              <span className="text-slate-400">{stock} {p.unit || 'units'} in stock</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <span className="text-xs font-black text-slate-900 dark:text-white flex-shrink-0">
+                        Rs. {capital.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          <div className="mt-2 pt-2.5 pb-1 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center">
+            <button
+              type="button"
+              onClick={() => setActiveTab('table')}
+              className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer leading-normal"
+            >
+              View All in Inventory Table →
+            </button>
+          </div>
+        </div>
+
+        {/* Card 2: Trending Products */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 pb-5 md:pb-5 w-full text-left flex flex-col h-[380px] justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-4 md:mb-5">
+              <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
+                Trending Products
+              </h2>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
+                High Margin
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              {overviewStats.trendingProducts.length === 0 ? (
+                <div className="py-12 text-center text-slate-400 text-xs font-medium">
+                  No product data found.
+                </div>
+              ) : (
+                overviewStats.trendingProducts.map(({ product: p, marginPercent }, i) => {
+                  const rankColors = [
+                    'bg-emerald-500 text-white',
+                    'bg-emerald-600 text-white',
+                    'bg-teal-500 text-white',
+                    'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300',
+                    'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                  ];
+                  return (
+                    <div 
+                      key={p.id || i} 
+                      onClick={() => handleOpenPanel('Stock In', p)}
+                      className="flex items-center justify-between gap-3 p-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
+                      title="Click to manage stock"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 ${rankColors[i] || 'bg-slate-200 text-slate-700'}`}>
+                          {i + 1}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-emerald-600 transition-colors">
+                            {p.name}
+                          </div>
+                          <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold truncate">
+                            {marginPercent > 0 ? `${Math.round(marginPercent)}% profit margin` : `${Number(p.stock ?? p.stockQuantity ?? 0)} units available`}
+                          </div>
+                        </div>
+                      </div>
+                      <span className="text-xs font-black text-slate-900 dark:text-white flex-shrink-0">
+                        Rs. {Number(p.price || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          <div className="mt-2 pt-2.5 pb-1 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center">
+            <button
+              type="button"
+              onClick={() => setActiveTab('table')}
+              className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer leading-normal"
+            >
+              View All in Inventory Table →
+            </button>
+          </div>
+        </div>
+
+        {/* Card 3: Featured Products */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 pb-5 md:pb-5 w-full text-left flex flex-col h-[380px] justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-4 md:mb-5">
+              <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Star className="w-5 h-5 text-amber-500 fill-amber-500/20 dark:text-amber-400" />
+                Featured Products
+              </h2>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">
+                Catalog
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              {overviewStats.featuredProducts.length === 0 ? (
+                <div className="py-12 text-center text-slate-400 text-xs font-medium">
+                  No product data found.
+                </div>
+              ) : (
+                overviewStats.featuredProducts.map((p, i) => {
+                  const rankColors = [
+                    'bg-amber-500 text-white',
+                    'bg-amber-600 text-white',
+                    'bg-orange-500 text-white',
+                    'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300',
+                    'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                  ];
+                  const catName = getCategoryName(p.categoryId);
+                  const subLabel = p.showOnWebsite 
+                    ? 'Online Store Item' 
+                    : (catName || p.brand || `${Number(p.stock ?? p.stockQuantity ?? 0)} units`);
+                  return (
+                    <div 
+                      key={p.id || i} 
+                      onClick={() => handleOpenPanel('Stock In', p)}
+                      className="flex items-center justify-between gap-3 p-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
+                      title="Click to manage stock"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 ${rankColors[i] || 'bg-slate-200 text-slate-700'}`}>
+                          {i + 1}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-amber-600 transition-colors">
+                            {p.name}
+                          </div>
+                          <div className="text-[10px] text-slate-400 truncate">
+                            {subLabel}
+                          </div>
+                        </div>
+                      </div>
+                      <span className="text-xs font-black text-slate-900 dark:text-white flex-shrink-0">
+                        Rs. {Number(p.price || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          <div className="mt-2 pt-2.5 pb-1 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center">
+            <button
+              type="button"
+              onClick={() => setActiveTab('table')}
+              className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer leading-normal"
+            >
+              View All in Inventory Table →
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
 export default function InventoryPage() {
   const { getActiveBranch, branches, activeBranchId } = useBranchStore();
   const { user } = useAuthStore();
@@ -415,6 +842,7 @@ export default function InventoryPage() {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [activeTab, setActiveTab] = useState<'overview' | 'table'>('overview');
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -743,6 +1171,115 @@ export default function InventoryPage() {
       }
     ];
   }, [products]);
+
+  const overviewStats = useMemo(() => {
+    let totalStockQty = 0;
+    let totalCostValuation = 0;
+    let totalRetailValuation = 0;
+    let inStockCount = 0;
+    let lowStockCount = 0;
+    let outOfStockCount = 0;
+
+    const catMap = new Map<number | string, { id: number | string; name: string; count: number; valuation: number; stock: number }>();
+    const productsWithCapital: Array<{ product: any; capital: number; retailValue: number; marginPercent: number }> = [];
+
+    products.forEach((p) => {
+      const stock = Number(p.stock ?? p.stockQuantity ?? 0);
+      const cost = Number(p.cost || 0);
+      const price = Number(p.price || 0);
+      const threshold = Number(p.minStock ?? p.lowStockLevel ?? 10);
+
+      totalStockQty += stock;
+      const itemCostVal = cost * stock;
+      const itemRetailVal = price * stock;
+      totalCostValuation += itemCostVal;
+      totalRetailValuation += itemRetailVal;
+
+      if (stock <= 0) {
+        outOfStockCount++;
+      } else if (stock <= threshold) {
+        lowStockCount++;
+      } else {
+        inStockCount++;
+      }
+
+      // Category breakdown
+      const catId = p.categoryId || 'uncategorized';
+      const catName = getCategoryName(p.categoryId) || 'Uncategorized';
+
+      const existing = catMap.get(catId) || { id: catId, name: catName, count: 0, valuation: 0, stock: 0 };
+      existing.count += 1;
+      existing.stock += stock;
+      existing.valuation += itemCostVal > 0 ? itemCostVal : itemRetailVal;
+      catMap.set(catId, existing);
+
+      // Capital calculation
+      const capital = itemCostVal > 0 ? itemCostVal : itemRetailVal;
+      const margin = price > 0 && cost > 0 ? ((price - cost) / price) * 100 : 0;
+      productsWithCapital.push({
+        product: p,
+        capital,
+        retailValue: itemRetailVal,
+        marginPercent: margin,
+      });
+    });
+
+    const categoryDistribution = Array.from(catMap.values())
+      .sort((a, b) => b.valuation - a.valuation);
+
+    const topCapitalProducts = [...productsWithCapital]
+      .sort((a, b) => b.capital - a.capital)
+      .slice(0, 5);
+
+    // Worst 5 Products: 0 stock items first, then lowest capital / price
+    const worst5Products = [...productsWithCapital]
+      .sort((a, b) => {
+        const aStock = Number(a.product.stock ?? a.product.stockQuantity ?? 0);
+        const bStock = Number(b.product.stock ?? b.product.stockQuantity ?? 0);
+        if (aStock <= 0 && bStock > 0) return -1;
+        if (aStock > 0 && bStock <= 0) return 1;
+        return a.capital - b.capital;
+      })
+      .slice(0, 5);
+
+    // Trending Products: Highest profit margin products
+    const trendingProducts = [...productsWithCapital]
+      .sort((a, b) => b.marginPercent - a.marginPercent || Number(b.product.price || 0) - Number(a.product.price || 0))
+      .slice(0, 5);
+
+    // Featured Products: Online store featured or highest priced catalog products
+    const featuredProducts = [...products]
+      .sort((a, b) => {
+        if (a.showOnWebsite && !b.showOnWebsite) return -1;
+        if (!a.showOnWebsite && b.showOnWebsite) return 1;
+        return Number(b.price || 0) - Number(a.price || 0);
+      })
+      .slice(0, 5);
+
+    const chartData = categoryDistribution.slice(0, 8).map(c => ({
+      name: c.name.length > 14 ? c.name.slice(0, 14) + '...' : c.name,
+      fullName: c.name,
+      value: c.valuation,
+      stock: c.stock,
+      count: c.count,
+    }));
+
+    return {
+      totalProducts: products.length,
+      totalStockQty,
+      totalCostValuation,
+      totalRetailValuation,
+      inStockCount,
+      lowStockCount,
+      outOfStockCount,
+      categoryDistribution,
+      topCapitalProducts,
+      worst5Products,
+      trendingProducts,
+      featuredProducts,
+      chartData,
+    };
+  }, [products, categories]);
 
   // Selected product object in panel
   const selectedProduct = useMemo(() => {
@@ -1235,106 +1772,167 @@ export default function InventoryPage() {
   return (
     <div className={`flex flex-col bg-[#F4F7F6] dark:bg-slate-900 ${isFullscreen ? 'h-full p-2 sm:p-4' : 'h-full p-6 lg:p-8'}`}>
       
-      {/* ──────────────── HEADER & KPIS ──────────────── */}
+      {/* ──────────────── HEADER ──────────────── */}
       {!isFullscreen && (
-        <div className="mb-8">
-          <div className="font-sans flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-            <div>
-              <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
-                <Warehouse className="w-8 h-8 text-blue-600" />
-                Branch Inventory
-              </h1>
-              <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium">Manage stock, pricing, and transfers per branch.</p>
-            </div>
-            
-            <button 
-              onClick={() => handleOpenPanel('Stock In')}
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 h-12 rounded-xl font-bold shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5 active:translate-y-0"
-            >
-              <SlidersHorizontal className="w-5 h-5" />
-              Manage Stock
-            </button>
+        <div className="font-sans flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+          <div>
+            <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
+              <Warehouse className="w-8 h-8 text-blue-600" />
+              Branch Inventory
+            </h1>
+            <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium">Manage stock, pricing, and transfers per branch.</p>
           </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {kpis.map((kpi, idx) => (
-              <KpiCard
-                key={idx}
-                title={kpi.title}
-                value={kpi.value}
-                icon={kpi.icon}
-                iconColorClass={kpi.color}
-                iconBgClass={kpi.bg}
-              />
-            ))}
-          </div>
+          
+          <button 
+            onClick={() => handleOpenPanel('Stock In')}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 h-12 rounded-xl font-bold shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5 active:translate-y-0"
+          >
+            <SlidersHorizontal className="w-5 h-5" />
+            Manage Stock
+          </button>
         </div>
       )}
 
-          {/* ──────────────── SEARCH & TOOLBAR ──────────────── */}
-          <div className="flex flex-col sm:flex-row gap-4 mb-6">
-            <div className="relative w-full sm:w-80 flex-shrink-0 group">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors">
-                <Search className="h-5 w-5" />
-              </div>
-              <input
-                type="text"
-                placeholder="Search products in this branch..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-12 pr-4 h-12 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-2xl shadow-sm text-slate-900 dark:text-white font-bold placeholder:text-slate-400 placeholder:font-medium transition-all outline-none"
-              />
-            </div>
+      {/* ──────────────── NAVIGATION TABS & UNIFIED TOOLBAR ──────────────── */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+        {/* Left: Mode Toggle (Inventory Overview | Inventory Table) */}
+        <div className="flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm h-12 p-1 overflow-hidden shrink-0">
+          <button 
+            type="button"
+            onClick={() => setActiveTab('overview')}
+            className={`flex items-center justify-center px-5 h-full rounded-xl transition-all font-bold text-xs sm:text-sm ${
+              activeTab === 'overview'
+                ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm'
+                : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
+            }`}
+          >
+            Inventory Overview
+          </button>
 
-            <div className="flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm h-12 p-1 overflow-hidden flex-shrink-0 ml-auto">
+          <div className="w-px h-full bg-slate-200 dark:bg-slate-800 mx-1"></div>
+
+          <button 
+            type="button"
+            onClick={() => setActiveTab('table')}
+            className={`flex items-center justify-center px-5 h-full rounded-xl transition-all font-bold text-xs sm:text-sm ${
+              activeTab === 'table'
+                ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm'
+                : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
+            }`}
+          >
+            Inventory Table
+          </button>
+        </div>
+
+        {/* Right: Unified Toolbar Card (Search, Filters, View Toggles, Fullscreen) */}
+        <div className="flex items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm h-12 p-1 overflow-hidden shrink-0 ml-auto w-full sm:w-auto">
+          {/* Integrated Search Bar on Left */}
+          <div className="relative flex items-center flex-1 sm:w-60 h-full pl-3 pr-2">
+            <Search className="w-4 h-4 text-slate-400 mr-2 shrink-0 pointer-events-none" />
+            <input 
+              type="text"
+              placeholder="Search products in branch..."
+              value={search}
+              onChange={e => {
+                setSearch(e.target.value);
+                if (activeTab === 'overview' && e.target.value.trim() !== '') {
+                  setActiveTab('table');
+                }
+              }}
+              className="w-full bg-transparent border-0 outline-none text-xs font-bold text-slate-900 dark:text-white placeholder:text-slate-400 placeholder:font-medium"
+            />
+            {search && (
               <button 
-                onClick={() => setIsFilterOpen(!isFilterOpen)}
-                className={`flex items-center justify-center px-4 h-full rounded-xl transition-all gap-2 font-bold relative cursor-pointer ${
-                  activeFilterCount > 0 
-                    ? 'bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400' 
-                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'
-                }`}
-                title="Filter"
+                type="button"
+                onClick={() => setSearch('')}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 ml-1"
               >
-                <Filter className="w-5 h-5" />
-                <span className="hidden sm:inline">Filters</span>
-                {activeFilterCount > 0 && (
-                  <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] flex items-center justify-center font-black">
-                    {activeFilterCount}
-                  </span>
-                )}
+                <X className="w-3.5 h-3.5" />
               </button>
-              
-              <div className="w-px h-full bg-slate-200 dark:bg-slate-800 mx-1"></div>
-              
-              <button 
-                onClick={() => setViewMode('list')}
-                title="List View"
-                className={`flex items-center justify-center w-12 h-full rounded-xl transition-all cursor-pointer ${viewMode === 'list' ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-              >
-                <List className="w-5 h-5" />
-              </button>
-              
-              <button 
-                onClick={() => setViewMode('grid')}
-                title="Grid View"
-                className={`flex items-center justify-center w-12 h-full rounded-xl transition-all cursor-pointer ${viewMode === 'grid' ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-              >
-                <LayoutGrid className="w-5 h-5" />
-              </button>
-              <div className="w-px h-full bg-slate-200 dark:bg-slate-800 mx-1"></div>
-              <button 
-                onClick={() => setIsFullscreen(!isFullscreen)}
-                title="Full Screen"
-                className="flex items-center justify-center w-12 h-full rounded-xl transition-all text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer"
-              >
-                {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
-              </button>
-            </div>
+            )}
           </div>
 
-          {/* ──────────────── INVENTORY VIEW: LIST OR GRID ──────────────── */}
-          {loading ? (
+          <div className="w-px h-full bg-slate-200 dark:bg-slate-800 mx-1"></div>
+
+          {/* Filter Button */}
+          <button 
+            onClick={() => setIsFilterOpen(!isFilterOpen)}
+            className={`flex items-center justify-center px-4 h-full rounded-xl transition-all gap-2 font-bold relative cursor-pointer ${
+              activeFilterCount > 0 
+                ? 'bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400' 
+                : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'
+            }`}
+            title="Filter"
+          >
+            <Filter className="w-5 h-5" />
+            <span className="hidden sm:inline text-xs">Filters</span>
+            {activeFilterCount > 0 && (
+              <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] flex items-center justify-center font-black">
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
+          
+          <div className="w-px h-full bg-slate-200 dark:bg-slate-800 mx-1"></div>
+          
+          {/* List View Toggle */}
+          <button 
+            onClick={() => {
+              setActiveTab('table');
+              setViewMode('list');
+            }}
+            title="List View"
+            className={`flex items-center justify-center w-12 h-full rounded-xl transition-all cursor-pointer ${
+              viewMode === 'list' && activeTab === 'table'
+                ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 shadow-sm' 
+                : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'
+            }`}
+          >
+            <List className="w-5 h-5" />
+          </button>
+          
+          {/* Grid View Toggle */}
+          <button 
+            onClick={() => {
+              setActiveTab('table');
+              setViewMode('grid');
+            }}
+            title="Grid View"
+            className={`flex items-center justify-center w-12 h-full rounded-xl transition-all cursor-pointer ${
+              viewMode === 'grid' && activeTab === 'table'
+                ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 shadow-sm' 
+                : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'
+            }`}
+          >
+            <LayoutGrid className="w-5 h-5" />
+          </button>
+          
+          <div className="w-px h-full bg-slate-200 dark:bg-slate-800 mx-1"></div>
+          
+          {/* Full Screen Toggle */}
+          <button 
+            onClick={() => setIsFullscreen(!isFullscreen)}
+            title={isFullscreen ? "Exit Full Screen" : "Full Screen"}
+            className="flex items-center justify-center w-12 h-full rounded-xl transition-all text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer"
+          >
+            {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
+          </button>
+        </div>
+      </div>
+
+      {/* ──────────────── TAB CONTENT: OVERVIEW OR TABLE ──────────────── */}
+      {activeTab === 'overview' ? (
+        <InventoryOverviewDashboard
+          overviewStats={overviewStats}
+          kpis={kpis}
+          getCategoryName={getCategoryName}
+          setActiveTab={setActiveTab}
+          setStockFilter={setStockFilter}
+          handleOpenPanel={handleOpenPanel}
+        />
+      ) : (
+        /* ──────────────── INVENTORY VIEW: LIST OR GRID ──────────────── */
+        loading ? (
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm p-16 flex flex-col items-center justify-center text-slate-400 gap-3 min-h-[400px]">
               <div className="w-8 h-8 border-3 border-blue-500 border-t-transparent rounded-full animate-spin" />
               <p className="text-sm font-medium">Loading inventory...</p>
@@ -1546,7 +2144,8 @@ export default function InventoryPage() {
                   })}
                 </div>
               </div>
-            )}
+            )
+          )}
 
       {/* ──────────────── MANAGE STOCK RIGHT SLIDE-OUT PANEL ──────────────── */}
       <MainRightPanel
