@@ -7,12 +7,13 @@ import {
   ChevronDown, ChevronUp, Trash2, Eye, FileText, Check, ArrowRight,
   AlertTriangle, AlertCircle, Package, CreditCard, Banknote, RefreshCw,
   Copy, DollarSign, Tag, ExternalLink, Printer, Store, UserCircle, Send, Lock,
-  Circle, SearchX, Pencil
+  Circle, SearchX, Pencil, BarChart3, TrendingUp
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { KpiCard } from '@/components/ui/kpi-card';
+import { ResponsiveContainer, BarChart, Bar, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
 import { FilterPanel } from '@/components/ui/filter-panel';
 import { AddProductPanel } from '@/components/shared/AddProductPanel';
 import { AddSupplierPanel } from '@/components/shared/AddSupplierPanel';
@@ -195,6 +196,484 @@ const SAMPLE_PURCHASES: Omit<PurchaseOrder, 'id'>[] = [
   }
 ];
 
+interface PurchasesOverviewProps {
+  purchases: PurchaseOrder[];
+  suppliers: any[];
+  kpiData: Array<{ title: string; value: string; icon: any; color: string; bg: string }>;
+  setActiveTab: (tab: 'overview' | 'table') => void;
+  setStatusFilter: (status: string) => void;
+  setPaymentStatusFilter: (status: string) => void;
+  setSupplierFilter: (supplier: string) => void;
+  handleStartEditPurchase: (p: PurchaseOrder) => void;
+  handleOpenDetailsDrawer: (p: PurchaseOrder) => void;
+}
+
+function PurchasesOverviewDashboard({
+  purchases,
+  suppliers,
+  kpiData,
+  setActiveTab,
+  setStatusFilter,
+  setPaymentStatusFilter,
+  setSupplierFilter,
+  handleStartEditPurchase,
+  handleOpenDetailsDrawer,
+}: PurchasesOverviewProps) {
+  const [chartType, setChartType] = useState<'bar' | 'line'>('bar');
+  const [chartMetric, setChartMetric] = useState<'spend' | 'orders'>('spend');
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Chronological monthly trend
+  const chartData = useMemo(() => {
+    const monthMap = new Map<string, { name: string; spend: number; orders: number; dateTs: number }>();
+    purchases.forEach(p => {
+      const d = new Date(p.orderDate);
+      if (isNaN(d.getTime())) return;
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const name = d.toLocaleDateString('en-US', { month: 'short' });
+      const cur = monthMap.get(key) || { name, spend: 0, orders: 0, dateTs: d.getTime() };
+      cur.spend += Number(p.total) || 0;
+      cur.orders += 1;
+      monthMap.set(key, cur);
+    });
+
+    const list = Array.from(monthMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([_, v]) => v);
+
+    return list;
+  }, [purchases]);
+
+  // Top 5 Suppliers by Spend
+  const topSuppliers = useMemo(() => {
+    const supMap = new Map<string, { id?: any; name: string; totalSpend: number; orderCount: number }>();
+    purchases.forEach(p => {
+      const key = p.supplierName || 'Direct Purchase';
+      const cur = supMap.get(key) || { id: p.supplierId, name: key, totalSpend: 0, orderCount: 0 };
+      cur.totalSpend += Number(p.total) || 0;
+      cur.orderCount += 1;
+      supMap.set(key, cur);
+    });
+    return Array.from(supMap.values()).sort((a, b) => b.totalSpend - a.totalSpend);
+  }, [purchases]);
+
+  // Pending Deliveries (ORDERED or PENDING)
+  const pendingOrders = useMemo(() => {
+    return purchases
+      .filter(p => p.status === 'ORDERED' || p.status === 'PENDING')
+      .sort((a, b) => new Date(a.orderDate).getTime() - new Date(b.orderDate).getTime());
+  }, [purchases]);
+
+  // Top Value Orders
+  const topValueOrders = useMemo(() => {
+    return [...purchases].sort((a, b) => (b.total || 0) - (a.total || 0));
+  }, [purchases]);
+
+  // Payment Breakdown
+  const paymentBreakdown = useMemo(() => {
+    const unpaid = purchases.filter(p => p.paymentStatus === 'UNPAID');
+    const partial = purchases.filter(p => p.paymentStatus === 'PARTIAL');
+    const paid = purchases.filter(p => p.paymentStatus === 'PAID');
+    return [
+      { label: 'Unpaid Due', count: unpaid.length, total: unpaid.reduce((sum, p) => sum + (Number(p.total) || 0) - (Number(p.paidAmount) || 0), 0), status: 'UNPAID', color: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-50 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300' },
+      { label: 'Partially Paid', count: partial.length, total: partial.reduce((sum, p) => sum + (Number(p.total) || 0) - (Number(p.paidAmount) || 0), 0), status: 'PARTIAL', color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-50 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' },
+      { label: 'Fully Settled', count: paid.length, total: paid.reduce((sum, p) => sum + (Number(p.paidAmount) || Number(p.total) || 0), 0), status: 'PAID', color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' }
+    ];
+  }, [purchases]);
+
+  const totalSpendVal = purchases.reduce((acc, p) => acc + (Number(p.total) || 0), 0);
+
+  return (
+    <div className="space-y-6">
+      {/* ──────────────── TOP 4 KPI CARDS ──────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {kpiData.map((kpi, idx) => (
+          <KpiCard
+            key={idx}
+            title={kpi.title}
+            value={kpi.value}
+            icon={kpi.icon}
+            iconColorClass={kpi.color}
+            iconBgClass={kpi.bg}
+          />
+        ))}
+      </div>
+
+      {/* ──────────────── 2. MAIN DASHBOARD GRID: CHART (2 Cols) + TOP SUPPLIERS (1 Col) ──────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left: Chart Card */}
+        <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 w-full text-left flex flex-col h-[400px] justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 shrink-0">
+            <div>
+              <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <BarChart3 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                Purchases Spend & Orders Volume
+              </h2>
+              <p className="text-[11px] text-slate-400 font-medium">
+                {chartMetric === 'spend' ? 'Total procurement spend in Rs. over time' : 'Number of purchase orders processed'}
+              </p>
+            </div>
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg text-xs font-bold">
+                <button
+                  type="button"
+                  onClick={() => setChartMetric('spend')}
+                  className={`px-2.5 py-1 rounded-md transition-all ${chartMetric === 'spend' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
+                >
+                  Spend (Rs.)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setChartMetric('orders')}
+                  className={`px-2.5 py-1 rounded-md transition-all ${chartMetric === 'orders' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
+                >
+                  Orders
+                </button>
+              </div>
+
+              <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg text-xs font-bold">
+                <button
+                  type="button"
+                  onClick={() => setChartType('bar')}
+                  className={`px-2.5 py-1 rounded-md transition-all ${chartType === 'bar' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
+                >
+                  Bar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setChartType('line')}
+                  className={`px-2.5 py-1 rounded-md transition-all ${chartType === 'line' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
+                >
+                  Line
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex-1 min-h-0 w-full relative">
+            {mounted ? (
+              chartData.length === 0 ? (
+                <div className="absolute inset-0 flex items-center justify-center text-xs text-slate-400">
+                  No purchases recorded yet to plot.
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  {chartType === 'bar' ? (
+                    <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" strokeOpacity={0.4} />
+                      <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                      <YAxis
+                        tick={{ fontSize: 10, fill: '#9CA3AF' }}
+                        axisLine={false}
+                        tickLine={false}
+                        tickFormatter={(v) => chartMetric === 'spend' ? (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`) : `${v}`}
+                      />
+                      <Tooltip
+                        formatter={(v: any) => [
+                          chartMetric === 'spend' ? `Rs. ${Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `${Number(v)} Orders`,
+                          chartMetric === 'spend' ? 'Spend' : 'Orders'
+                        ]}
+                        contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.95)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '12px' }}
+                      />
+                      <Bar dataKey={chartMetric === 'spend' ? 'spend' : 'orders'} fill="#3B82F6" radius={[6, 6, 0, 0]} />
+                    </BarChart>
+                  ) : (
+                    <LineChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" strokeOpacity={0.4} />
+                      <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                      <YAxis
+                        tick={{ fontSize: 10, fill: '#9CA3AF' }}
+                        axisLine={false}
+                        tickLine={false}
+                        tickFormatter={(v) => chartMetric === 'spend' ? (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`) : `${v}`}
+                      />
+                      <Tooltip
+                        formatter={(v: any) => [
+                          chartMetric === 'spend' ? `Rs. ${Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `${Number(v)} Orders`,
+                          chartMetric === 'spend' ? 'Spend' : 'Orders'
+                        ]}
+                        contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.95)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '12px' }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey={chartMetric === 'spend' ? 'spend' : 'orders'}
+                        stroke="#3B82F6"
+                        strokeWidth={3}
+                        dot={{ r: 4, fill: '#3B82F6' }}
+                        activeDot={{ r: 6 }}
+                      />
+                    </LineChart>
+                  )}
+                </ResponsiveContainer>
+              )
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center text-xs text-slate-400">
+                Loading purchases chart...
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 shrink-0 font-medium">
+            <span>Total Recorded Procurement Spend</span>
+            <span className="font-bold text-slate-900 dark:text-white">
+              Rs. {totalSpendVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+          </div>
+        </div>
+
+        {/* Right: Card 1 - Top 5 Suppliers by Spend */}
+        <div className="lg:col-span-1 bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 md:p-6 w-full text-left flex flex-col h-[400px] justify-between">
+          <div className="flex items-center justify-between mb-3 shrink-0">
+            <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              Top Suppliers by Spend
+            </h2>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
+              Highest Spend
+            </span>
+          </div>
+
+          <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar space-y-2 pr-0.5">
+            {topSuppliers.length === 0 ? (
+              <div className="py-12 text-center text-slate-400 text-xs font-medium">
+                No supplier purchases recorded yet.
+              </div>
+            ) : (
+              topSuppliers.slice(0, 5).map((sup, i) => {
+                const rankColors = [
+                  'bg-blue-600 text-white',
+                  'bg-blue-500 text-white',
+                  'bg-indigo-500 text-white',
+                  'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300',
+                  'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                ];
+                return (
+                  <div
+                    key={sup.name || i}
+                    onClick={() => {
+                      if (sup.id) setSupplierFilter(String(sup.id));
+                      setActiveTab('table');
+                    }}
+                    className="flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
+                    title="Click to filter by supplier in table"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${rankColors[i] || 'bg-slate-200 text-slate-700'}`}>
+                        {i + 1}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-blue-600 transition-colors">
+                          {sup.name}
+                        </div>
+                        <div className="text-[10px] text-slate-400 truncate">
+                          {sup.orderCount} order{sup.orderCount !== 1 ? 's' : ''} placed
+                        </div>
+                      </div>
+                    </div>
+                    <span className="text-xs font-black text-slate-900 dark:text-white shrink-0">
+                      Rs. {sup.totalSpend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center shrink-0">
+            <button
+              type="button"
+              onClick={() => setActiveTab('table')}
+              className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer leading-normal flex items-center gap-1"
+            >
+              View All in Purchases Table →
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ──────────────── 3. BOTTOM ROW: 3 RANKINGS / INSIGHTS CARDS ──────────────── */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Card 2: Pending Deliveries */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 md:p-6 w-full text-left flex flex-col h-[400px] justify-between">
+          <div className="flex items-center justify-between mb-3 shrink-0">
+            <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <Truck className="w-5 h-5 text-amber-500 dark:text-amber-400" />
+              Pending Deliveries
+            </h2>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">
+              {pendingOrders.length} Pending
+            </span>
+          </div>
+
+          <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar space-y-2 pr-0.5">
+            {pendingOrders.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-center text-emerald-600 dark:text-emerald-400 text-xs font-medium gap-2">
+                <CheckCircle2 className="w-8 h-8 text-emerald-500" />
+                <span>All deliveries received! No pending orders.</span>
+              </div>
+            ) : (
+              pendingOrders.slice(0, 5).map((p, i) => (
+                <div
+                  key={p.id || i}
+                  onClick={() => {
+                    setStatusFilter('ORDERED');
+                    setActiveTab('table');
+                  }}
+                  className="flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-amber-50/40 dark:hover:bg-amber-950/20 cursor-pointer transition-colors group"
+                  title="Click to view pending PO"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                      {i + 1}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-amber-600 transition-colors">
+                        #{p.purchaseNumber}
+                      </div>
+                      <div className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold truncate">
+                        {p.supplierName} • {p.status}
+                      </div>
+                    </div>
+                  </div>
+                  <span className="text-xs font-black text-slate-900 dark:text-white shrink-0">
+                    Rs. {Number(p.total || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                setStatusFilter('ORDERED');
+                setActiveTab('table');
+              }}
+              className="text-xs text-amber-600 dark:text-amber-400 font-bold hover:underline cursor-pointer leading-normal flex items-center gap-1"
+            >
+              Filter Pending POs in Table →
+            </button>
+          </div>
+        </div>
+
+        {/* Card 3: Top Value Purchase Orders */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 md:p-6 w-full text-left flex flex-col h-[400px] justify-between">
+          <div className="flex items-center justify-between mb-3 shrink-0">
+            <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <ShoppingBag className="w-5 h-5 text-indigo-500 dark:text-indigo-400" />
+              Highest Value POs
+            </h2>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">
+              Top Amounts
+            </span>
+          </div>
+
+          <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar space-y-2 pr-0.5">
+            {topValueOrders.length === 0 ? (
+              <div className="py-12 text-center text-slate-400 text-xs font-medium">
+                No orders recorded yet.
+              </div>
+            ) : (
+              topValueOrders.slice(0, 5).map((p, i) => (
+                <div
+                  key={p.id || i}
+                  onClick={() => setActiveTab('table')}
+                  className="flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
+                  title="Click to view PO"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
+                      {i + 1}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-indigo-600 transition-colors">
+                        #{p.purchaseNumber}
+                      </div>
+                      <div className="text-[10px] text-slate-400 truncate">
+                        {p.supplierName} • {p.items?.length || 0} items
+                      </div>
+                    </div>
+                  </div>
+                  <span className="text-xs font-black text-indigo-600 dark:text-indigo-400 shrink-0">
+                    Rs. {Number(p.total || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center shrink-0">
+            <button
+              type="button"
+              onClick={() => setActiveTab('table')}
+              className="text-xs text-indigo-600 dark:text-indigo-400 font-bold hover:underline cursor-pointer leading-normal flex items-center gap-1"
+            >
+              View All Orders in Table →
+            </button>
+          </div>
+        </div>
+
+        {/* Card 4: Payment Status & Payables */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 md:p-6 w-full text-left flex flex-col h-[400px] justify-between">
+          <div className="flex items-center justify-between mb-3 shrink-0">
+            <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <CircleDollarSign className="w-5 h-5 text-purple-500 dark:text-purple-400" />
+              Payment Status Summary
+            </h2>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400">
+              Payables
+            </span>
+          </div>
+
+          <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar space-y-3 pr-0.5">
+            {paymentBreakdown.map((item, idx) => (
+              <div
+                key={idx}
+                onClick={() => {
+                  setPaymentStatusFilter(item.status);
+                  setActiveTab('table');
+                }}
+                className="p-3 rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors"
+                title="Click to filter by payment status in table"
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                    {item.label}
+                  </span>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${item.bg}`}>
+                    {item.count} order{item.count !== 1 ? 's' : ''}
+                  </span>
+                </div>
+                <div className="text-base font-black text-slate-900 dark:text-white">
+                  Rs. {item.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                setPaymentStatusFilter('UNPAID');
+                setActiveTab('table');
+              }}
+              className="text-xs text-purple-600 dark:text-purple-400 font-bold hover:underline cursor-pointer leading-normal flex items-center gap-1"
+            >
+              Filter Unpaid POs in Table →
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function PurchasesPage() {
   const { user } = useAuthStore();
   const { activeBranchId, branches } = useBranchStore();
@@ -205,7 +684,8 @@ export default function PurchasesPage() {
   const [availableProducts, setAvailableProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // View Mode & Fullscreen
+  // Tab & View Mode & Fullscreen
+  const [activeTab, setActiveTab] = useState<'overview' | 'table'>('overview');
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [expandedRowId, setExpandedRowId] = useState<number | null>(null);
@@ -936,124 +1416,167 @@ export default function PurchasesPage() {
 
       {/* ──────────────── HEADER & TOP BAR ──────────────── */}
       {!isFullscreen && (
-        <div className="mb-8">
-          <div className="font-sans flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-            <div>
-              <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
-                <ShoppingBag className="w-8 h-8 text-blue-600" />
-                Purchases & Orders
-              </h1>
-              <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium">
-                Manage supplier purchase orders, track incoming stock, and monitor expenses.
-              </p>
-            </div>
-
-            <button
-              onClick={() => {
-                resetForm();
-                setIsPanelOpen(true);
-              }}
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
-            >
-              <Plus className="w-5 h-5" />
-              New Purchase
-            </button>
+        <div className="font-sans flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+          <div>
+            <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
+              <ShoppingBag className="w-8 h-8 text-blue-600" />
+              Purchases & Orders
+            </h1>
+            <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium">
+              Manage supplier purchase orders, track incoming stock, and monitor procurement spend.
+            </p>
           </div>
 
-          {/* ──────────────── TOP 4 KPI CARDS ──────────────── */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {kpiData.map((kpi, idx) => (
-              <KpiCard
-                key={idx}
-                title={kpi.title}
-                value={kpi.value}
-                icon={kpi.icon}
-                iconColorClass={kpi.color}
-                iconBgClass={kpi.bg}
-              />
-            ))}
-          </div>
+          <button
+            onClick={() => {
+              resetForm();
+              setIsPanelOpen(true);
+            }}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+          >
+            <Plus className="w-5 h-5" />
+            New Purchase
+          </button>
         </div>
       )}
 
-      {/* ──────────────── SEARCH & TOOLBAR ──────────────── */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-6">
-        <div className="relative w-full sm:w-80 flex-shrink-0 group">
-          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors">
-            <Search className="h-5 w-5" />
-          </div>
-          <input
-            type="text"
-            placeholder="Search PO #, supplier, items..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-12 pr-4 h-12 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-2xl shadow-sm text-slate-900 dark:text-white font-bold placeholder:text-slate-400 placeholder:font-medium transition-all outline-none"
-          />
+      {/* ──────────────── NAVIGATION TABS & UNIFIED TOOLBAR ──────────────── */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+        {/* Left: Mode Toggle (Purchases Overview | Purchases Table) */}
+        <div className="flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm h-12 p-1 overflow-hidden shrink-0">
+          <button 
+            type="button"
+            onClick={() => setActiveTab('overview')}
+            className={`flex items-center justify-center px-5 h-full rounded-xl transition-all font-bold text-xs sm:text-sm cursor-pointer ${
+              activeTab === 'overview'
+                ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm'
+                : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
+            }`}
+          >
+            Purchases Overview
+          </button>
+
+          <div className="w-px h-full bg-slate-200 dark:bg-slate-800 mx-1" />
+
+          <button 
+            type="button"
+            onClick={() => setActiveTab('table')}
+            className={`flex items-center justify-center px-5 h-full rounded-xl transition-all font-bold text-xs sm:text-sm cursor-pointer ${
+              activeTab === 'table'
+                ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm'
+                : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
+            }`}
+          >
+            Purchases Table
+          </button>
         </div>
 
-        {/* Toolbar Controls */}
-        <div className="flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm h-12 p-1 overflow-hidden flex-shrink-0 ml-auto items-center">
-          {/* Filters Button */}
-          <button
+        {/* Right: Unified Toolbar Card (Search, Filters, View Toggles, Fullscreen) */}
+        <div className="flex items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm h-12 p-1 overflow-hidden shrink-0 ml-auto w-full sm:w-auto">
+          {/* Integrated Search Bar on Left */}
+          <div className="relative flex items-center flex-1 sm:w-60 h-full pl-3 pr-2">
+            <Search className="w-4 h-4 text-slate-400 mr-2 shrink-0 pointer-events-none" />
+            <input 
+              type="text"
+              placeholder="Search PO #, supplier, items..."
+              value={search}
+              onChange={e => {
+                setSearch(e.target.value);
+                if (activeTab === 'overview' && e.target.value.trim() !== '') {
+                  setActiveTab('table');
+                }
+              }}
+              className="w-full bg-transparent border-0 outline-none text-xs font-bold text-slate-900 dark:text-white placeholder:text-slate-400 placeholder:font-medium"
+            />
+            {search && (
+              <button 
+                type="button"
+                onClick={() => setSearch('')}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 ml-1 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          <div className="w-px h-full bg-slate-200 dark:bg-slate-800 mx-1" />
+
+          {/* Filter Button */}
+          <button 
             onClick={() => setIsFilterOpen(!isFilterOpen)}
             className={`flex items-center justify-center px-4 h-full rounded-xl transition-all gap-2 font-bold relative cursor-pointer ${
-              activeFilterCount > 0
-                ? 'bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400'
+              activeFilterCount > 0 
+                ? 'bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400' 
                 : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'
             }`}
             title="Filter Purchases"
           >
-            <Filter className="w-5 h-5" />
-            <span className="hidden sm:inline">Filters</span>
+            <Filter className="w-4 h-4" />
+            <span className="hidden sm:inline text-xs">Filters</span>
             {activeFilterCount > 0 && (
-              <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] flex items-center justify-center font-black">
+              <span className="w-4 h-4 rounded-full bg-blue-600 text-white text-[9px] flex items-center justify-center font-black">
                 {activeFilterCount}
               </span>
             )}
           </button>
 
-          <div className="w-px h-7 bg-slate-200 dark:bg-slate-800 mx-1" />
+          <div className="w-px h-full bg-slate-200 dark:bg-slate-800 mx-1" />
 
-          {/* List View */}
-          <button
+          {/* List View Toggle */}
+          <button 
             onClick={() => setViewMode('list')}
             title="List View"
-            className={`flex items-center justify-center w-12 h-full rounded-xl transition-all cursor-pointer ${
-              viewMode === 'list'
-                ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 shadow-sm'
+            className={`flex items-center justify-center w-10 h-full rounded-xl transition-all cursor-pointer ${
+              viewMode === 'list' 
+                ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 shadow-sm' 
                 : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'
             }`}
           >
-            <List className="w-5 h-5" />
+            <List className="w-4 h-4" />
           </button>
 
-          {/* Grid View */}
-          <button
+          {/* Grid View Toggle */}
+          <button 
             onClick={() => setViewMode('grid')}
             title="Grid View"
-            className={`flex items-center justify-center w-12 h-full rounded-xl transition-all cursor-pointer ${
-              viewMode === 'grid'
-                ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 shadow-sm'
+            className={`flex items-center justify-center w-10 h-full rounded-xl transition-all cursor-pointer ${
+              viewMode === 'grid' 
+                ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 shadow-sm' 
                 : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'
             }`}
           >
-            <LayoutGrid className="w-5 h-5" />
+            <LayoutGrid className="w-4 h-4" />
           </button>
 
-          <div className="w-px h-7 bg-slate-200 dark:bg-slate-800 mx-1" />
+          <div className="w-px h-full bg-slate-200 dark:bg-slate-800 mx-1" />
 
           {/* Fullscreen Toggle */}
-          <button
+          <button 
             onClick={() => setIsFullscreen(!isFullscreen)}
-            title={isFullscreen ? 'Exit Full Screen' : 'Full Screen'}
-            className="flex items-center justify-center w-12 h-full rounded-xl transition-all text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer"
+            title={isFullscreen ? "Exit Full Screen" : "Full Screen"}
+            className="flex items-center justify-center w-10 h-full rounded-xl transition-all text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer"
           >
-            {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
+            {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
           </button>
         </div>
       </div>
 
-      {/* ──────────────── MAIN PURCHASES VIEW (LIST OR GRID) ──────────────── */}
+      {/* ──────────────── CONDITIONAL VIEW: OVERVIEW DASHBOARD OR TABLE ──────────────── */}
+      {activeTab === 'overview' ? (
+        <PurchasesOverviewDashboard
+          purchases={purchases}
+          suppliers={suppliers}
+          kpiData={kpiData}
+          setActiveTab={setActiveTab}
+          setStatusFilter={setStatusFilter}
+          setPaymentStatusFilter={setPaymentStatusFilter}
+          setSupplierFilter={setSupplierFilter}
+          handleStartEditPurchase={handleStartEditPurchase}
+          handleOpenDetailsDrawer={(p) => setExpandedRowId(p.id)}
+        />
+      ) : (
+        <>
+          {/* ──────────────── MAIN PURCHASES VIEW (LIST OR GRID) ──────────────── */}
       {loading ? (
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm p-16 flex flex-col items-center justify-center text-slate-400 gap-3 min-h-[420px]">
           <div className="w-8 h-8 border-3 border-blue-500 border-t-transparent rounded-full animate-spin" />
@@ -1511,6 +2034,8 @@ export default function PurchasesPage() {
             ))}
         </div>
       )}
+        </>
+      )}
 
       {/* ──────────────── SLIDE-OUT FILTER PANEL ──────────────── */}
       <FilterPanel
@@ -1580,6 +2105,7 @@ export default function PurchasesPage() {
               )}
             </div>
             <CustomSelect
+              icon={Truck}
               value={isLocalMode ? 'all' : supplierFilter}
               onChange={(val) => setSupplierFilter(val)}
               options={[
@@ -1598,21 +2124,27 @@ export default function PurchasesPage() {
             <div className="space-y-2">
               <div>
                 <span className="text-[11px] text-slate-400 block mb-1">From Date</span>
-                <input
-                  type="date"
-                  value={fromDate}
-                  onChange={(e) => setFromDate(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-medium text-slate-800 dark:text-white outline-none focus:border-blue-500"
-                />
+                <div className="relative">
+                  <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="date"
+                    value={fromDate}
+                    onChange={(e) => setFromDate(e.target.value)}
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-9 pr-3 py-2 text-xs font-medium text-slate-800 dark:text-white outline-none focus:border-blue-500"
+                  />
+                </div>
               </div>
               <div>
                 <span className="text-[11px] text-slate-400 block mb-1">To Date</span>
-                <input
-                  type="date"
-                  value={toDate}
-                  onChange={(e) => setToDate(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-medium text-slate-800 dark:text-white outline-none focus:border-blue-500"
-                />
+                <div className="relative">
+                  <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="date"
+                    value={toDate}
+                    onChange={(e) => setToDate(e.target.value)}
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-9 pr-3 py-2 text-xs font-medium text-slate-800 dark:text-white outline-none focus:border-blue-500"
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -1621,6 +2153,7 @@ export default function PurchasesPage() {
           <div>
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-2">Sort By</label>
             <CustomSelect
+              icon={CircleDollarSign}
               value={sortBy}
               onChange={(val: any) => setSortBy(val)}
               options={[

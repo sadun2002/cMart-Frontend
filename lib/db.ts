@@ -311,6 +311,20 @@ export async function getDb() {
         FOREIGN KEY (purchaseId) REFERENCES purchases(id) ON DELETE CASCADE
       );
     `);
+
+    await dbInstance.execute(`
+      CREATE TABLE IF NOT EXISTS attendance (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        tenantId INTEGER,
+        employeeId INTEGER,
+        name TEXT,
+        type TEXT,
+        time TEXT,
+        status TEXT,
+        synced INTEGER DEFAULT 0,
+        createdAt TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
   }
   
   // Auto-migrate schema for dev environments
@@ -514,7 +528,14 @@ export async function resetLocalDatabase(): Promise<{ success: boolean; tablesRe
     'promotions',
     'purchases',
     'purchase_items',
-    'barcode_history'
+    'barcode_history',
+    'attendance',
+    'staff_shifts',
+    'time_logs',
+    'employees',
+    'branches',
+    'suppliers',
+    'goals'
   ];
 
   const tablesToClear = new Set<string>(explicitTables);

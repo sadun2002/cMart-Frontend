@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { COMPANY_NAME, COMPANY_TAGLINE } from '@/lib/constants';
+import { COMPANY_NAME, COMPANY_TAGLINE, PLATFORM_DOMAIN } from '@/lib/constants';
 import api from '@/lib/api';
 import { toast } from 'sonner';
 import { Mail, ChevronRight, ChevronLeft, AlertCircle, CheckCircle, ShoppingCart, Globe, BarChart3, Users } from 'lucide-react';
@@ -39,7 +39,18 @@ export default function ForgotPasswordPage() {
   const onSubmit = async (data: ForgotForm) => {
     setIsLoading(true);
     try {
-      await api.post('/auth/forgot-password', { email: data.email });
+      let targetFrontendUrl = `https://${PLATFORM_DOMAIN || 'cmart.chathudisa.com'}`;
+      if (typeof window !== 'undefined') {
+        const origin = window.location.origin;
+        if (origin && !origin.includes('localhost') && !origin.includes('tauri')) {
+          targetFrontendUrl = origin;
+        }
+      }
+
+      await api.post('/auth/forgot-password', { 
+        email: data.email,
+        frontendUrl: targetFrontendUrl 
+      });
       
       setSent(true);
       toast.success('Reset link sent!');

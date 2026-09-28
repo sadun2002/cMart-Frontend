@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Receipt, Download, Printer, Filter, Search } from 'lucide-react';
+import { Receipt, Download, Printer, Filter, Search, Calendar, CreditCard, SlidersHorizontal } from 'lucide-react';
 import { toast } from 'sonner';
 import { FilterPanel } from '@/components/ui/filter-panel';
 import { CustomSelect } from '@/components/ui/custom-select';
@@ -233,7 +233,7 @@ export default function SalesReportPage() {
         {/* Report Period Filter */}
         <div className="space-y-3">
           <label className="text-sm font-bold text-slate-900 dark:text-white">Report Period</label>
-          <CustomSelect value={reportPeriod} onChange={(val) => setReportPeriod(val)} options={[
+          <CustomSelect icon={Calendar} value={reportPeriod} onChange={(val) => setReportPeriod(val)} options={[
             { value: 'daily', label: 'Daily' },
             { value: 'weekly', label: 'Weekly' },
             { value: 'monthly', label: 'Monthly' },
@@ -247,54 +247,57 @@ export default function SalesReportPage() {
         {reportPeriod === 'daily' && (
           <div className="space-y-3">
             <label className="text-sm font-bold text-slate-900 dark:text-white">Select Date</label>
-            <input
-              type="date" max={new Date().toISOString().split('T')[0]}
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none dark:text-white"
-            />
+            <div className="relative">
+              <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="date" max={new Date().toISOString().split('T')[0]}
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none dark:text-white"
+              />
+            </div>
           </div>
         )}
 
         {reportPeriod !== 'daily' && (
           <div className="space-y-3">
             <label className="text-sm font-bold text-slate-900 dark:text-white">Select Year</label>
-            <CustomSelect value={selectedYear} onChange={setSelectedYear} options={getYearOptions()} />
+            <CustomSelect icon={Calendar} value={selectedYear} onChange={setSelectedYear} options={getYearOptions()} />
           </div>
         )}
 
         {reportPeriod === 'weekly' && (
           <div className="space-y-3">
             <label className="text-sm font-bold text-slate-900 dark:text-white">Select Week</label>
-            <CustomSelect value={selectedWeek} onChange={setSelectedWeek} options={getWeekOptions(selectedYear)} />
+            <CustomSelect icon={Calendar} value={selectedWeek} onChange={setSelectedWeek} options={getWeekOptions(selectedYear)} />
           </div>
         )}
 
         {reportPeriod === 'monthly' && (
           <div className="space-y-3">
             <label className="text-sm font-bold text-slate-900 dark:text-white">Select Month</label>
-            <CustomSelect value={selectedMonth} onChange={setSelectedMonth} options={getMonthOptions(selectedYear)} />
+            <CustomSelect icon={Calendar} value={selectedMonth} onChange={setSelectedMonth} options={getMonthOptions(selectedYear)} />
           </div>
         )}
 
         {reportPeriod === '3-month' && (
           <div className="space-y-3">
             <label className="text-sm font-bold text-slate-900 dark:text-white">Select Quarter</label>
-            <CustomSelect value={selectedMonth} onChange={setSelectedMonth} options={getQuarterOptions(selectedYear)} />
+            <CustomSelect icon={Calendar} value={selectedMonth} onChange={setSelectedMonth} options={getQuarterOptions(selectedYear)} />
           </div>
         )}
 
         {reportPeriod === '6-month' && (
           <div className="space-y-3">
             <label className="text-sm font-bold text-slate-900 dark:text-white">Select Half</label>
-            <CustomSelect value={selectedMonth} onChange={setSelectedMonth} options={getHalfYearOptions(selectedYear)} />
+            <CustomSelect icon={Calendar} value={selectedMonth} onChange={setSelectedMonth} options={getHalfYearOptions(selectedYear)} />
           </div>
         )}
 
         {reportPeriod === 'daily' && (
           <div className="space-y-3">
             <label className="text-sm font-bold text-slate-900 dark:text-white">Payment Method</label>
-            <CustomSelect value={payMethodFilter} onChange={setPayMethodFilter} options={[
+            <CustomSelect icon={CreditCard} value={payMethodFilter} onChange={setPayMethodFilter} options={[
               { value: 'all', label: 'All Methods' },
               { value: 'Cash', label: 'Cash' },
               { value: 'Card', label: 'Card' },
@@ -305,7 +308,7 @@ export default function SalesReportPage() {
 
         <div className="space-y-3">
           <label className="text-sm font-bold text-slate-900 dark:text-white">Sort By</label>
-          <CustomSelect value={sortBy} onChange={setSortBy} options={[
+          <CustomSelect icon={SlidersHorizontal} value={sortBy} onChange={setSortBy} options={[
             { value: 'default', label: 'Default' },
             { value: 'amount-desc', label: 'Revenue (Highest First)' },
             { value: 'amount-asc', label: 'Revenue (Lowest First)' },

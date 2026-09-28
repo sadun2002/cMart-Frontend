@@ -30,7 +30,9 @@ type ResetForm = z.infer<typeof resetSchema>;
 function ResetPasswordForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const token = searchParams.get('token');
+  const [token, setToken] = useState<string | null>(null);
+  const [isReady, setIsReady] = useState(false);
+  const [tokenError, setTokenError] = useState<string | null>(null);
 
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -47,11 +49,23 @@ function ResetPasswordForm() {
   });
 
   useEffect(() => {
-    if (!token) {
-      toast.error('Invalid or missing reset token.');
-      router.push('/login');
+    // 1. Try searchParams
+    let rawToken = searchParams.get('token');
+
+    // 2. Fallback directly to window.location.search to avoid hydration delays
+    if (!rawToken && typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      rawToken = urlParams.get('token');
     }
-  }, [token, router]);
+
+    if (!rawToken) {
+      setTokenError('The password reset link is invalid or missing required parameters.');
+    } else {
+      setToken(rawToken);
+      setTokenError(null);
+    }
+    setIsReady(true);
+  }, [searchParams]);
 
   const onSubmit = async (data: ResetForm) => {
     if (!token) return;
@@ -71,11 +85,59 @@ function ResetPasswordForm() {
     }
   };
 
-  if (!token) return null;
+  // ── Show Loading state during hydration
+  if (!isReady) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-6 bg-white dark:bg-slate-950 md:bg-gray-50 transition-colors w-full min-h-screen">
+        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-slate-500 font-medium text-sm mt-4">Verifying reset link...</p>
+      </div>
+    );
+  }
+
+  // ── Show Friendly Error state if token is missing (instead of kicking out to /login immediately)
+  if (tokenError || !token) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-6 bg-white dark:bg-slate-950 md:bg-gray-50 transition-colors w-full min-h-screen">
+        <Link href="/" className="flex items-center gap-2 mb-8 group">
+          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-md group-hover:scale-105 transition-transform">
+            <span className="text-white font-black text-lg">c</span>
+          </div>
+          <span className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">{COMPANY_NAME}</span>
+        </Link>
+
+        <div className="w-full max-w-[420px]">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl shadow-blue-900/5 border border-gray-100 dark:border-slate-800 p-8 text-center">
+            <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="w-8 h-8 text-red-600 dark:text-red-400" />
+            </div>
+            <h1 className="text-2xl font-black text-gray-900 dark:text-white mb-2">Invalid or Expired Link</h1>
+            <p className="text-gray-500 dark:text-slate-400 text-sm leading-relaxed mb-6">
+              {tokenError || 'This password reset link is invalid, incomplete, or has expired. Please request a new password reset link.'}
+            </p>
+            <div className="space-y-3">
+              <Link
+                href="/forgot-password"
+                className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-sm transition-all flex items-center justify-center shadow-lg shadow-blue-600/25"
+              >
+                Request New Reset Link
+              </Link>
+              <Link
+                href="/login"
+                className="w-full py-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-xl text-sm transition-all flex items-center justify-center"
+              >
+                Return to Login
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-6 bg-white dark:bg-slate-950 md:bg-gray-50 transition-colors w-full min-h-screen">
-      <Link href="/" className="hidden md:flex items-center gap-2 mb-8 group">
+      <Link href="/" className="flex items-center gap-2 mb-8 group">
         <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-md group-hover:scale-105 transition-transform">
           <span className="text-white font-black text-lg">c</span>
         </div>
@@ -83,7 +145,7 @@ function ResetPasswordForm() {
       </Link>
 
       <div className="w-full max-w-[420px]">
-        <div className="md:bg-white md:dark:bg-slate-900 md:rounded-3xl md:shadow-xl md:shadow-blue-900/5 md:border md:border-gray-100 md:dark:border-slate-800 md:p-8">
+        <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl shadow-blue-900/5 border border-gray-100 dark:border-slate-800 p-8">
           {success ? (
             <div className="text-center">
               <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -91,7 +153,7 @@ function ResetPasswordForm() {
               </div>
               <h1 className="text-2xl font-black text-gray-900 dark:text-white mb-2">Password reset!</h1>
               <p className="text-gray-500 dark:text-slate-400 text-sm leading-relaxed mb-6">
-                Your password has been changed successfully. You can now log in with your new password.
+                Your password has been changed successfully. You can now log in with your email and new password.
               </p>
               <Link
                 href="/login"

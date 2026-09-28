@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Package, Barcode, Download, Printer, Copy, RefreshCcw, ChevronDown, History, Maximize, Minimize, Settings, Search, List, LayoutGrid, Filter } from 'lucide-react';
+import { Package, Barcode, Download, Printer, Copy, RefreshCcw, ChevronDown, History, Maximize, Minimize, Settings, Search, List, LayoutGrid, Filter, Tag } from 'lucide-react';
 import { toast } from 'sonner';
 import JSZip from 'jszip';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -957,6 +957,7 @@ export default function BarcodeGeneratorPage() {
           <div className="space-y-3">
             <label className="text-sm font-bold text-slate-900 dark:text-white">Category</label>
             <CustomSelect
+              icon={Tag}
               value={categoryFilter}
               onChange={setCategoryFilter}
               options={[
@@ -972,6 +973,7 @@ export default function BarcodeGeneratorPage() {
           <div className="space-y-3">
             <label className="text-sm font-bold text-slate-900 dark:text-white">Stock Status</label>
             <CustomSelect
+              icon={Package}
               value={stockFilter}
               onChange={setStockFilter}
               options={[
@@ -986,6 +988,7 @@ export default function BarcodeGeneratorPage() {
           <div className="space-y-3">
             <label className="text-sm font-bold text-slate-900 dark:text-white">Printed Status</label>
             <CustomSelect
+              icon={Printer}
               value={printedFilter}
               onChange={(val) => setPrintedFilter(val as any)}
               options={[

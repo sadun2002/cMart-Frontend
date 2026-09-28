@@ -44,16 +44,18 @@ function SearchableSelect({ value, onChange, options, placeholder }: { value: st
         <>
           <div className="fixed inset-0 z-[60]" onClick={() => setIsOpen(false)} />
           <div className="absolute z-[70] w-full mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg max-h-60 flex flex-col overflow-hidden">
-            <div className="p-2 border-b border-slate-100 dark:border-slate-700 shrink-0">
-              <input 
-                autoFocus
-                type="text" 
-                placeholder="Search..." 
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm font-medium outline-none"
-              />
-            </div>
+            {options.length > 5 && (
+              <div className="p-2 border-b border-slate-100 dark:border-slate-700 shrink-0">
+                <input 
+                  autoFocus
+                  type="text" 
+                  placeholder="Search..." 
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm font-medium outline-none"
+                />
+              </div>
+            )}
             <div className="overflow-y-auto p-1 flex-1">
               {filteredOptions.length === 0 ? (
                 <div className="p-3 text-sm text-slate-400 text-center">No results found</div>

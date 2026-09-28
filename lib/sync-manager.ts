@@ -37,7 +37,7 @@ export async function performBulkSync(): Promise<boolean> {
         localStorage.removeItem('cmart_pending_cloud_reset');
         console.log('Pending cloud reset executed successfully.');
       } catch (err) {
-        console.error('Failed to execute pending cloud reset:', err);
+        console.warn('Failed to execute pending cloud reset (offline):', err);
       }
     }
 
@@ -76,7 +76,7 @@ export async function performBulkSync(): Promise<boolean> {
     
     return false;
   } catch (error) {
-    console.error('Bulk sync failed:', error);
+    console.warn('Bulk sync offline or failed:', error);
     throw error;
   }
 }

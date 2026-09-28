@@ -467,7 +467,7 @@ function InventoryOverviewDashboard({
       {/* ──────────────── 2. MAIN DASHBOARD GRID: CHART (2 Cols) + TOP OUT OF STOCK (1 Col) ──────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left: Chart Card (Category Stock Health & Volume / Valuation) */}
-        <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 w-full text-left flex flex-col h-[380px] justify-between">
+        <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 w-full text-left flex flex-col h-[400px] justify-between">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 flex-shrink-0">
             <div>
               <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
@@ -603,64 +603,61 @@ function InventoryOverviewDashboard({
         </div>
 
         {/* Right: Card 1 - Top Out of Stock Products (Stock = 0) */}
-        <div className="lg:col-span-1 bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 pb-5 md:pb-5 w-full text-left flex flex-col h-[380px] justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-4 md:mb-5">
-              <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />
-                Top Out of Stock
-              </h2>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400">
-                {overviewStats.outOfStockCount} Items Zero
-              </span>
-            </div>
-
-            <div className="space-y-3">
-              {overviewStats.outOfStockProducts.length === 0 ? (
-                <div className="py-12 text-center text-emerald-600 dark:text-emerald-400 text-xs font-medium flex flex-col items-center justify-center gap-2">
-                  <CheckCircle2 className="w-8 h-8 text-emerald-500" />
-                  <span>No products out of stock! All items available.</span>
-                </div>
-              ) : (
-                overviewStats.outOfStockProducts.map(({ product: p, threshold }, i) => {
-                  const catName = getCategoryName(p.categoryId);
-                  return (
-                    <div 
-                      key={p.id || i} 
-                      onClick={() => handleOpenPanel('Stock In', p)}
-                      className="flex items-center justify-between gap-3 p-1.5 rounded-xl hover:bg-red-50/50 dark:hover:bg-red-950/20 cursor-pointer transition-colors group"
-                      title="Click to perform Stock In"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-300">
-                          {i + 1}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-red-600 transition-colors">
-                            {p.name}
-                          </div>
-                          <div className="text-[10px] text-red-500 dark:text-red-400 font-semibold truncate flex items-center gap-1.5">
-                            <span>0 {p.unit || 'pcs'}</span>
-                            <span className="text-slate-300">•</span>
-                            <span className="text-slate-400">Min: {threshold}</span>
-                          </div>
-                        </div>
-                      </div>
-                      <button 
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); handleOpenPanel('Stock In', p); }}
-                        className="px-2 py-1 rounded-lg bg-red-600 hover:bg-red-700 text-white text-[10px] font-bold shrink-0 transition-colors shadow-xs"
-                      >
-                        Restock
-                      </button>
-                    </div>
-                  );
-                })
-              )}
-            </div>
+        <div className="lg:col-span-1 bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 md:p-6 w-full text-left flex flex-col h-[400px] justify-between">
+          <div className="flex items-center justify-between mb-3 shrink-0">
+            <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />
+              Top Out of Stock
+            </h2>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400">
+              {overviewStats.outOfStockCount} Items Zero
+            </span>
           </div>
 
-          <div className="mt-2 pt-2.5 pb-1 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center">
+          <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar space-y-2 pr-0.5">
+            {overviewStats.outOfStockProducts.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-center text-emerald-600 dark:text-emerald-400 text-xs font-medium gap-2">
+                <CheckCircle2 className="w-8 h-8 text-emerald-500" />
+                <span>No products out of stock! All items available.</span>
+              </div>
+            ) : (
+              overviewStats.outOfStockProducts.slice(0, 5).map(({ product: p, threshold }, i) => {
+                return (
+                  <div 
+                    key={p.id || i} 
+                    onClick={() => handleOpenPanel('Stock In', p)}
+                    className="flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-red-50/50 dark:hover:bg-red-950/20 cursor-pointer transition-colors group"
+                    title="Click to perform Stock In"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-300">
+                        {i + 1}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-red-600 transition-colors">
+                          {p.name}
+                        </div>
+                        <div className="text-[10px] text-red-500 dark:text-red-400 font-semibold truncate flex items-center gap-1.5">
+                          <span>0 {p.unit || 'pcs'}</span>
+                          <span className="text-slate-300 dark:text-slate-600">•</span>
+                          <span className="text-slate-400">Min: {threshold}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <button 
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); handleOpenPanel('Stock In', p); }}
+                      className="px-2.5 py-1 rounded-lg bg-red-600 hover:bg-red-700 text-white text-[10px] font-bold shrink-0 transition-colors shadow-xs cursor-pointer"
+                    >
+                      Restock
+                    </button>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center shrink-0">
             <button
               type="button"
               onClick={() => {
@@ -679,65 +676,63 @@ function InventoryOverviewDashboard({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         
         {/* Card 2: Low Stock Alerts */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 pb-5 md:pb-5 w-full text-left flex flex-col h-[380px] justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-4 md:mb-5">
-              <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <AlertCircle className="w-5 h-5 text-amber-500 dark:text-amber-400" />
-                Low Stock Alerts
-              </h2>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">
-                {overviewStats.lowStockCount} Items Running Low
-              </span>
-            </div>
-
-            <div className="space-y-3">
-              {overviewStats.lowStockProducts.length === 0 ? (
-                <div className="py-12 text-center text-emerald-600 dark:text-emerald-400 text-xs font-medium flex flex-col items-center justify-center gap-2">
-                  <CheckCircle2 className="w-8 h-8 text-emerald-500" />
-                  <span>All products have safe stock buffers!</span>
-                </div>
-              ) : (
-                overviewStats.lowStockProducts.map(({ product: p, stock, threshold }, i) => {
-                  const ratio = Math.min(100, Math.round((stock / Math.max(1, threshold)) * 100));
-                  return (
-                    <div 
-                      key={p.id || i} 
-                      onClick={() => handleOpenPanel('Stock In', p)}
-                      className="flex items-center justify-between gap-3 p-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
-                      title="Click to manage stock"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
-                          {i + 1}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-amber-600 transition-colors">
-                            {p.name}
-                          </div>
-                          <div className="text-[10px] text-amber-600 dark:text-amber-400 font-bold truncate">
-                            {stock} / {threshold} {p.unit || 'pcs'} ({ratio}% buffer)
-                          </div>
-                        </div>
-                      </div>
-                      <span className="text-xs font-black text-slate-900 dark:text-white flex-shrink-0">
-                        Rs. {Number(p.price || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </span>
-                    </div>
-                  );
-                })
-              )}
-            </div>
+        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 md:p-6 w-full text-left flex flex-col h-[400px] justify-between">
+          <div className="flex items-center justify-between mb-3 shrink-0">
+            <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-amber-500 dark:text-amber-400" />
+              Low Stock Alerts
+            </h2>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">
+              {overviewStats.lowStockCount} Items Low
+            </span>
           </div>
 
-          <div className="mt-2 pt-2.5 pb-1 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center">
+          <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar space-y-2 pr-0.5">
+            {overviewStats.lowStockProducts.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-center text-emerald-600 dark:text-emerald-400 text-xs font-medium gap-2">
+                <CheckCircle2 className="w-8 h-8 text-emerald-500" />
+                <span>All products have safe stock buffers!</span>
+              </div>
+            ) : (
+              overviewStats.lowStockProducts.slice(0, 5).map(({ product: p, stock, threshold }, i) => {
+                const ratio = Math.min(100, Math.round((stock / Math.max(1, threshold)) * 100));
+                return (
+                  <div 
+                    key={p.id || i} 
+                    onClick={() => handleOpenPanel('Stock In', p)}
+                    className="flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
+                    title="Click to manage stock"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                        {i + 1}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-amber-600 transition-colors">
+                          {p.name}
+                        </div>
+                        <div className="text-[10px] text-amber-600 dark:text-amber-400 font-bold truncate">
+                          {stock} / {threshold} {p.unit || 'pcs'} ({ratio}% buffer)
+                        </div>
+                      </div>
+                    </div>
+                    <span className="text-xs font-black text-slate-900 dark:text-white flex-shrink-0">
+                      Rs. {Number(p.price || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center shrink-0">
             <button
               type="button"
               onClick={() => {
                 setStockFilter('low-stock');
                 setActiveTab('table');
               }}
-              className="text-xs text-amber-600 dark:text-amber-400 font-bold hover:underline cursor-pointer leading-normal"
+              className="text-xs text-amber-600 dark:text-amber-400 font-bold hover:underline cursor-pointer leading-normal flex items-center gap-1"
             >
               View All {overviewStats.lowStockCount} Low Stock in Table →
             </button>
@@ -745,59 +740,57 @@ function InventoryOverviewDashboard({
         </div>
 
         {/* Card 3: Reorder Priority & Replenishment Deficit */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 pb-5 md:pb-5 w-full text-left flex flex-col h-[380px] justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-4 md:mb-5">
-              <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <Truck className="w-5 h-5 text-indigo-500 dark:text-indigo-400" />
-                Reorder Priority
-              </h2>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">
-                Replenish Needed
-              </span>
-            </div>
-
-            <div className="space-y-3">
-              {overviewStats.reorderPriorityProducts.length === 0 ? (
-                <div className="py-12 text-center text-slate-400 text-xs font-medium">
-                  No replenishment orders needed.
-                </div>
-              ) : (
-                overviewStats.reorderPriorityProducts.map(({ product: p, deficit, restockCost }, i) => {
-                  return (
-                    <div 
-                      key={p.id || i} 
-                      onClick={() => handleOpenPanel('Stock In', p)}
-                      className="flex items-center justify-between gap-3 p-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
-                      title="Click to perform Stock In"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
-                          {i + 1}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-indigo-600 transition-colors">
-                            {p.name}
-                          </div>
-                          <div className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold truncate">
-                            Need +{deficit} {p.unit || 'pcs'} to reach threshold
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <span className="text-xs font-black text-slate-900 dark:text-white block">
-                          Rs. {restockCost.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                        </span>
-                        <span className="text-[9px] text-slate-400">est. cost</span>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
+        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 md:p-6 w-full text-left flex flex-col h-[400px] justify-between">
+          <div className="flex items-center justify-between mb-3 shrink-0">
+            <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <Truck className="w-5 h-5 text-indigo-500 dark:text-indigo-400" />
+              Reorder Priority
+            </h2>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">
+              Replenish Needed
+            </span>
           </div>
 
-          <div className="mt-2 pt-2.5 pb-1 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center">
+          <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar space-y-2 pr-0.5">
+            {overviewStats.reorderPriorityProducts.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-center text-slate-400 text-xs font-medium">
+                No replenishment orders needed.
+              </div>
+            ) : (
+              overviewStats.reorderPriorityProducts.slice(0, 5).map(({ product: p, deficit, restockCost }, i) => {
+                return (
+                  <div 
+                    key={p.id || i} 
+                    onClick={() => handleOpenPanel('Stock In', p)}
+                    className="flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
+                    title="Click to perform Stock In"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
+                        {i + 1}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-indigo-600 transition-colors">
+                          {p.name}
+                        </div>
+                        <div className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold truncate">
+                          Need +{deficit} {p.unit || 'pcs'} to reach threshold
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <span className="text-xs font-black text-slate-900 dark:text-white block">
+                        Rs. {restockCost.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                      </span>
+                      <span className="text-[9px] text-slate-400">est. cost</span>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center shrink-0">
             <button
               type="button"
               onClick={() => handleOpenPanel('Stock In')}
@@ -809,63 +802,61 @@ function InventoryOverviewDashboard({
         </div>
 
         {/* Card 4: Top Capital Tied-Up */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 pb-5 md:pb-5 w-full text-left flex flex-col h-[380px] justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-4 md:mb-5">
-              <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <DollarSign className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
-                Top Capital Tied-Up
-              </h2>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
-                Highest Valuation
-              </span>
-            </div>
-
-            <div className="space-y-3">
-              {overviewStats.topCapitalProducts.length === 0 ? (
-                <div className="py-12 text-center text-slate-400 text-xs font-medium">
-                  No stock valuation data found.
-                </div>
-              ) : (
-                overviewStats.topCapitalProducts.map(({ product: p, capital, stock }, i) => {
-                  return (
-                    <div 
-                      key={p.id || i} 
-                      onClick={() => handleOpenPanel('Stock In', p)}
-                      className="flex items-center justify-between gap-3 p-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
-                      title="Click to manage stock"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
-                          {i + 1}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-emerald-600 transition-colors">
-                            {p.name}
-                          </div>
-                          <div className="text-[10px] text-slate-400 truncate">
-                            {stock} {p.unit || 'units'} in branch
-                          </div>
-                        </div>
-                      </div>
-                      <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 flex-shrink-0">
-                        Rs. {capital.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </span>
-                    </div>
-                  );
-                })
-              )}
-            </div>
+        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 md:p-6 w-full text-left flex flex-col h-[400px] justify-between">
+          <div className="flex items-center justify-between mb-3 shrink-0">
+            <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <DollarSign className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
+              Top Capital Tied-Up
+            </h2>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
+              Highest Valuation
+            </span>
           </div>
 
-          <div className="mt-2 pt-2.5 pb-1 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center">
+          <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar space-y-2 pr-0.5">
+            {overviewStats.topCapitalProducts.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-center text-slate-400 text-xs font-medium">
+                No stock valuation data found.
+              </div>
+            ) : (
+              overviewStats.topCapitalProducts.slice(0, 5).map(({ product: p, capital, stock }, i) => {
+                return (
+                  <div 
+                    key={p.id || i} 
+                    onClick={() => handleOpenPanel('Stock In', p)}
+                    className="flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
+                    title="Click to manage stock"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+                        {i + 1}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-emerald-600 transition-colors">
+                          {p.name}
+                        </div>
+                        <div className="text-[10px] text-slate-400 truncate">
+                          {stock} {p.unit || 'units'} in branch
+                        </div>
+                      </div>
+                    </div>
+                    <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 flex-shrink-0">
+                      Rs. {capital.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center shrink-0">
             <button
               type="button"
               onClick={() => {
                 setSortMode('value-desc');
                 setActiveTab('table');
               }}
-              className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer leading-normal"
+              className="text-xs text-emerald-600 dark:text-emerald-400 font-bold hover:underline cursor-pointer leading-normal flex items-center gap-1"
             >
               View High Valuation in Table →
             </button>
@@ -2960,6 +2951,7 @@ export default function InventoryPage() {
         <div className="space-y-3">
           <label className="text-sm font-bold text-slate-900 dark:text-white">Stock Status</label>
           <CustomSelect
+            icon={Package}
             value={stockFilter}
             onChange={setStockFilter}
             searchable={false}
@@ -2975,6 +2967,7 @@ export default function InventoryPage() {
         <div className="space-y-3">
           <label className="text-sm font-bold text-slate-900 dark:text-white">Unit / Measurement</label>
           <CustomSelect
+            icon={Layers}
             value={unitFilter}
             onChange={setUnitFilter}
             searchable={false}
@@ -2988,6 +2981,7 @@ export default function InventoryPage() {
         <div className="space-y-3">
           <label className="text-sm font-bold text-slate-900 dark:text-white">Category</label>
           <CustomSelect
+            icon={Tag}
             value={categoryFilter}
             onChange={setCategoryFilter}
             searchable={true}
@@ -3004,6 +2998,7 @@ export default function InventoryPage() {
         <div className="space-y-3">
           <label className="text-sm font-bold text-slate-900 dark:text-white">Sort By</label>
           <CustomSelect
+            icon={SlidersHorizontal}
             value={sortMode}
             onChange={(val) => setSortMode(val as any)}
             searchable={false}

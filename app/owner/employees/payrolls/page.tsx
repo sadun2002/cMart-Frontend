@@ -1,11 +1,23 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { 
   Banknote, Search, Filter, CheckCircle, Clock, XCircle, AlertTriangle, 
   Maximize, Minimize, List, LayoutGrid, X, Download, User as UserIcon, 
-  Eye, FileText, Printer, Mail, Plus, ChevronDown, ChevronUp, CalendarDays, Wallet, Trash2, CreditCard
+  Eye, FileText, Printer, Mail, Plus, ChevronDown, ChevronUp, CalendarDays, Wallet, Trash2, CreditCard,
+  BarChart3, PieChart, Activity, ShieldCheck, ArrowRight, TrendingUp, Users, Building
 } from 'lucide-react';
+import { 
+  ResponsiveContainer, 
+  BarChart, 
+  Bar, 
+  LineChart, 
+  Line, 
+  XAxis, 
+  YAxis, 
+  Tooltip, 
+  CartesianGrid 
+} from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
 import { KpiCard } from '@/components/ui/kpi-card';
 import { FilterPanel } from '@/components/ui/filter-panel';
@@ -47,16 +59,18 @@ function SearchableSelect({ value, onChange, options, placeholder }: { value: st
         <>
           <div className="fixed inset-0 z-[60]" onClick={() => setIsOpen(false)} />
           <div className="absolute z-[70] w-full mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg max-h-60 flex flex-col overflow-hidden">
-            <div className="p-2 border-b border-slate-100 dark:border-slate-700 shrink-0">
-              <input 
-                autoFocus
-                type="text" 
-                placeholder="Search..." 
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm font-medium outline-none"
-              />
-            </div>
+            {options.length > 5 && (
+              <div className="p-2 border-b border-slate-100 dark:border-slate-700 shrink-0">
+                <input 
+                  autoFocus
+                  type="text" 
+                  placeholder="Search..." 
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm font-medium outline-none text-slate-900 dark:text-white"
+                />
+              </div>
+            )}
             <div className="overflow-y-auto p-1 flex-1">
               {filteredOptions.length === 0 ? (
                 <div className="p-3 text-sm text-slate-400 text-center">No results found</div>
@@ -89,7 +103,7 @@ function PayrollDetailsView({ payroll, onBack }: { payroll: any, onBack: () => v
     <div className="flex flex-col h-full w-full bg-slate-50/50 dark:bg-slate-900/50">
       <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-slate-800 shrink-0 bg-white dark:bg-slate-900">
         <div className="flex items-center gap-4">
-          <button onClick={onBack} className="p-2 bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white rounded-xl transition-colors">
+          <button onClick={onBack} className="p-2 bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white rounded-xl transition-colors cursor-pointer">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
           </button>
           <div>
@@ -107,13 +121,13 @@ function PayrollDetailsView({ payroll, onBack }: { payroll: any, onBack: () => v
           </div>
         </div>
         <div className="flex gap-2 mr-12 sm:mr-16 lg:mr-20">
-          <button onClick={() => toast.success('Payslip sent via Email!')} className="p-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors" title="Email Payslip">
+          <button onClick={() => toast.success('Payslip sent via Email!')} className="p-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors cursor-pointer" title="Email Payslip">
             <Mail className="w-5 h-5" />
           </button>
-          <button onClick={() => toast.success('Downloading PDF...')} className="p-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors" title="Download PDF">
+          <button onClick={() => toast.success('Downloading PDF...')} className="p-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors cursor-pointer" title="Download PDF">
             <Download className="w-5 h-5" />
           </button>
-          <button onClick={() => toast.success('Printing...')} className="p-2.5 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-500/20 rounded-xl transition-colors" title="Print Payslip">
+          <button onClick={() => toast.success('Printing...')} className="p-2.5 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-500/20 rounded-xl transition-colors cursor-pointer" title="Print Payslip">
             <Printer className="w-5 h-5" />
           </button>
         </div>
@@ -148,126 +162,88 @@ function PayrollDetailsView({ payroll, onBack }: { payroll: any, onBack: () => v
           </div>
 
           {/* Earnings Breakdown */}
-          <div className="col-span-1 lg:col-span-2 space-y-6">
-            <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
-              <h4 className="text-lg font-black text-slate-900 dark:text-white mb-6 flex items-center gap-2">
-                <Banknote className="w-5 h-5 text-emerald-500" />
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+            <div>
+              <h4 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2 mb-4">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
                 Earnings Breakdown
               </h4>
-              
-              <div className="space-y-4">
-                <div className="flex justify-between items-center pb-4 border-b border-slate-100 dark:border-slate-800/60">
-                  <span className="font-medium text-slate-600 dark:text-slate-300">Basic Salary</span>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center text-sm py-1 border-b border-slate-100 dark:border-slate-800">
+                  <span className="text-slate-500">Basic Salary</span>
                   <span className="font-bold text-slate-900 dark:text-white">Rs. {payroll.basicSalary.toLocaleString()}</span>
                 </div>
-                <div className="flex justify-between items-center pb-4 border-b border-slate-100 dark:border-slate-800/60">
-                  <span className="font-medium text-slate-600 dark:text-slate-300">Fixed Allowances</span>
+                <div className="flex justify-between items-center text-sm py-1 border-b border-slate-100 dark:border-slate-800">
+                  <span className="text-slate-500">Allowances</span>
                   <span className="font-bold text-slate-900 dark:text-white">Rs. {payroll.allowance.toLocaleString()}</span>
                 </div>
-                <div className="flex justify-between items-center pb-4 border-b border-slate-100 dark:border-slate-800/60">
-                  <span className="font-medium text-slate-600 dark:text-slate-300">Overtime (OT)</span>
+                <div className="flex justify-between items-center text-sm py-1 border-b border-slate-100 dark:border-slate-800">
+                  <span className="text-slate-500">Overtime (OT)</span>
                   <span className="font-bold text-slate-900 dark:text-white">Rs. {payroll.ot.toLocaleString()}</span>
                 </div>
-                <div className="flex justify-between items-center pb-4 border-b border-slate-100 dark:border-slate-800/60">
-                  <span className="font-medium text-slate-600 dark:text-slate-300">Bonus & Commission</span>
+                <div className="flex justify-between items-center text-sm py-1 border-b border-slate-100 dark:border-slate-800">
+                  <span className="text-slate-500">Bonus & Commissions</span>
                   <span className="font-bold text-slate-900 dark:text-white">Rs. {(payroll.bonus + payroll.commission).toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between items-center pt-2">
-                  <span className="text-lg font-black text-slate-900 dark:text-white">Total Earnings (Gross)</span>
-                  <span className="text-xl font-black text-emerald-600 dark:text-emerald-400">Rs. {totalEarnings.toLocaleString()}</span>
                 </div>
               </div>
             </div>
-
-            <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
-              <h4 className="text-lg font-black text-slate-900 dark:text-white mb-6 flex items-center gap-2">
-                <FileText className="w-5 h-5 text-red-500" />
-                Deductions Breakdown
-              </h4>
-              
-              <div className="space-y-4">
-                <div className="flex justify-between items-center pb-4 border-b border-slate-100 dark:border-slate-800/60">
-                  <span className="font-medium text-slate-600 dark:text-slate-300">EPF (8% Employee Contribution)</span>
-                  <span className="font-bold text-slate-900 dark:text-white">Rs. {payroll.epf.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between items-center pb-4 border-b border-slate-100 dark:border-slate-800/60">
-                  <span className="font-medium text-slate-600 dark:text-slate-300">Tax (PAYE)</span>
-                  <span className="font-bold text-slate-900 dark:text-white">Rs. {payroll.tax.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between items-center pb-4 border-b border-slate-100 dark:border-slate-800/60">
-                  <span className="font-medium text-slate-600 dark:text-slate-300">Other Deductions (Leave/No Pay)</span>
-                  <span className="font-bold text-slate-900 dark:text-white">Rs. {(payroll.deduction - payroll.epf - payroll.tax).toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between items-center pt-2">
-                  <span className="text-lg font-black text-slate-900 dark:text-white">Total Deductions</span>
-                  <span className="text-xl font-black text-red-600 dark:text-red-400">Rs. {totalDeductions.toLocaleString()}</span>
-                </div>
-              </div>
+            <div className="pt-4 border-t border-slate-200 dark:border-slate-800 mt-6 flex justify-between items-center">
+              <span className="font-bold text-slate-700 dark:text-slate-300">Total Earnings</span>
+              <span className="text-lg font-black text-emerald-600 dark:text-emerald-400">Rs. {totalEarnings.toLocaleString()}</span>
             </div>
           </div>
 
-          {/* Payment Action & Summary */}
-          <div className="col-span-1 space-y-6">
-            <div className="bg-slate-900 dark:bg-slate-950 rounded-3xl p-6 border border-slate-800 shadow-lg text-white">
-              <h4 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-6">Payment Summary</h4>
-              
-              <div className="space-y-4 mb-8">
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-400">Gross Salary</span>
-                  <span className="font-bold">Rs. {totalEarnings.toLocaleString()}</span>
+          {/* Deductions Breakdown */}
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+            <div>
+              <h4 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2 mb-4">
+                <span className="w-2.5 h-2.5 rounded-full bg-red-500"></span>
+                Deductions & Statutory
+              </h4>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center text-sm py-1 border-b border-slate-100 dark:border-slate-800">
+                  <span className="text-slate-500">EPF Employee (8%)</span>
+                  <span className="font-bold text-slate-900 dark:text-white">Rs. {payroll.epf.toLocaleString()}</span>
                 </div>
-                <div className="flex justify-between items-center text-red-400">
-                  <span>Deductions</span>
-                  <span className="font-bold">- Rs. {totalDeductions.toLocaleString()}</span>
+                <div className="flex justify-between items-center text-sm py-1 border-b border-slate-100 dark:border-slate-800">
+                  <span className="text-slate-500">Income Tax (PAYE)</span>
+                  <span className="font-bold text-slate-900 dark:text-white">Rs. {payroll.tax.toLocaleString()}</span>
                 </div>
-                <div className="h-px bg-slate-800 w-full" />
-                <div className="flex justify-between items-center">
-                  <span className="text-lg font-black">Net Salary</span>
-                  <span className="text-2xl font-black text-blue-400">Rs. {payroll.netSalary.toLocaleString()}</span>
+                <div className="flex justify-between items-center text-sm py-1 border-b border-slate-100 dark:border-slate-800">
+                  <span className="text-slate-500">Other Deductions</span>
+                  <span className="font-bold text-slate-900 dark:text-white">Rs. {(payroll.deduction - payroll.epf - payroll.tax).toLocaleString()}</span>
                 </div>
               </div>
+            </div>
+            <div className="pt-4 border-t border-slate-200 dark:border-slate-800 mt-6 flex justify-between items-center">
+              <span className="font-bold text-slate-700 dark:text-slate-300">Total Deductions</span>
+              <span className="text-lg font-black text-red-600 dark:text-red-400">Rs. {totalDeductions.toLocaleString()}</span>
+            </div>
+          </div>
 
-              {payroll.status !== 'Paid' ? (
-                <div className="space-y-4">
-                  <div className="h-px bg-slate-800 w-full" />
-                  <p className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-2 flex items-center gap-2">
-                    <AlertTriangle className="w-4 h-4" /> Action Required
-                  </p>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-400 mb-2">Payment Method</label>
-                    <select className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-blue-500/50 outline-none text-white mb-4">
-                      <option value="BANK_TRANSFER">Bank Transfer</option>
-                      <option value="CASH">Cash</option>
-                      <option value="CHEQUE">Cheque</option>
-                    </select>
-                  </div>
-                  <button onClick={() => toast.success('Salary Paid Successfully!')} className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-lg shadow-blue-600/20 transition-all flex items-center justify-center gap-2">
-                    <Wallet className="w-5 h-5" /> Pay Salary Now
-                  </button>
+          {/* Employer Contributions & Summary */}
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+            <div>
+              <h4 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2 mb-4">
+                <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+                Employer Contributions
+              </h4>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center text-sm py-1 border-b border-slate-100 dark:border-slate-800">
+                  <span className="text-slate-500">EPF Employer (12%)</span>
+                  <span className="font-bold text-slate-900 dark:text-white">Rs. {(payroll.basicSalary * 0.12).toLocaleString()}</span>
                 </div>
-              ) : (
-                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 flex items-center gap-3">
-                  <CheckCircle className="w-6 h-6 text-emerald-500 flex-shrink-0" />
-                  <div>
-                    <p className="font-bold text-emerald-500">Payment Completed</p>
-                    <p className="text-xs text-emerald-400/80 mt-0.5">Paid on {payroll.paymentDate}</p>
-                  </div>
+                <div className="flex justify-between items-center text-sm py-1 border-b border-slate-100 dark:border-slate-800">
+                  <span className="text-slate-500">ETF Employer (3%)</span>
+                  <span className="font-bold text-slate-900 dark:text-white">Rs. {payroll.etf.toLocaleString()}</span>
                 </div>
-              )}
+              </div>
             </div>
 
-            <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
-              <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">Employer Contributions</h4>
-              <div className="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-slate-800/60">
-                <span className="font-medium text-slate-600 dark:text-slate-300">ETF (3%)</span>
-                <span className="font-bold text-slate-900 dark:text-white">Rs. {payroll.etf.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between items-center pt-3">
-                <span className="font-medium text-slate-600 dark:text-slate-300">EPF (12%)</span>
-                <span className="font-bold text-slate-900 dark:text-white">Rs. {(payroll.epf * 1.5).toLocaleString()}</span>
-              </div>
-              <p className="text-xs text-slate-400 mt-4 text-center leading-relaxed">
-                These are employer contributions and do not affect the employee's net salary.
+            <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 p-4 rounded-2xl">
+              <span className="text-xs text-slate-400 uppercase tracking-wider font-bold">Total Cost to Company</span>
+              <p className="text-xl font-black text-slate-900 dark:text-white mt-1">
+                Rs. {(totalEarnings + (payroll.basicSalary * 0.15)).toLocaleString()}
               </p>
             </div>
           </div>
@@ -278,19 +254,465 @@ function PayrollDetailsView({ payroll, onBack }: { payroll: any, onBack: () => v
   );
 }
 
+// ──────────────── OVERVIEW DASHBOARD COMPONENT ────────────────
+function PayrollsOverviewDashboard({
+  payrolls,
+  kpis,
+  setActiveTab,
+  onViewPayroll,
+  onFilterRole,
+  onFilterStatus,
+}: {
+  payrolls: any[];
+  kpis: {
+    totalSalary: number;
+    paid: number;
+    pending: number;
+    overdue: number;
+  };
+  setActiveTab: (tab: 'overview' | 'table') => void;
+  onViewPayroll: (p: any) => void;
+  onFilterRole: (role: string) => void;
+  onFilterStatus: (status: string) => void;
+}) {
+  const [chartType, setChartType] = useState<'bar' | 'line'>('bar');
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Net salary and staff count by department / role
+  const roleSalaryStats = useMemo(() => {
+    const rolesMap: { [key: string]: { totalSalary: number; count: number } } = {};
+    payrolls.forEach(p => {
+      const r = p.role || 'Other';
+      if (!rolesMap[r]) {
+        rolesMap[r] = { totalSalary: 0, count: 0 };
+      }
+      rolesMap[r].totalSalary += Number(p.netSalary || 0);
+      rolesMap[r].count += 1;
+    });
+
+    return Object.entries(rolesMap).map(([name, data]) => ({
+      name,
+      salary: data.totalSalary,
+      count: data.count
+    })).sort((a, b) => b.salary - a.salary);
+  }, [payrolls]);
+
+  // Payment Status Breakdown
+  const statusStats = useMemo(() => {
+    const paidList = payrolls.filter(p => p.status === 'Paid');
+    const pendingList = payrolls.filter(p => p.status === 'Pending');
+    const overdueList = payrolls.filter(p => p.status === 'Overdue');
+    const totalSum = payrolls.reduce((s, p) => s + Number(p.netSalary || 0), 0) || 1;
+
+    return [
+      {
+        status: 'Paid',
+        count: paidList.length,
+        sum: paidList.reduce((s, p) => s + Number(p.netSalary || 0), 0),
+        color: 'bg-emerald-500',
+        text: 'text-emerald-500'
+      },
+      {
+        status: 'Pending',
+        count: pendingList.length,
+        sum: pendingList.reduce((s, p) => s + Number(p.netSalary || 0), 0),
+        color: 'bg-amber-500',
+        text: 'text-amber-500'
+      },
+      {
+        status: 'Overdue',
+        count: overdueList.length,
+        sum: overdueList.reduce((s, p) => s + Number(p.netSalary || 0), 0),
+        color: 'bg-red-500',
+        text: 'text-red-500'
+      }
+    ].map(item => ({
+      ...item,
+      percent: (item.sum / totalSum) * 100
+    }));
+  }, [payrolls]);
+
+  // Deductions summary
+  const deductionsSummary = useMemo(() => {
+    const totalEpf = payrolls.reduce((s, p) => s + Number(p.epf || 0), 0);
+    const totalEtf = payrolls.reduce((s, p) => s + Number(p.etf || 0), 0);
+    const totalTax = payrolls.reduce((s, p) => s + Number(p.tax || 0), 0);
+    const totalDeductions = payrolls.reduce((s, p) => s + Number(p.deduction || 0), 0);
+    const otherDeductions = Math.max(0, totalDeductions - totalEpf - totalTax);
+
+    return [
+      { name: 'EPF (Employee 8%)', amount: totalEpf, color: 'bg-blue-500' },
+      { name: 'ETF (Employer 3%)', amount: totalEtf, color: 'bg-indigo-500' },
+      { name: 'PAYE Tax', amount: totalTax, color: 'bg-rose-500' },
+      { name: 'Other Deductions', amount: otherDeductions, color: 'bg-amber-500' },
+    ];
+  }, [payrolls]);
+
+  // Top Disbursements (Ranked 1 to 5)
+  const topDisbursements = useMemo(() => {
+    return [...payrolls].sort((a, b) => b.netSalary - a.netSalary).slice(0, 5);
+  }, [payrolls]);
+
+  return (
+    <div className="flex-1 overflow-y-auto no-scrollbar pr-1 pb-10 space-y-6">
+      {/* ──────────────── 1. REUSABLE TOP 4 KPI CARDS ──────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiCard 
+          title="Total Salary (Jul)" 
+          value={`Rs. ${(kpis.totalSalary/1000).toFixed(1)}k`} 
+          icon={Banknote} 
+          iconColorClass="text-blue-600" 
+          iconBgClass="bg-blue-50 dark:bg-blue-500/10" 
+        />
+        <KpiCard 
+          title="Total Paid" 
+          value={`Rs. ${(kpis.paid/1000).toFixed(1)}k`} 
+          icon={CheckCircle} 
+          iconColorClass="text-emerald-600" 
+          iconBgClass="bg-emerald-50 dark:bg-emerald-500/10" 
+        />
+        <KpiCard 
+          title="Total Pending" 
+          value={`Rs. ${(kpis.pending/1000).toFixed(1)}k`} 
+          icon={Clock} 
+          iconColorClass="text-amber-600" 
+          iconBgClass="bg-amber-50 dark:bg-amber-500/10" 
+        />
+        <KpiCard 
+          title="Overdue Payments" 
+          value={kpis.overdue} 
+          icon={AlertTriangle} 
+          iconColorClass="text-red-600" 
+          iconBgClass="bg-red-50 dark:bg-red-500/10" 
+        />
+      </div>
+
+      {/* ──────────────── 2. MAIN ROW: CHART (2 Cols) + TOP DISBURSEMENTS (1 Col) ──────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left: Chart Card (h-[400px]) */}
+        <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 w-full text-left flex flex-col h-[400px] justify-between">
+          <div className="flex items-center justify-between mb-4 shrink-0">
+            <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <BarChart3 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              Salary Expenditure by Role / Department
+            </h2>
+            <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => setChartType('bar')}
+                className={`px-3 py-1 rounded-md transition-all cursor-pointer ${chartType === 'bar' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
+              >
+                Bar
+              </button>
+              <button
+                type="button"
+                onClick={() => setChartType('line')}
+                className={`px-3 py-1 rounded-md transition-all cursor-pointer ${chartType === 'line' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
+              >
+                Line
+              </button>
+            </div>
+          </div>
+
+          <div className="flex-1 min-h-0 w-full relative">
+            {mounted ? (
+              roleSalaryStats.length === 0 ? (
+                <div className="absolute inset-0 flex items-center justify-center text-xs text-slate-400">
+                  No payroll records available to plot chart.
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  {chartType === 'bar' ? (
+                    <BarChart data={roleSalaryStats} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" strokeOpacity={0.4} />
+                      <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`} />
+                      <Tooltip 
+                        formatter={(v: any) => [`Rs. ${Number(v).toLocaleString()}`, 'Total Net Salary']}
+                        contentStyle={{ 
+                          backgroundColor: 'rgba(15, 23, 42, 0.95)', 
+                          borderRadius: '12px', 
+                          border: '1px solid rgba(255, 255, 255, 0.1)', 
+                          color: '#fff', 
+                          fontSize: '12px' 
+                        }} 
+                      />
+                      <Bar dataKey="salary" fill="#3B82F6" radius={[4, 4, 0, 0]} name="Salary (Rs)" />
+                    </BarChart>
+                  ) : (
+                    <LineChart data={roleSalaryStats} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" strokeOpacity={0.4} />
+                      <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`} />
+                      <Tooltip 
+                        formatter={(v: any) => [`Rs. ${Number(v).toLocaleString()}`, 'Total Net Salary']}
+                        contentStyle={{ 
+                          backgroundColor: 'rgba(15, 23, 42, 0.95)', 
+                          borderRadius: '12px', 
+                          border: '1px solid rgba(255, 255, 255, 0.1)', 
+                          color: '#fff', 
+                          fontSize: '12px' 
+                        }} 
+                      />
+                      <Line type="monotone" dataKey="salary" stroke="#3B82F6" strokeWidth={3} dot={{ r: 4 }} name="Salary (Rs)" />
+                    </LineChart>
+                  )}
+                </ResponsiveContainer>
+              )
+            ) : null}
+          </div>
+
+          <div className="flex items-center justify-between text-xs text-slate-400 mt-2 shrink-0 pt-2 border-t border-slate-100 dark:border-slate-800">
+            <span>Roles Tracked: {roleSalaryStats.length}</span>
+            <span className="font-semibold text-slate-600 dark:text-slate-300">
+              Total Payroll: Rs. {payrolls.reduce((s, p) => s + Number(p.netSalary || 0), 0).toLocaleString()}
+            </span>
+          </div>
+        </div>
+
+        {/* Right: Top 5 Highest Disbursements Card (h-[400px]) */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 md:p-6 w-full text-left flex flex-col h-[400px] justify-between">
+          <div className="flex items-center justify-between mb-3 shrink-0">
+            <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-blue-500 dark:text-blue-400" />
+              Highest Disbursements
+            </h2>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
+              Top 5
+            </span>
+          </div>
+
+          <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar space-y-2.5 pr-0.5">
+            {topDisbursements.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-center text-slate-400 text-xs font-medium">
+                No payroll records available.
+              </div>
+            ) : (
+              topDisbursements.map((p, i) => {
+                const rankColors = [
+                  'bg-amber-500 text-white',
+                  'bg-slate-400 text-white',
+                  'bg-orange-700 text-white',
+                  'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300',
+                  'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                ];
+                return (
+                  <div
+                    key={p.id || i}
+                    onClick={() => onViewPayroll(p)}
+                    className="flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
+                    title="Click to view payslip"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${rankColors[i] || 'bg-slate-200 text-slate-700'}`}>
+                        {i + 1}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-blue-600 transition-colors">
+                          {p.employee}
+                        </div>
+                        <div className="text-[10px] text-slate-400 truncate">
+                          {p.role} • {p.month}
+                        </div>
+                      </div>
+                    </div>
+                    <span className="text-xs font-black text-slate-900 dark:text-white shrink-0">
+                      Rs. {p.netSalary.toLocaleString()}
+                    </span>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center shrink-0">
+            <button
+              type="button"
+              onClick={() => setActiveTab('table')}
+              className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer leading-normal flex items-center gap-1"
+            >
+              View All in Payroll Table →
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ──────────────── 3. BOTTOM ROW: 3 INSIGHTS & BREAKDOWN WIDGETS ──────────────── */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        {/* Card 1: Payment Status Breakdown */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 md:p-6 w-full text-left flex flex-col h-[400px] justify-between">
+          <div className="flex items-center justify-between mb-3 shrink-0">
+            <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <ShieldCheck className="w-5 h-5 text-indigo-500 dark:text-indigo-400" />
+              Payment Status Breakdown
+            </h2>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">
+              Overview
+            </span>
+          </div>
+
+          <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar space-y-3.5 pr-0.5">
+            {statusStats.map((item) => (
+              <div
+                key={item.status}
+                onClick={() => {
+                  onFilterStatus(item.status);
+                  setActiveTab('table');
+                }}
+                className="p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group space-y-1.5"
+                title={`Filter by ${item.status}`}
+              >
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 transition-colors">
+                    {item.status} ({item.count})
+                  </span>
+                  <span className="font-black text-slate-900 dark:text-white">
+                    Rs. {item.sum.toLocaleString()}
+                  </span>
+                </div>
+                <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                  <div
+                    className={`${item.color} h-full rounded-full transition-all`}
+                    style={{ width: `${Math.min(100, Math.max(item.count > 0 ? 8 : 0, item.percent))}%` }}
+                  />
+                </div>
+                <div className="flex items-center justify-between text-[10px] text-slate-400">
+                  <span>{item.percent.toFixed(0)}% of total salary</span>
+                  <span className="text-indigo-500 font-bold group-hover:underline">Filter →</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center shrink-0">
+            <button
+              type="button"
+              onClick={() => setActiveTab('table')}
+              className="text-xs text-indigo-600 dark:text-indigo-400 font-bold hover:underline cursor-pointer leading-normal flex items-center gap-1"
+            >
+              View All in Payroll Table →
+            </button>
+          </div>
+        </div>
+
+        {/* Card 2: Deductions & Statutory Contributions */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 md:p-6 w-full text-left flex flex-col h-[400px] justify-between">
+          <div className="flex items-center justify-between mb-3 shrink-0">
+            <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <CreditCard className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
+              Statutory & Deductions
+            </h2>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
+              Tax & Funds
+            </span>
+          </div>
+
+          <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar space-y-2.5 pr-0.5">
+            {deductionsSummary.map((item) => (
+              <div
+                key={item.name}
+                className="p-3 rounded-xl border border-slate-100 dark:border-slate-800 space-y-1.5"
+              >
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-bold text-slate-900 dark:text-white">
+                    {item.name}
+                  </span>
+                  <span className="font-black text-slate-900 dark:text-white">
+                    Rs. {item.amount.toLocaleString()}
+                  </span>
+                </div>
+                <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                  <div
+                    className={`${item.color} h-full rounded-full transition-all`}
+                    style={{ width: `${Math.min(100, Math.max(10, (item.amount / 30000) * 100))}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center shrink-0">
+            <button
+              type="button"
+              onClick={() => setActiveTab('table')}
+              className="text-xs text-emerald-600 dark:text-emerald-400 font-bold hover:underline cursor-pointer leading-normal flex items-center gap-1"
+            >
+              View All in Payroll Table →
+            </button>
+          </div>
+        </div>
+
+        {/* Card 3: Recent Payroll Slips Stream */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 md:p-6 w-full text-left flex flex-col h-[400px] justify-between">
+          <div className="flex items-center justify-between mb-3 shrink-0">
+            <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <FileText className="w-5 h-5 text-purple-500 dark:text-purple-400" />
+              Recent Salary Slips
+            </h2>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400">
+              Live
+            </span>
+          </div>
+
+          <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar space-y-2 pr-0.5">
+            {payrolls.map((p) => (
+              <div
+                key={p.id}
+                onClick={() => onViewPayroll(p)}
+                className="p-2.5 rounded-xl border border-slate-100 dark:border-slate-800/80 hover:border-purple-200 dark:hover:border-purple-800/50 cursor-pointer transition-all space-y-1"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                    {p.employee}
+                  </span>
+                  <span className="text-[10px] text-slate-400">
+                    {p.month}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-[10px]">
+                  <span className="text-slate-500">{p.role} &bull; {p.paymentDate}</span>
+                  <span className="font-black text-purple-600 dark:text-purple-400">Rs. {p.netSalary.toLocaleString()}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center shrink-0">
+            <button
+              type="button"
+              onClick={() => setActiveTab('table')}
+              className="text-xs text-purple-600 dark:text-purple-400 font-bold hover:underline cursor-pointer leading-normal flex items-center gap-1"
+            >
+              View All in Payroll Table →
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
 export default function PayrollManagementPage() {
   const [payrolls, setPayrolls] = useState(mockPayrolls);
   const [search, setSearch] = useState('');
   
-  // View & Filter State
+  // Navigation & View Mode State
+  const [activeTab, setActiveTab] = useState<'overview' | 'table'>('overview');
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [viewingPayroll, setViewingPayroll] = useState<any>(null);
   
+  // Filter Panel State
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState('All');
-  const [roleFilter, setRoleFilter] = useState('All');
   const [monthFilter, setMonthFilter] = useState('All');
+  const [roleFilter, setRoleFilter] = useState('All');
 
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
@@ -347,7 +769,6 @@ export default function PayrollManagementPage() {
     setIsSubmitting(true);
     
     setTimeout(() => {
-      // Auto-calculate statutory deductions if needed, here just mock
       const epf = Number(generateFormData.epf) || 0;
       const etf = generateFormData.basicSalary * 0.03;
       const totalDeductions = Number(generateFormData.deduction) + epf;
@@ -416,272 +837,323 @@ export default function PayrollManagementPage() {
   }, [payrolls]);
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900/50 p-6 overflow-hidden relative">
+    <div className={`flex flex-col bg-slate-50 dark:bg-slate-900/50 overflow-hidden ${isFullscreen ? 'h-full p-2 sm:p-4' : 'h-full p-6'}`}>
       
       {/* ──────────────── HEADER ──────────────── */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
-        <div>
-          <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
-            <Banknote className="w-8 h-8 text-blue-600" />
-            Payroll Management
-          </h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium">Manage employee salaries, generate payrolls, and track payments.</p>
-        </div>
-
-        <button 
-          onClick={() => setIsGeneratePanelOpen(true)}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5 active:translate-y-0"
-        >
-          <Plus className="w-5 h-5" />
-          Generate Payroll
-        </button>
-      </div>
-
-      {/* ──────────────── KPI CARDS ──────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <KpiCard 
-          title="Total Salary (Jul)" 
-          value={`Rs. ${(kpis.totalSalary/1000).toFixed(1)}k`} 
-          icon={Banknote} 
-          iconColorClass="text-blue-600" 
-          iconBgClass="bg-blue-50 dark:bg-blue-500/10" 
-        />
-        <KpiCard 
-          title="Total Paid" 
-          value={`Rs. ${(kpis.paid/1000).toFixed(1)}k`} 
-          icon={CheckCircle} 
-          iconColorClass="text-emerald-600" 
-          iconBgClass="bg-emerald-50 dark:bg-emerald-500/10" 
-        />
-        <KpiCard 
-          title="Total Pending" 
-          value={`Rs. ${(kpis.pending/1000).toFixed(1)}k`} 
-          icon={Clock} 
-          iconColorClass="text-amber-600" 
-          iconBgClass="bg-amber-50 dark:bg-amber-500/10" 
-        />
-        <KpiCard 
-          title="Overdue Payments" 
-          value={kpis.overdue} 
-          icon={AlertTriangle} 
-          iconColorClass="text-red-600" 
-          iconBgClass="bg-red-50 dark:bg-red-500/10" 
-        />
-      </div>
-
-      {/* ──────────────── SEARCH BAR & FILTERS ──────────────── */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-6">
-        <div className="relative w-full sm:w-80 flex-shrink-0 group">
-          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors">
-            <Search className="h-5 w-5" />
+      {!isFullscreen && (
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+          <div>
+            <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
+              <Banknote className="w-8 h-8 text-blue-600" />
+              Payroll Management
+            </h1>
+            <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium">Manage employee salaries, generate payrolls, and track payments.</p>
           </div>
-          <input
-            type="text"
-            placeholder="Search payrolls..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-12 pr-4 h-12 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-2xl shadow-sm text-slate-900 dark:text-white font-bold placeholder:text-slate-400 placeholder:font-medium transition-all outline-none"
-          />
-        </div>
 
-        <div className="flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm h-12 p-1 overflow-hidden flex-shrink-0 sm:ml-auto">
           <button 
-            onClick={() => setIsFilterOpen(true)}
-            className="flex items-center justify-center px-4 h-full rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition-all gap-2 font-bold relative"
-            title="Filter"
+            onClick={() => setIsGeneratePanelOpen(true)}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
           >
-            <Filter className="w-5 h-5" />
-            <span className="hidden sm:inline">Filters</span>
-            {(statusFilter !== 'All' || monthFilter !== 'All' || roleFilter !== 'All') && <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-blue-600"></span>}
-          </button>
-          
-          <div className="w-px h-full bg-slate-200 dark:bg-slate-800 mx-1"></div>
-          
-          <button 
-            onClick={() => setViewMode('list')}
-            title="List View"
-            className={`flex items-center justify-center w-12 h-full rounded-xl transition-all ${viewMode === 'list' ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-          >
-            <List className="w-5 h-5" />
-          </button>
-          
-          <button 
-            onClick={() => setViewMode('grid')}
-            title="Grid View"
-            className={`flex items-center justify-center w-12 h-full rounded-xl transition-all ${viewMode === 'grid' ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-          >
-            <LayoutGrid className="w-5 h-5" />
-          </button>
-          <div className="w-px h-full bg-slate-200 dark:bg-slate-800 mx-1"></div>
-          <button 
-            onClick={() => setIsFullscreen(true)}
-            title="Full Screen"
-            className={`flex items-center justify-center w-12 h-full rounded-xl transition-all text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800`}
-          >
-            <Maximize className="w-5 h-5" />
+            <Plus className="w-5 h-5" />
+            Generate Payroll
           </button>
         </div>
-      </div>
+      )}
 
-      {/* ──────────────── DATA TABLE / GRID ──────────────── */}
-      <div className={`flex-1 bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col min-h-[400px] ${isFullscreen ? 'fixed inset-y-0 right-0 left-[68px] z-[100] m-0 rounded-none border-none' : ''}`}>
-        
-        {isFullscreen && (
+      {/* ──────────────── NAVIGATION TABS & UNIFIED TOOLBAR ──────────────── */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+        {/* Left: Mode Toggle (Payroll Overview | Payroll Table) */}
+        <div className="flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm h-12 p-1 overflow-hidden shrink-0">
           <button 
-            onClick={() => setIsFullscreen(false)} 
-            className="absolute top-4 right-4 z-[110] p-3 bg-slate-900/50 text-white rounded-full hover:bg-slate-900/80 transition-colors backdrop-blur-md shadow-lg"
+            type="button"
+            onClick={() => setActiveTab('overview')}
+            className={`flex items-center justify-center px-5 h-full rounded-xl transition-all font-bold text-xs sm:text-sm cursor-pointer ${
+              activeTab === 'overview'
+                ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm'
+                : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
+            }`}
           >
-            <Minimize className="w-5 h-5" />
+            Payroll Overview
           </button>
-        )}
 
-        {viewingPayroll ? (
-          <PayrollDetailsView payroll={viewingPayroll} onBack={() => setViewingPayroll(null)} />
-        ) : viewMode === 'list' ? (
-          <div className="flex-1 overflow-x-auto">
-            <div className="min-w-max h-full flex flex-col">
-              {/* Table Header */}
-              <div className="grid grid-cols-[130px_200px_100px_120px_120px_120px_130px_120px_100px] gap-4 h-16 px-5 items-center border-b border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/50 text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0">
-                <div>Ref ID</div>
-                <div>Employee</div>
-                <div>Month</div>
-                <div className="text-right">Basic (Rs)</div>
-                <div className="text-right">Earn. (Rs)</div>
-                <div className="text-right">Ded. (Rs)</div>
-                <div className="text-right text-blue-600 dark:text-blue-400">Net Salary</div>
-                <div className="text-right">Status</div>
-                <div className="text-center">Action</div>
-              </div>
+          <div className="w-px h-full bg-slate-200 dark:bg-slate-800 mx-1" />
 
-              {/* Table Body */}
-              <div className="flex-1 overflow-y-auto no-scrollbar">
-                {filteredPayrolls.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-64 text-slate-400 gap-4">
-                    <Banknote className="w-12 h-12 opacity-20" />
-                    <p className="font-medium text-lg text-slate-500">No payroll records found.</p>
-                  </div>
-                ) : (
-                  <>
-                  {filteredPayrolls.map((payroll) => {
-                    const extraEarnings = payroll.allowance + payroll.ot + payroll.bonus + payroll.commission;
-                    return (
-                      <div key={payroll.id} onClick={() => setViewingPayroll(payroll)} className="cursor-pointer grid grid-cols-[130px_200px_100px_120px_120px_120px_130px_120px_100px] gap-4 p-5 border-b border-slate-100 dark:border-slate-800/60 items-center hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group">
-                        
-                        <div className="text-sm font-bold text-slate-900 dark:text-white">{payroll.id}</div>
+          <button 
+            type="button"
+            onClick={() => setActiveTab('table')}
+            className={`flex items-center justify-center px-5 h-full rounded-xl transition-all font-bold text-xs sm:text-sm cursor-pointer ${
+              activeTab === 'table'
+                ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm'
+                : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
+            }`}
+          >
+            Payroll Table
+          </button>
+        </div>
 
-                        <div className="flex items-center gap-4 min-w-0">
-                          <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0 text-slate-400">
-                            <UserIcon className="w-5 h-5" />
-                          </div>
-                          <div className="min-w-0">
-                            <h3 className="font-bold text-slate-900 dark:text-white text-base truncate">{payroll.employee}</h3>
-                            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider truncate mt-0.5">
-                              {payroll.role}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                          {payroll.month}
-                        </div>
-
-                        <div className="text-sm font-semibold text-slate-700 dark:text-slate-300 text-right">
-                          {payroll.basicSalary.toLocaleString()}
-                        </div>
-                        
-                        <div className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 text-right">
-                          +{extraEarnings.toLocaleString()}
-                        </div>
-
-                        <div className="text-sm font-semibold text-red-600 dark:text-red-400 text-right">
-                          -{payroll.deduction.toLocaleString()}
-                        </div>
-
-                        <div className="text-base font-black text-blue-600 dark:text-blue-400 text-right">
-                          {payroll.netSalary.toLocaleString()}
-                        </div>
-
-                        <div className="flex justify-end">
-                          <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold ${
-                            payroll.status === 'Paid' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' :
-                            payroll.status === 'Overdue' ? 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400' :
-                            'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400'
-                          }`}>
-                            {payroll.status}
-                          </span>
-                        </div>
-
-                        <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button onClick={(e) => { e.stopPropagation(); handleDelete(payroll.id); }} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete Payroll">
-                            <Trash2 className="w-5 h-5" />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="flex-1 overflow-y-auto no-scrollbar p-6 bg-slate-50/50 dark:bg-slate-900/50">
-            {filteredPayrolls.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-64 text-slate-400 gap-4">
-                <Banknote className="w-12 h-12 opacity-20" />
-                <p className="font-medium text-lg text-slate-500">No payroll records found.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
-                {filteredPayrolls.map((payroll) => (
-                  <div key={payroll.id} onClick={() => setViewingPayroll(payroll)} className="cursor-pointer bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-sm hover:shadow-md transition-shadow group relative flex flex-col min-h-[240px]">
-                    
-                    <div className="flex justify-between items-start mb-4">
-                      <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400">
-                        <UserIcon className="w-6 h-6" />
-                      </div>
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] uppercase tracking-wider font-bold ${
-                        payroll.status === 'Paid' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' :
-                        payroll.status === 'Overdue' ? 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400' :
-                        'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400'
-                      }`}>
-                        {payroll.status}
-                      </span>
-                    </div>
-                    
-                    <div className="flex-1 flex flex-col mb-4">
-                      <h3 className="font-black text-slate-900 dark:text-white text-lg leading-tight mb-1 truncate">{payroll.employee}</h3>
-                      <p className="text-xs font-bold text-slate-500 uppercase tracking-wider truncate mb-3">
-                        {payroll.role} &bull; {payroll.month}
-                      </p>
-                      
-                      <div className="space-y-1.5 mb-4">
-                        <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-300">
-                          <span className="font-medium">Basic</span>
-                          <span className="font-bold">Rs. {payroll.basicSalary.toLocaleString()}</span>
-                        </div>
-                        <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-300">
-                          <span className="font-medium">Net Salary</span>
-                          <span className="font-black text-blue-600 dark:text-blue-400">Rs. {payroll.netSalary.toLocaleString()}</span>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-2 mt-auto border-t border-slate-100 dark:border-slate-800 pt-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={(e) => { e.stopPropagation(); setViewingPayroll(payroll); }} className="flex-1 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold transition-colors">
-                        View Details
-                      </button>
-                      <button onClick={(e) => { e.stopPropagation(); handleDelete(payroll.id); }} className="p-2 bg-slate-100 dark:bg-slate-800 hover:bg-red-100 dark:hover:bg-red-500/20 text-slate-500 hover:text-red-600 rounded-xl transition-colors">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+        {/* Right: Unified Toolbar Card (Search, Filters, View Toggles, Fullscreen) */}
+        <div className="flex items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm h-12 p-1 overflow-hidden shrink-0 ml-auto w-full sm:w-auto">
+          {/* Integrated Search Bar on Left */}
+          <div className="relative flex items-center flex-1 sm:w-60 h-full pl-3 pr-2">
+            <Search className="w-4 h-4 text-slate-400 mr-2 shrink-0 pointer-events-none" />
+            <input 
+              type="text"
+              placeholder="Search payrolls..."
+              value={search}
+              onChange={e => {
+                setSearch(e.target.value);
+                if (activeTab === 'overview' && e.target.value.trim() !== '') {
+                  setActiveTab('table');
+                }
+              }}
+              className="w-full bg-transparent border-0 outline-none text-xs font-bold text-slate-900 dark:text-white placeholder:text-slate-400 placeholder:font-medium"
+            />
+            {search && (
+              <button 
+                type="button"
+                onClick={() => setSearch('')}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 ml-1 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
             )}
           </div>
-        )}
+
+          <div className="w-px h-full bg-slate-200 dark:bg-slate-800 mx-1" />
+
+          {/* Filter Button */}
+          <button 
+            type="button"
+            onClick={() => setIsFilterOpen(true)}
+            className="flex items-center justify-center px-3 sm:px-4 h-full rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition-all gap-1.5 font-bold text-xs cursor-pointer relative"
+            title="Filter"
+          >
+            <Filter className="w-4 h-4" />
+            <span className="hidden sm:inline">Filters</span>
+            {(statusFilter !== 'All' || monthFilter !== 'All' || roleFilter !== 'All') && (
+              <span className="w-2 h-2 rounded-full bg-blue-600"></span>
+            )}
+          </button>
+          
+          <div className="w-px h-full bg-slate-200 dark:bg-slate-800 mx-1" />
+
+          {/* View Mode Toggles */}
+          <button 
+            type="button"
+            onClick={() => {
+              setActiveTab('table');
+              setViewMode('list');
+            }}
+            title="List View"
+            className={`flex items-center justify-center w-10 sm:w-11 h-full rounded-xl transition-all cursor-pointer ${
+              viewMode === 'list' && activeTab === 'table'
+                ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm' 
+                : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'
+            }`}
+          >
+            <List className="w-4 h-4" />
+          </button>
+          
+          <button 
+            type="button"
+            onClick={() => {
+              setActiveTab('table');
+              setViewMode('grid');
+            }}
+            title="Grid View"
+            className={`flex items-center justify-center w-10 sm:w-11 h-full rounded-xl transition-all cursor-pointer ${
+              viewMode === 'grid' && activeTab === 'table'
+                ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm' 
+                : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'
+            }`}
+          >
+            <LayoutGrid className="w-4 h-4" />
+          </button>
+
+          <div className="w-px h-full bg-slate-200 dark:bg-slate-800 mx-1" />
+
+          {/* Fullscreen Toggle */}
+          <button 
+            type="button"
+            onClick={() => setIsFullscreen(!isFullscreen)}
+            title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
+            className="flex items-center justify-center w-10 sm:w-11 h-full rounded-xl transition-all text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer"
+          >
+            {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+          </button>
+        </div>
       </div>
+
+      {/* ──────────────── CONTENT AREA (OVERVIEW OR TABLE/GRID) ──────────────── */}
+      {activeTab === 'overview' ? (
+        <PayrollsOverviewDashboard 
+          payrolls={payrolls}
+          kpis={kpis}
+          setActiveTab={setActiveTab}
+          onViewPayroll={setViewingPayroll}
+          onFilterRole={(role) => setRoleFilter(role)}
+          onFilterStatus={(status) => setStatusFilter(status)}
+        />
+      ) : (
+        <div className={`flex-1 bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col min-h-[400px] ${isFullscreen ? 'fixed inset-y-0 right-0 left-[68px] z-[100] m-0 rounded-none border-none' : ''}`}>
+          
+          {isFullscreen && (
+            <button 
+              onClick={() => setIsFullscreen(false)} 
+              className="absolute top-4 right-4 z-[110] p-3 bg-slate-900/50 text-white rounded-full hover:bg-slate-900/80 transition-colors backdrop-blur-md shadow-lg"
+            >
+              <Minimize className="w-5 h-5" />
+            </button>
+          )}
+
+          {viewingPayroll ? (
+            <PayrollDetailsView payroll={viewingPayroll} onBack={() => setViewingPayroll(null)} />
+          ) : viewMode === 'list' ? (
+            <div className="flex-1 overflow-x-auto">
+              <div className="min-w-max h-full flex flex-col">
+                {/* Table Header */}
+                <div className="grid grid-cols-[130px_200px_100px_120px_120px_120px_130px_120px_100px] gap-4 h-16 px-5 items-center border-b border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/50 text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0">
+                  <div>Ref ID</div>
+                  <div>Employee</div>
+                  <div>Month</div>
+                  <div className="text-right">Basic (Rs)</div>
+                  <div className="text-right">Earn. (Rs)</div>
+                  <div className="text-right">Ded. (Rs)</div>
+                  <div className="text-right text-blue-600 dark:text-blue-400">Net Salary</div>
+                  <div className="text-right">Status</div>
+                  <div className="text-center">Action</div>
+                </div>
+
+                {/* Table Body */}
+                <div className="flex-1 overflow-y-auto no-scrollbar">
+                  {filteredPayrolls.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-64 text-slate-400 gap-4">
+                      <Banknote className="w-12 h-12 opacity-20" />
+                      <p className="font-medium text-lg text-slate-500">No payroll records found.</p>
+                    </div>
+                  ) : (
+                    <>
+                    {filteredPayrolls.map((payroll) => {
+                      const extraEarnings = payroll.allowance + payroll.ot + payroll.bonus + payroll.commission;
+                      return (
+                        <div key={payroll.id} onClick={() => setViewingPayroll(payroll)} className="cursor-pointer grid grid-cols-[130px_200px_100px_120px_120px_120px_130px_120px_100px] gap-4 p-5 border-b border-slate-100 dark:border-slate-800/60 items-center hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group">
+                          
+                          <div className="text-sm font-bold text-slate-900 dark:text-white">{payroll.id}</div>
+
+                          <div className="flex items-center gap-4 min-w-0">
+                            <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0 text-slate-400">
+                              <UserIcon className="w-5 h-5" />
+                            </div>
+                            <div className="min-w-0">
+                              <h3 className="font-bold text-slate-900 dark:text-white text-base truncate">{payroll.employee}</h3>
+                              <p className="text-xs font-medium text-slate-500 uppercase tracking-wider truncate mt-0.5">
+                                {payroll.role}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                            {payroll.month}
+                          </div>
+
+                          <div className="text-sm font-semibold text-slate-700 dark:text-slate-300 text-right">
+                            {payroll.basicSalary.toLocaleString()}
+                          </div>
+                          
+                          <div className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 text-right">
+                            +{extraEarnings.toLocaleString()}
+                          </div>
+
+                          <div className="text-sm font-semibold text-red-600 dark:text-red-400 text-right">
+                            -{payroll.deduction.toLocaleString()}
+                          </div>
+
+                          <div className="text-base font-black text-blue-600 dark:text-blue-400 text-right">
+                            {payroll.netSalary.toLocaleString()}
+                          </div>
+
+                          <div className="flex justify-end">
+                            <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold ${
+                              payroll.status === 'Paid' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' :
+                              payroll.status === 'Overdue' ? 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400' :
+                              'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400'
+                            }`}>
+                              {payroll.status}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onClick={(e) => { e.stopPropagation(); handleDelete(payroll.id); }} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer" title="Delete Payroll">
+                              <Trash2 className="w-5 h-5" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex-1 overflow-y-auto no-scrollbar p-6 bg-slate-50/50 dark:bg-slate-900/50">
+              {filteredPayrolls.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-64 text-slate-400 gap-4">
+                  <Banknote className="w-12 h-12 opacity-20" />
+                  <p className="font-medium text-lg text-slate-500">No payroll records found.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {filteredPayrolls.map((payroll) => (
+                    <div key={payroll.id} onClick={() => setViewingPayroll(payroll)} className="cursor-pointer bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-sm hover:shadow-md transition-shadow group relative flex flex-col min-h-[240px]">
+                      
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400">
+                          <UserIcon className="w-6 h-6" />
+                        </div>
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] uppercase tracking-wider font-bold ${
+                          payroll.status === 'Paid' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' :
+                          payroll.status === 'Overdue' ? 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400' :
+                          'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400'
+                        }`}>
+                          {payroll.status}
+                        </span>
+                      </div>
+                      
+                      <div className="flex-1 flex flex-col mb-4">
+                        <h3 className="font-black text-slate-900 dark:text-white text-lg leading-tight mb-1 truncate">{payroll.employee}</h3>
+                        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider truncate mb-3">
+                          {payroll.role} &bull; {payroll.month}
+                        </p>
+                        
+                        <div className="space-y-1.5 mb-4">
+                          <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-300">
+                            <span className="font-medium">Basic</span>
+                            <span className="font-bold">Rs. {payroll.basicSalary.toLocaleString()}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-300">
+                            <span className="font-medium">Net Salary</span>
+                            <span className="font-black text-blue-600 dark:text-blue-400">Rs. {payroll.netSalary.toLocaleString()}</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-2 mt-auto border-t border-slate-100 dark:border-slate-800 pt-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={(e) => { e.stopPropagation(); setViewingPayroll(payroll); }} className="flex-1 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold transition-colors cursor-pointer">
+                          View Details
+                        </button>
+                        <button onClick={(e) => { e.stopPropagation(); handleDelete(payroll.id); }} className="p-2 bg-slate-100 dark:bg-slate-800 hover:bg-red-100 dark:hover:bg-red-500/20 text-slate-500 hover:text-red-600 rounded-xl transition-colors cursor-pointer">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ──────────────── FILTERS SLIDE OUT PANEL ──────────────── */}
       <FilterPanel 
@@ -699,15 +1171,15 @@ export default function PayrollManagementPage() {
         <div className="font-sans space-y-6">
           <div>
             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Status</label>
-            <CustomSelect options={STATUSES.map(t => ({ label: t, value: t }))} value={statusFilter} onChange={setStatusFilter} />
+            <CustomSelect icon={CheckCircle} options={STATUSES.map(t => ({ label: t, value: t }))} value={statusFilter} onChange={setStatusFilter} />
           </div>
           <div>
             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Month</label>
-            <CustomSelect options={['All', ...MONTHS].map(t => ({ label: t, value: t }))} value={monthFilter} onChange={setMonthFilter} />
+            <CustomSelect icon={CalendarDays} options={['All', ...MONTHS].map(t => ({ label: t, value: t }))} value={monthFilter} onChange={setMonthFilter} />
           </div>
           <div>
             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Role</label>
-            <CustomSelect options={ROLES.map(t => ({ label: t, value: t }))} value={roleFilter} onChange={setRoleFilter} />
+            <CustomSelect icon={ShieldCheck} options={ROLES.map(t => ({ label: t, value: t }))} value={roleFilter} onChange={setRoleFilter} />
           </div>
         </div>
       </FilterPanel>
@@ -737,7 +1209,7 @@ export default function PayrollManagementPage() {
                     <p className="text-xs text-slate-500 font-medium">Process monthly employee compensation and payslips</p>
                   </div>
                 </div>
-                <button onClick={() => setIsGeneratePanelOpen(false)} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors">
+                <button onClick={() => setIsGeneratePanelOpen(false)} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer">
                   <X className="w-5 h-5" />
                 </button>
               </div>
@@ -893,7 +1365,7 @@ export default function PayrollManagementPage() {
                 <button 
                   type="button" 
                   onClick={() => setIsGeneratePanelOpen(false)}
-                  className="flex-1 px-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-xl font-bold hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                  className="flex-1 px-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-xl font-bold hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -901,7 +1373,7 @@ export default function PayrollManagementPage() {
                   type="submit" 
                   form="generatePayrollForm"
                   disabled={isSubmitting}
-                  className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-lg shadow-blue-600/20 transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-lg shadow-blue-600/20 transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer"
                 >
                   {isSubmitting ? (
                     <>

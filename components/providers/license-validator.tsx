@@ -16,7 +16,7 @@ import {
 import { useAuthStore } from '@/lib/auth-store';
 import { getSubscriptionStatus } from '@/lib/subscription-utils';
 import { PLATFORM_DOMAIN } from '@/lib/constants';
-import { WifiOff, Lock, Clock, LogOut } from 'lucide-react';
+import { WifiOff, Lock, Clock, LogOut, RefreshCw } from 'lucide-react';
 import api from '@/lib/api';
 import { toast } from 'sonner';
 
@@ -26,9 +26,10 @@ export function LicenseValidator({ children }: { children: React.ReactNode }) {
   const [isLockedOffline, setIsLockedOffline] = useState(false);
   const [isLockedExpired, setIsLockedExpired] = useState(false);
   const [isLockedTampered, setIsLockedTampered] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
   
   const pathname = usePathname();
-  const { accessToken, user, logout } = useAuthStore();
+  const { accessToken, user, logout, loadMe } = useAuthStore();
   const subStatus = getSubscriptionStatus(user);
 
   // Exempt routes allow expired users to access pricing, checkout, login, or public marketing pages
@@ -93,6 +94,13 @@ export function LicenseValidator({ children }: { children: React.ReactNode }) {
     }
   }, [accessToken, user, subStatus.isExpired, subStatus.daysLeft]);
 
+  // Auto-verify subscription in background on startup if online and user appears expired
+  useEffect(() => {
+    if (accessToken && subStatus.isExpired && typeof navigator !== 'undefined' && navigator.onLine) {
+      loadMe().catch(() => {});
+    }
+  }, [accessToken, subStatus.isExpired, loadMe]);
+
   // 2. Tauri-specific Offline Security, Hardware Fingerprinting, and Clock Rollback Protection
   useEffect(() => {
     if (!isTauriEnv()) return;
@@ -120,25 +128,32 @@ export function LicenseValidator({ children }: { children: React.ReactNode }) {
         const fingerprint = await getHardwareFingerprint();
 
         // Use api instance to inherit interceptors (automatic token refresh)
-        const response = await api.post('/auth/sync-device', { fingerprint });
+        const response: any = await api.post('/auth/sync-device', { fingerprint });
+        const syncData = response?.data || response;
 
         // Success! Update local DB with new sync date and subscription end date
         await setLastSyncDate(new Date(now));
         
-        if (response.data?.subscriptionEndDate) {
-          await setSubscriptionEndDate(new Date(response.data.subscriptionEndDate));
+        if (syncData?.subscriptionEndDate) {
+          await setSubscriptionEndDate(new Date(syncData.subscriptionEndDate));
+        } else if (syncData?.isExpired === false) {
+          // If active with no specific end date, clear stale expired date from SQLite
+          await setSubscriptionEndDate(null);
         }
 
         setOfflineDays(0);
         setIsLockedOffline(false);
         
-        if (response.data?.isExpired) {
+        if (syncData?.isExpired) {
           setIsLockedExpired(true);
           setExpiryDaysLeft(0);
+          return;
+        } else {
+          setIsLockedExpired(false);
         }
         
       } catch (error: any) {
-        console.error('License sync failed:', error);
+        console.warn('License sync failed/offline:', error?.message);
         
         if (error.response?.status === 401 || error.response?.status === 403) {
           toast.error(error.response.data?.message || 'Hardware mismatch detected. Account suspended.');
@@ -159,7 +174,7 @@ export function LicenseValidator({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // Check Expiry in local SQLite (regardless of online/offline)
+      // Check Expiry in local SQLite (fallback for offline mode)
       const endDate = await getSubscriptionEndDate();
       if (endDate) {
         const diffMs = endDate.getTime() - now;
@@ -167,7 +182,20 @@ export function LicenseValidator({ children }: { children: React.ReactNode }) {
         setExpiryDaysLeft(diffDays);
 
         if (diffDays <= 0) {
-          setIsLockedExpired(true);
+          // If local SQLite has an expired date, but user store in memory is ACTIVE,
+          // then the SQLite date is stale from before renewal! Sync SQLite instead of locking.
+          if (!subStatus.isExpired && user?.tenant) {
+            if (subStatus.endDate) {
+              await setSubscriptionEndDate(subStatus.endDate);
+            } else {
+              await setSubscriptionEndDate(null);
+            }
+            setIsLockedExpired(false);
+          } else {
+            setIsLockedExpired(true);
+          }
+        } else {
+          setIsLockedExpired(false);
         }
       }
     };
@@ -177,7 +205,52 @@ export function LicenseValidator({ children }: { children: React.ReactNode }) {
     // Check every 4 hours if app stays open
     const interval = setInterval(checkSyncAndSecurity, 4 * 60 * 60 * 1000);
     return () => clearInterval(interval);
-  }, [accessToken, logout]);
+  }, [accessToken, logout, subStatus.isExpired, user]);
+
+  const handleRenewedReload = async () => {
+    setIsVerifying(true);
+    try {
+      // 1. Fetch latest user profile and subscription from backend
+      await loadMe();
+      
+      // 2. Sync device if in desktop Tauri
+      if (isTauriEnv()) {
+        try {
+          const fingerprint = await getHardwareFingerprint();
+          const response: any = await api.post('/auth/sync-device', { fingerprint });
+          const syncData = response?.data || response;
+          if (syncData?.subscriptionEndDate) {
+            await setSubscriptionEndDate(new Date(syncData.subscriptionEndDate));
+          } else if (syncData?.isExpired === false) {
+            await setSubscriptionEndDate(null);
+          }
+        } catch (e) {
+          console.warn('Sync device error during renewal check:', e);
+        }
+      }
+
+      // 3. Inspect updated user in Zustand
+      const updatedUser = useAuthStore.getState().user;
+      const latestSubStatus = getSubscriptionStatus(updatedUser);
+
+      if (!latestSubStatus.isExpired) {
+        setIsLockedExpired(false);
+        if (latestSubStatus.endDate) {
+          await setSubscriptionEndDate(latestSubStatus.endDate);
+        } else {
+          await setSubscriptionEndDate(null);
+        }
+        toast.success('Subscription verified successfully! Welcome back.');
+        window.location.reload();
+      } else {
+        toast.error('Subscription still shows as expired. Please check your payment status or contact support.');
+      }
+    } catch (err: any) {
+      toast.error('Could not connect to server to verify subscription. Please check your internet connection.');
+    } finally {
+      setIsVerifying(false);
+    }
+  };
 
   if (isLockedTampered) {
     return (
@@ -223,10 +296,18 @@ export function LicenseValidator({ children }: { children: React.ReactNode }) {
         <div className="flex flex-col sm:flex-row items-center gap-4">
           <button 
             type="button"
-            onClick={() => window.location.reload()}
-            className="w-full sm:w-auto px-8 py-3.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold rounded-xl transition-all shadow-lg shadow-blue-600/30 cursor-pointer"
+            disabled={isVerifying}
+            onClick={handleRenewedReload}
+            className="w-full sm:w-auto px-8 py-3.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold rounded-xl transition-all shadow-lg shadow-blue-600/30 cursor-pointer disabled:opacity-60 flex items-center justify-center gap-2"
           >
-            I have renewed (Reload)
+            {isVerifying ? (
+              <>
+                <RefreshCw className="w-5 h-5 animate-spin" />
+                Verifying Subscription...
+              </>
+            ) : (
+              'I have renewed (Reload)'
+            )}
           </button>
           <button
             type="button"

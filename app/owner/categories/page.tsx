@@ -1,13 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, Search, Trash2, FolderTree, Edit, X, Image as ImageIcon, ChevronRight, ChevronDown, ChevronUp, List, LayoutGrid, Package, Maximize, Minimize, Layers, Info } from 'lucide-react';
+import { Plus, Search, Trash2, FolderTree, Edit, X, Image as ImageIcon, ChevronRight, ChevronDown, ChevronUp, List, LayoutGrid, Package, Maximize, Minimize, Layers, Info, BarChart3 } from 'lucide-react';
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { storeOwnerAPI } from '@/lib/api';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
+import { KpiCard } from '@/components/ui/kpi-card';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { CustomSelect } from '@/components/ui/custom-select';
 import { TableEmptyState } from '@/components/ui/table-empty-state';
@@ -89,11 +91,448 @@ const CategoryRow = ({ category, level = 0, onEdit, onDelete, defaultExpanded = 
   );
 };
 
+interface CategoriesOverviewProps {
+  categories: any[];
+  flatCategories: any[];
+  setActiveTab: (tab: 'overview' | 'table') => void;
+  openEditPanel: (cat: any) => void;
+}
+
+function CategoriesOverviewDashboard({
+  categories,
+  flatCategories,
+  setActiveTab,
+  openEditPanel,
+}: CategoriesOverviewProps) {
+  const [chartType, setChartType] = useState<'bar' | 'line'>('bar');
+  const [chartMetric, setChartMetric] = useState<'products' | 'subcats'>('products');
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const totalCategories = categories.length;
+  const totalSubcategories = categories.reduce((sum, c) => sum + (c.children?.length || 0), 0);
+  const totalProducts = flatCategories.reduce((sum, c) => sum + (c._count?.products || 0), 0);
+  const activeCategories = flatCategories.filter(c => c.active !== false).length;
+
+  // Chart data: Top categories by products or subcategories
+  const chartData = useMemo(() => {
+    return categories
+      .map(c => ({
+        name: c.name,
+        products: c._count?.products || 0,
+        subcats: c.children?.length || 0,
+      }))
+      .sort((a, b) => b[chartMetric] - a[chartMetric])
+      .slice(0, 8);
+  }, [categories, chartMetric]);
+
+  // Card 1: Top Categories by Products
+  const topProductCats = useMemo(() => {
+    return [...flatCategories]
+      .sort((a, b) => (b._count?.products || 0) - (a._count?.products || 0));
+  }, [flatCategories]);
+
+  // Card 2: Categories with Subcategories (Hierarchy depth)
+  const topHierarchyCats = useMemo(() => {
+    return [...categories]
+      .filter(c => (c.children?.length || 0) > 0)
+      .sort((a, b) => (b.children?.length || 0) - (a.children?.length || 0));
+  }, [categories]);
+
+  // Card 3: Empty / Low Inventory Categories
+  const emptyCats = useMemo(() => {
+    return [...flatCategories]
+      .filter(c => (c._count?.products || 0) === 0);
+  }, [flatCategories]);
+
+  // Card 4: Recently Created Categories
+  const recentCats = useMemo(() => {
+    return [...flatCategories]
+      .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+  }, [flatCategories]);
+
+  return (
+    <div className="space-y-6">
+      {/* ──────────────── 1. KPI CARDS ──────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiCard 
+          title="Parent Categories" 
+          value={totalCategories} 
+          icon={FolderTree} 
+          iconColorClass="text-blue-600" 
+          iconBgClass="bg-blue-50 dark:bg-blue-500/10" 
+        />
+        <KpiCard 
+          title="Subcategories" 
+          value={totalSubcategories} 
+          icon={Layers} 
+          iconColorClass="text-indigo-600" 
+          iconBgClass="bg-indigo-50 dark:bg-indigo-500/10" 
+        />
+        <KpiCard 
+          title="Total Catalogued Items" 
+          value={totalProducts} 
+          icon={Package} 
+          iconColorClass="text-emerald-600" 
+          iconBgClass="bg-emerald-50 dark:bg-emerald-500/10" 
+        />
+        <KpiCard 
+          title="Active Categories" 
+          value={activeCategories} 
+          icon={FolderTree} 
+          iconColorClass="text-purple-600" 
+          iconBgClass="bg-purple-50 dark:bg-purple-500/10" 
+        />
+      </div>
+
+      {/* ──────────────── 2. MID ROW: CHART (2 COLS) + CARD 1 (1 COL) ──────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Chart (2 cols, h-[400px]) */}
+        <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 md:p-6 flex flex-col h-[400px]">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 shrink-0">
+            <div>
+              <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <BarChart3 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                Category Catalog & Subcategory Volume
+              </h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Distribution of inventory items and sub-levels per category
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg text-xs font-bold">
+                <button
+                  type="button"
+                  onClick={() => setChartMetric('products')}
+                  className={`px-2.5 py-1 rounded-md transition-all ${chartMetric === 'products' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
+                >
+                  Items
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setChartMetric('subcats')}
+                  className={`px-2.5 py-1 rounded-md transition-all ${chartMetric === 'subcats' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
+                >
+                  Subcategories
+                </button>
+              </div>
+
+              <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg text-xs font-bold">
+                <button
+                  type="button"
+                  onClick={() => setChartType('bar')}
+                  className={`px-2.5 py-1 rounded-md transition-all ${chartType === 'bar' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
+                >
+                  Bar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setChartType('line')}
+                  className={`px-2.5 py-1 rounded-md transition-all ${chartType === 'line' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
+                >
+                  Line
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex-1 min-h-0 w-full relative">
+            {mounted ? (
+              chartData.length === 0 ? (
+                <div className="absolute inset-0 flex items-center justify-center text-xs text-slate-400">
+                  No category data available to plot.
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  {chartType === 'bar' ? (
+                    <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" strokeOpacity={0.4} />
+                      <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                      <Tooltip
+                        formatter={(v: any) => [
+                          chartMetric === 'products' ? `${v} Items` : `${v} Subcategories`,
+                          chartMetric === 'products' ? 'Items' : 'Subcategories'
+                        ]}
+                        contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.95)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '12px' }}
+                      />
+                      <Bar dataKey={chartMetric} fill="#3B82F6" radius={[6, 6, 0, 0]} />
+                    </BarChart>
+                  ) : (
+                    <LineChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" strokeOpacity={0.4} />
+                      <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                      <Tooltip
+                        formatter={(v: any) => [
+                          chartMetric === 'products' ? `${v} Items` : `${v} Subcategories`,
+                          chartMetric === 'products' ? 'Items' : 'Subcategories'
+                        ]}
+                        contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.95)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '12px' }}
+                      />
+                      <Line type="monotone" dataKey={chartMetric} stroke="#3B82F6" strokeWidth={2.5} dot={{ r: 4, fill: '#3B82F6' }} />
+                    </LineChart>
+                  )}
+                </ResponsiveContainer>
+              )
+            ) : null}
+          </div>
+        </div>
+
+        {/* Card 1: Top Categories by Products (1 col, h-[400px]) */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 md:p-6 w-full text-left flex flex-col h-[400px] justify-between">
+          <div className="flex items-center justify-between mb-3 shrink-0">
+            <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <Package className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+              Top Categories by Items
+            </h2>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
+              Inventory
+            </span>
+          </div>
+
+          <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar space-y-2 pr-0.5">
+            {topProductCats.length === 0 ? (
+              <div className="py-12 text-center text-slate-400 text-xs font-medium">
+                No categories available.
+              </div>
+            ) : (
+              topProductCats.slice(0, 5).map((cat, i) => {
+                const rankColors = [
+                  'bg-emerald-600 text-white',
+                  'bg-emerald-500 text-white',
+                  'bg-teal-500 text-white',
+                  'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300',
+                  'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                ];
+                return (
+                  <div
+                    key={cat.id || i}
+                    onClick={() => openEditPanel(cat)}
+                    className="flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
+                    title="Click to view/edit category"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${rankColors[i] || 'bg-slate-200 text-slate-700'}`}>
+                        {i + 1}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-emerald-600 transition-colors">
+                          {cat.name}
+                        </div>
+                        <div className="text-[10px] text-slate-400 truncate">
+                          /{cat.slug || cat.name.toLowerCase()}
+                        </div>
+                      </div>
+                    </div>
+                    <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 shrink-0">
+                      {cat._count?.products || 0} Items
+                    </span>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center shrink-0">
+            <button
+              type="button"
+              onClick={() => setActiveTab('table')}
+              className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer leading-normal flex items-center gap-1"
+            >
+              View All in Categories Table →
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ──────────────── 3. BOTTOM ROW: 3 RANKINGS / INSIGHTS CARDS ──────────────── */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Card 2: Categories with Subcategories */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 md:p-6 w-full text-left flex flex-col h-[400px] justify-between">
+          <div className="flex items-center justify-between mb-3 shrink-0">
+            <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <Layers className="w-5 h-5 text-indigo-500 dark:text-indigo-400" />
+              Subcategory Hierarchy
+            </h2>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">
+              Structure
+            </span>
+          </div>
+
+          <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar space-y-2 pr-0.5">
+            {topHierarchyCats.length === 0 ? (
+              <div className="py-12 text-center text-slate-400 text-xs font-medium">
+                No subcategories created yet.
+              </div>
+            ) : (
+              topHierarchyCats.slice(0, 5).map((cat, i) => (
+                <div
+                  key={cat.id || i}
+                  onClick={() => openEditPanel(cat)}
+                  className="flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
+                  title="Click to view/edit category"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
+                      {i + 1}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-indigo-600 transition-colors">
+                        {cat.name}
+                      </div>
+                      <div className="text-[10px] text-slate-400 truncate">
+                        {cat.children?.map((ch: any) => ch.name).slice(0, 2).join(', ')}{cat.children?.length > 2 ? '...' : ''}
+                      </div>
+                    </div>
+                  </div>
+                  <span className="text-xs font-black text-indigo-600 dark:text-indigo-400 shrink-0">
+                    {cat.children?.length || 0} Subcats
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center shrink-0">
+            <button
+              type="button"
+              onClick={() => setActiveTab('table')}
+              className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer leading-normal flex items-center gap-1"
+            >
+              View Hierarchy in Table →
+            </button>
+          </div>
+        </div>
+
+        {/* Card 3: Empty / Zero Product Categories */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 md:p-6 w-full text-left flex flex-col h-[400px] justify-between">
+          <div className="flex items-center justify-between mb-3 shrink-0">
+            <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <Info className="w-5 h-5 text-amber-500 dark:text-amber-400" />
+              Empty / Unassigned Categories
+            </h2>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">
+              Audit
+            </span>
+          </div>
+
+          <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar space-y-2 pr-0.5">
+            {emptyCats.length === 0 ? (
+              <div className="py-12 text-center text-slate-400 text-xs font-medium">
+                All categories have items assigned!
+              </div>
+            ) : (
+              emptyCats.slice(0, 5).map((cat, i) => (
+                <div
+                  key={cat.id || i}
+                  onClick={() => openEditPanel(cat)}
+                  className="flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
+                  title="Click to view/edit category"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                      {i + 1}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-amber-600 transition-colors">
+                        {cat.name}
+                      </div>
+                      <div className="text-[10px] text-slate-400 truncate">
+                        0 Products assigned
+                      </div>
+                    </div>
+                  </div>
+                  <span className="text-xs font-bold text-amber-600 dark:text-amber-400 shrink-0">
+                    Empty
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center shrink-0">
+            <button
+              type="button"
+              onClick={() => setActiveTab('table')}
+              className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer leading-normal flex items-center gap-1"
+            >
+              Assign Products in Table →
+            </button>
+          </div>
+        </div>
+
+        {/* Card 4: Recently Added */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 md:p-6 w-full text-left flex flex-col h-[400px] justify-between">
+          <div className="flex items-center justify-between mb-3 shrink-0">
+            <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <FolderTree className="w-5 h-5 text-purple-500 dark:text-purple-400" />
+              Recently Created Categories
+            </h2>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400">
+              Recent
+            </span>
+          </div>
+
+          <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar space-y-2 pr-0.5">
+            {recentCats.length === 0 ? (
+              <div className="py-12 text-center text-slate-400 text-xs font-medium">
+                No recent categories.
+              </div>
+            ) : (
+              recentCats.slice(0, 5).map((cat, i) => (
+                <div
+                  key={cat.id || i}
+                  onClick={() => openEditPanel(cat)}
+                  className="flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
+                  title="Click to view/edit category"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300">
+                      {i + 1}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-purple-600 transition-colors">
+                        {cat.name}
+                      </div>
+                      <div className="text-[10px] text-slate-400 truncate">
+                        {cat.createdAt ? new Date(cat.createdAt).toLocaleDateString() : 'Active'}
+                      </div>
+                    </div>
+                  </div>
+                  <span className="text-xs font-black text-purple-600 dark:text-purple-400 shrink-0">
+                    {cat._count?.products || 0} Items
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center shrink-0">
+            <button
+              type="button"
+              onClick={() => setActiveTab('table')}
+              className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer leading-normal flex items-center gap-1"
+            >
+              View Categories in Table →
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CategoriesPageContent() {
   const [categories, setCategories] = useState<any[]>([]);
   const [flatCategories, setFlatCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [activeTab, setActiveTab] = useState<'overview' | 'table'>('overview');
   
   // Modal / Side Panel state
   const [isPanelOpen, setIsPanelOpen] = useState(false);
@@ -390,18 +829,19 @@ function CategoriesPageContent() {
       
       {/* ──────────────── HEADER ──────────────── */}
       {!isFullscreen && (
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 shrink-0">
           <div>
-            <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
-              <FolderTree className="w-8 h-8 text-blue-600" />
+            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
+              <FolderTree className="w-7 h-7 sm:w-8 h-8 text-blue-600" />
               Categories
             </h1>
-            <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium">Organize your products into categories and subcategories.</p>
+            <p className="text-slate-500 dark:text-slate-400 mt-1 sm:mt-2 text-xs sm:text-sm font-medium">Organize your products into categories and subcategories.</p>
           </div>
           
           <button 
+            type="button"
             onClick={openAddPanel}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5 active:translate-y-0"
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl font-bold shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5 active:translate-y-0 cursor-pointer text-xs sm:text-sm"
           >
             <Plus className="w-5 h-5" />
             Add Category
@@ -409,50 +849,125 @@ function CategoriesPageContent() {
         </div>
       )}
 
-      {/* ──────────────── SEARCH BAR & KPIs ──────────────── */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-6">
-        <div className="relative w-full sm:w-80 flex-shrink-0 group">
-          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors">
-            <Search className="h-5 w-5" />
-          </div>
-          <input
-            type="text"
-            placeholder="Search categories..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-12 pr-4 h-12 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-2xl shadow-sm text-slate-900 dark:text-white font-bold placeholder:text-slate-400 placeholder:font-medium transition-all outline-none"
-          />
+      {/* ──────────────── NAVIGATION TABS & UNIFIED TOOLBAR ──────────────── */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+        {/* Left: Mode Toggle (Categories Overview | Categories Table) */}
+        <div className="flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm h-12 p-1 overflow-hidden shrink-0">
+          <button 
+            type="button"
+            onClick={() => setActiveTab('overview')}
+            className={`flex items-center justify-center px-5 h-full rounded-xl transition-all font-bold text-xs sm:text-sm cursor-pointer ${
+              activeTab === 'overview'
+                ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm'
+                : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
+            }`}
+          >
+            Categories Overview
+          </button>
+
+          <div className="w-px h-full bg-slate-200 dark:bg-slate-800 mx-1" />
+
+          <button 
+            type="button"
+            onClick={() => setActiveTab('table')}
+            className={`flex items-center justify-center px-5 h-full rounded-xl transition-all font-bold text-xs sm:text-sm cursor-pointer ${
+              activeTab === 'table'
+                ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm'
+                : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
+            }`}
+          >
+            Categories Table
+          </button>
         </div>
 
-        <div className="flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm h-12 p-1 overflow-hidden flex-shrink-0 ml-auto">
+        {/* Right: Unified Toolbar Card (Search, View Toggles, Fullscreen) */}
+        <div className="flex items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm h-12 p-1 overflow-hidden shrink-0 ml-auto w-full sm:w-auto">
+          {/* Integrated Search Bar on Left */}
+          <div className="relative flex items-center flex-1 sm:w-60 h-full pl-3 pr-2">
+            <Search className="w-4 h-4 text-slate-400 mr-2 shrink-0 pointer-events-none" />
+            <input 
+              type="text"
+              placeholder="Search categories..."
+              value={search}
+              onChange={e => {
+                setSearch(e.target.value);
+                if (activeTab === 'overview' && e.target.value.trim() !== '') {
+                  setActiveTab('table');
+                }
+              }}
+              className="w-full bg-transparent border-0 outline-none text-xs font-bold text-slate-900 dark:text-white placeholder:text-slate-400 placeholder:font-medium"
+            />
+            {search && (
+              <button 
+                type="button"
+                onClick={() => setSearch('')}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 ml-1 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          <div className="w-px h-full bg-slate-200 dark:bg-slate-800 mx-1" />
+
+          {/* View Mode Toggle: List */}
           <button 
-            onClick={() => setViewMode('list')}
+            type="button"
+            onClick={() => {
+              setViewMode('list');
+              if (activeTab === 'overview') setActiveTab('table');
+            }}
             title="List View"
-            className={`flex items-center justify-center w-12 h-full rounded-xl transition-all ${viewMode === 'list' ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+            className={`flex items-center justify-center w-10 h-full rounded-xl transition-all cursor-pointer ${
+              viewMode === 'list' && activeTab === 'table'
+                ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-xs' 
+                : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
+            }`}
           >
-            <List className="w-5 h-5" />
+            <List className="w-4 h-4" />
           </button>
-          
+
+          {/* View Mode Toggle: Grid */}
           <button 
-            onClick={() => setViewMode('grid')}
+            type="button"
+            onClick={() => {
+              setViewMode('grid');
+              if (activeTab === 'overview') setActiveTab('table');
+            }}
             title="Grid View"
-            className={`flex items-center justify-center w-12 h-full rounded-xl transition-all ${viewMode === 'grid' ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+            className={`flex items-center justify-center w-10 h-full rounded-xl transition-all cursor-pointer ${
+              viewMode === 'grid' && activeTab === 'table'
+                ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-xs' 
+                : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
+            }`}
           >
-            <LayoutGrid className="w-5 h-5" />
+            <LayoutGrid className="w-4 h-4" />
           </button>
-          <div className="w-px h-full bg-slate-200 dark:bg-slate-800 mx-1"></div>
+
+          <div className="w-px h-full bg-slate-200 dark:bg-slate-800 mx-1" />
+
+          {/* Fullscreen Button */}
           <button 
+            type="button"
             onClick={() => setIsFullscreen(!isFullscreen)}
-            title="Full Screen"
-            className={`flex items-center justify-center w-12 h-full rounded-xl transition-all text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800`}
+            title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+            className="flex items-center justify-center w-10 h-full rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-all cursor-pointer"
           >
-            {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
+            {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
           </button>
         </div>
       </div>
 
-      {/* ──────────────── DATA TABLE ──────────────── */}
-      <div className={`flex-1 bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col min-h-[400px] ${isFullscreen ? 'm-0 rounded-none border-none' : ''}`}>
+      {activeTab === 'overview' ? (
+        <CategoriesOverviewDashboard
+          categories={categories}
+          flatCategories={flatCategories}
+          setActiveTab={setActiveTab}
+          openEditPanel={openEditPanel}
+        />
+      ) : (
+        /* ──────────────── DATA TABLE ──────────────── */
+        <div className={`flex-1 bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col min-h-[400px] ${isFullscreen ? 'm-0 rounded-none border-none' : ''}`}>
         {loading ? (
           <div className="flex flex-col items-center justify-center py-24 text-slate-400 gap-4">
             <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
@@ -523,6 +1038,7 @@ function CategoriesPageContent() {
             </div>
           )}
         </div>
+      )}
 
       {/* ──────────────── SLIDE OUT PANEL: CATEGORY ──────────────── */}
       <MainRightPanel

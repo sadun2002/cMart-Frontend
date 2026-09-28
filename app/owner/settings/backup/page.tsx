@@ -314,8 +314,12 @@ export default function BackupPage() {
   const [activeTab, setActiveTab] = useState<'overview' | 'history'>('overview');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [historyFilter, setHistoryFilter] = useState<'all' | 'automatic' | 'manual' | 'success' | 'failed'>('all');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'automatic' | 'manual'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'success' | 'failed'>('all');
   const [locationFilter, setLocationFilter] = useState<'all' | 'local' | 'cloud'>('all');
+  const [dateFilterType, setDateFilterType] = useState<'all' | 'custom'>('all');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
 
@@ -888,17 +892,29 @@ export default function BackupPage() {
 
       if (!matchesSearch) return false;
 
-      if (historyFilter === 'automatic' && item.type !== 'Automatic') return false;
-      if (historyFilter === 'manual' && item.type !== 'Manual') return false;
-      if (historyFilter === 'success' && item.status !== 'Success') return false;
-      if (historyFilter === 'failed' && item.status !== 'Failed') return false;
+      if (typeFilter === 'automatic' && item.type !== 'Automatic') return false;
+      if (typeFilter === 'manual' && item.type !== 'Manual') return false;
+      if (statusFilter === 'success' && item.status !== 'Success') return false;
+      if (statusFilter === 'failed' && item.status !== 'Failed') return false;
 
       if (locationFilter === 'local' && item.location !== 'Local') return false;
       if (locationFilter === 'cloud' && item.location !== 'Cloud' && item.location !== 'Local + Cloud') return false;
 
+      if (dateFilterType !== 'all') {
+        const itemTime = item.timestamp || new Date(item.dateTime).getTime();
+        if (fromDate) {
+          const fromTime = new Date(`${fromDate}T00:00:00`).getTime();
+          if (!isNaN(fromTime) && itemTime < fromTime) return false;
+        }
+        if (toDate) {
+          const toTime = new Date(`${toDate}T23:59:59.999`).getTime();
+          if (!isNaN(toTime) && itemTime > toTime) return false;
+        }
+      }
+
       return true;
     });
-  }, [backups, searchQuery, historyFilter, locationFilter]);
+  }, [backups, searchQuery, typeFilter, statusFilter, locationFilter, dateFilterType, fromDate, toDate]);
 
   // Filtered snapshots for the secondary history slide-over panel
   const filteredSnapshots = useMemo(() => {
@@ -1639,23 +1655,20 @@ export default function BackupPage() {
       await new Promise(r => setTimeout(r, 650));
 
 
-      if (!isLocalMode) {
-        if (typeof window !== 'undefined' && navigator.onLine) {
-          try {
-            await storeOwnerAPI.resetCloudData();
-            localStorage.removeItem('cmart_pending_cloud_reset');
-            toast.success('Cloud store database reset successfully.');
-          } catch (cloudErr: any) {
-            console.warn('Cloud reset queued for sync:', cloudErr);
-            localStorage.setItem('cmart_pending_cloud_reset', 'true');
-            toast.warning('Offline or timeout: Cloud reset queued to run automatically on next sync.');
-          }
-        } else {
+      if (typeof window !== 'undefined' && navigator.onLine) {
+        try {
+          await storeOwnerAPI.resetCloudData();
+          localStorage.removeItem('cmart_pending_cloud_reset');
+          toast.success('Cloud store database reset successfully.');
+        } catch (cloudErr: any) {
+          console.warn('Cloud reset failed or queued:', cloudErr);
           localStorage.setItem('cmart_pending_cloud_reset', 'true');
-          toast.info('Offline mode: Cloud reset flagged to run once internet reconnects.');
         }
       } else {
-         toast.info('Local only mode: Skipping cloud reset.');
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('cmart_pending_cloud_reset', 'true');
+        }
+        toast.info('Offline mode: Cloud reset flagged to run once internet reconnects.');
       }
 
       // Step 4: Local SQLite & Local Storage Factory Reset
@@ -1666,28 +1679,23 @@ export default function BackupPage() {
       await resetLocalDatabase();
 
       if (typeof window !== 'undefined') {
-        const keysToRemove: string[] = [];
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i);
-          if (key && (
-            key.startsWith('cmart_offline_') ||
-            key.startsWith('cmart_held_') ||
-            key.startsWith('cmart_cart') ||
-            key.startsWith('cmart_cache_') ||
-            key.startsWith('cmart_temp_') ||
-            key.includes('product_custom_') ||
-            key.includes('report_cache') ||
-            key.includes('search_cache') ||
-            key.includes('_selected_') ||
-            key.includes('brand') ||
-            key.includes('recent_sold')
-          )) {
-            keysToRemove.push(key);
-          }
-        }
-        keysToRemove.forEach(k => localStorage.removeItem(k));
+        const preserved: Record<string, string> = {};
+        const preserveKeys = [
+          'cmart-auth',             // User login credentials & active subscription
+          'theme',                  // Light/Dark mode
+          'next-theme',
+        ];
+        preserveKeys.forEach((key) => {
+          const val = localStorage.getItem(key);
+          if (val) preserved[key] = val;
+        });
 
-        localStorage.removeItem('cmart_sync_paused');
+        localStorage.clear();
+
+        Object.entries(preserved).forEach(([key, val]) => {
+          localStorage.setItem(key, val);
+        });
+
         localStorage.setItem('cmart_last_sync_time', Date.now().toString());
 
         // Notify entire app that database was reset
@@ -1700,6 +1708,11 @@ export default function BackupPage() {
       setResetStepMessage('');
 
       toast.success('POS database factory reset complete! All data removed. Fresh baseline initialized.');
+
+      // Refresh application to reload clean baseline across all views and Zustand stores
+      setTimeout(() => {
+        window.location.href = '/owner/dashboard';
+      }, 1200);
     } catch (err) {
       console.error('Database reset failed:', err);
       toast.error('An error occurred during database reset.');
@@ -1778,67 +1791,6 @@ export default function BackupPage() {
         </div>
       )}
 
-      {/* ──────────────── 4 TOP KPI CARDS ──────────────── */}
-      {!isFullscreen && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <KpiCard
-            title="Last Backup"
-            value={backups.length > 0 ? formatRelativeTime(backups[0].timestamp) : 'No Backups'}
-            icon={Clock}
-            iconColorClass="text-blue-600 dark:text-blue-400"
-            iconBgClass="bg-blue-50 dark:bg-blue-500/10"
-          />
-          <KpiCard
-            title="Available Snapshots"
-            value={`${backups.filter(b => b.type === 'Automatic' || b.type === 'Safety Snapshot').length} Snapshots`}
-            icon={ShieldCheck}
-            iconColorClass="text-emerald-600 dark:text-emerald-400"
-            iconBgClass="bg-emerald-50 dark:bg-emerald-500/10"
-          />
-          <KpiCard
-            title="Next Scheduled Backup"
-            value={
-              autoBackupEnabled 
-                ? (frequency === 'hourly' ? 'In 1 Hour' : frequency === '6hours' ? 'In 6 Hours' : frequency === 'daily' ? `Tomorrow, ${backupTime}` : `Next Week, ${backupTime}`) 
-                : 'Paused'
-            }
-            icon={Calendar}
-            iconColorClass="text-purple-600 dark:text-purple-400"
-            iconBgClass="bg-purple-50 dark:bg-purple-500/10"
-          />
-          <KpiCard
-            title="Backup Storage"
-            value={totalBackupSizeStr}
-            icon={HardDrive}
-            iconColorClass="text-amber-600 dark:text-amber-400"
-            iconBgClass="bg-amber-50 dark:bg-amber-500/10"
-          />
-        </div>
-      )}
-
-      {/* ──────────────── SYSTEM ALERT BANNER (IF APPLICABLE) ──────────────── */}
-      {!isFullscreen && autoBackupError && (
-        <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/80 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-amber-900 dark:text-amber-200">
-          <div className="flex items-center gap-3">
-            <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
-            <div>
-              <p className="font-bold text-sm">Automatic backup failed. Last successful backup was 18 hours ago.</p>
-              <p className="text-xs text-amber-700 dark:text-amber-300 font-medium">Please verify your storage space or run a manual backup to keep your store protected.</p>
-            </div>
-          </div>
-          <button 
-            onClick={() => {
-              setAutoBackupError(false);
-              setIsCreateDrawerOpen(true);
-            }}
-            className="flex items-center gap-2 px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold shadow-lg shadow-amber-600/20 transition-all hover:-translate-y-0.5 active:translate-y-0 shrink-0 whitespace-nowrap"
-          >
-            <Plus className="w-5 h-5" />
-            Run Manual Backup Now
-          </button>
-        </div>
-      )}
-
       {/* ──────────────── TAB NAVIGATION & TOOLBAR ──────────────── */}
       {isFullscreen ? (
         /* FULLSCREEN MODE: Standalone Search Bar on Left, Toolbar Card on Right (Matching Product Management) */
@@ -1875,7 +1827,7 @@ export default function BackupPage() {
             >
               <Filter className="w-5 h-5" />
               <span className="hidden sm:inline text-xs">Filters</span>
-              {(historyFilter !== 'all' || locationFilter !== 'all') && (
+              {(typeFilter !== 'all' || statusFilter !== 'all' || locationFilter !== 'all' || dateFilterType !== 'all') && (
                 <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-blue-600"></span>
               )}
             </button>
@@ -1983,7 +1935,7 @@ export default function BackupPage() {
               >
                 <Filter className="w-5 h-5" />
                 <span className="hidden sm:inline text-xs">Filters</span>
-                {(historyFilter !== 'all' || locationFilter !== 'all') && (
+                {(typeFilter !== 'all' || statusFilter !== 'all' || locationFilter !== 'all' || dateFilterType !== 'all') && (
                   <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-blue-600"></span>
                 )}
               </button>
@@ -2034,6 +1986,65 @@ export default function BackupPage() {
       {/* ──────────────── TAB 1: OVERVIEW & STORAGE ──────────────── */}
       {activeTab === 'overview' && (
         <div className="space-y-6">
+          {/* ──────────────── 4 TOP KPI CARDS (Only displayed under Overview & Storage tab) ──────────────── */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <KpiCard
+              title="Last Backup"
+              value={backups.length > 0 ? formatRelativeTime(backups[0].timestamp) : 'No Backups'}
+              icon={Clock}
+              iconColorClass="text-blue-600 dark:text-blue-400"
+              iconBgClass="bg-blue-50 dark:bg-blue-500/10"
+            />
+            <KpiCard
+              title="Available Snapshots"
+              value={`${backups.filter(b => b.type === 'Automatic' || b.type === 'Safety Snapshot').length} Snapshots`}
+              icon={ShieldCheck}
+              iconColorClass="text-emerald-600 dark:text-emerald-400"
+              iconBgClass="bg-emerald-50 dark:bg-emerald-500/10"
+            />
+            <KpiCard
+              title="Next Scheduled Backup"
+              value={
+                autoBackupEnabled 
+                  ? (frequency === 'hourly' ? 'In 1 Hour' : frequency === '6hours' ? 'In 6 Hours' : frequency === 'daily' ? `Tomorrow, ${backupTime}` : `Next Week, ${backupTime}`) 
+                  : 'Paused'
+              }
+              icon={Calendar}
+              iconColorClass="text-purple-600 dark:text-purple-400"
+              iconBgClass="bg-purple-50 dark:bg-purple-500/10"
+            />
+            <KpiCard
+              title="Backup Storage"
+              value={totalBackupSizeStr}
+              icon={HardDrive}
+              iconColorClass="text-amber-600 dark:text-amber-400"
+              iconBgClass="bg-amber-50 dark:bg-amber-500/10"
+            />
+          </div>
+
+          {/* ──────────────── SYSTEM ALERT BANNER (IF APPLICABLE) ──────────────── */}
+          {autoBackupError && (
+            <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/80 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-amber-900 dark:text-amber-200">
+              <div className="flex items-center gap-3">
+                <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
+                <div>
+                  <p className="font-bold text-sm">Automatic backup failed. Last successful backup was 18 hours ago.</p>
+                  <p className="text-xs text-amber-700 dark:text-amber-300 font-medium">Please verify your storage space or run a manual backup to keep your store protected.</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => {
+                  setAutoBackupError(false);
+                  setIsCreateDrawerOpen(true);
+                }}
+                className="flex items-center gap-2 px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold shadow-lg shadow-amber-600/20 transition-all hover:-translate-y-0.5 active:translate-y-0 shrink-0 whitespace-nowrap"
+              >
+                <Plus className="w-5 h-5" />
+                Run Manual Backup Now
+              </button>
+            </div>
+          )}
+
           {/* ──────────────── CRITICAL INSIGHT WARNING ──────────────── */}
           <div className="bg-amber-50 dark:bg-amber-500/10 border-l-4 border-amber-500 p-4 rounded-r-2xl shadow-sm">
             <div className="flex items-start gap-3">
@@ -3979,24 +3990,28 @@ export default function BackupPage() {
 
 
       {/* ──────────────── FILTERS SLIDE OUT RIGHT PANEL (MATCHING PRODUCTS PAGE) ──────────────── */}
-      <FilterPanel
-        isOpen={isFilterPanelOpen}
-        onClose={() => setIsFilterPanelOpen(false)}
-        title="Filter Backups"
-        onClear={() => {
-          setHistoryFilter('all');
-          setLocationFilter('all');
-          setSearchQuery('');
-          setIsFilterPanelOpen(false);
-        }}
-        onApply={() => setIsFilterPanelOpen(false)}
-      >
-        <div className="space-y-4">
-          <div className="space-y-2">
+      <AnimatePresence>
+        <FilterPanel
+          isOpen={isFilterPanelOpen}
+          onClose={() => setIsFilterPanelOpen(false)}
+          title="Filter Backups"
+          onClear={() => {
+            setTypeFilter('all');
+            setStatusFilter('all');
+            setLocationFilter('all');
+            setDateFilterType('all');
+            setFromDate('');
+            setToDate('');
+            setIsFilterPanelOpen(false);
+          }}
+          onApply={() => setIsFilterPanelOpen(false)}
+        >
+          <div className="space-y-3">
             <label className="text-sm font-bold text-slate-900 dark:text-white">Backup Type</label>
             <CustomSelect
-              value={historyFilter === 'automatic' || historyFilter === 'manual' ? historyFilter : 'all'}
-              onChange={(val) => setHistoryFilter(val as any)}
+              icon={Database}
+              value={typeFilter}
+              onChange={(val) => setTypeFilter(val as any)}
               options={[
                 { value: 'all', label: 'All Backup Types' },
                 { value: 'automatic', label: 'Automatic (Scheduled)' },
@@ -4005,11 +4020,12 @@ export default function BackupPage() {
             />
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-3">
             <label className="text-sm font-bold text-slate-900 dark:text-white">Backup Status</label>
             <CustomSelect
-              value={historyFilter === 'success' || historyFilter === 'failed' ? historyFilter : 'all'}
-              onChange={(val) => setHistoryFilter(val as any)}
+              icon={CheckCircle2}
+              value={statusFilter}
+              onChange={(val) => setStatusFilter(val as any)}
               options={[
                 { value: 'all', label: 'All Statuses' },
                 { value: 'success', label: 'Successful (Verified)' },
@@ -4018,9 +4034,10 @@ export default function BackupPage() {
             />
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-3">
             <label className="text-sm font-bold text-slate-900 dark:text-white">Storage Location</label>
             <CustomSelect
+              icon={HardDrive}
               value={locationFilter}
               onChange={(val) => setLocationFilter(val as any)}
               options={[
@@ -4030,8 +4047,50 @@ export default function BackupPage() {
               ]}
             />
           </div>
-        </div>
-      </FilterPanel>
+
+          <div className="space-y-3">
+            <label className="text-sm font-bold text-slate-900 dark:text-white">Date Filter</label>
+            <CustomSelect
+              icon={Calendar}
+              value={dateFilterType}
+              onChange={(val) => setDateFilterType(val as any)}
+              options={[
+                { value: 'all', label: 'All Time' },
+                { value: 'custom', label: 'Custom Date Range' }
+              ]}
+            />
+            
+            {dateFilterType !== 'all' && (
+              <div className="grid grid-cols-2 gap-3 mt-3">
+                <div>
+                  <label className="text-xs font-bold text-slate-500 block mb-1">From</label>
+                  <div className="relative">
+                    <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input 
+                      type="date"
+                      value={fromDate}
+                      onChange={(e) => setFromDate(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-500 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-300 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-500 block mb-1">To</label>
+                  <div className="relative">
+                    <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input 
+                      type="date"
+                      value={toDate}
+                      onChange={(e) => setToDate(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-500 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-300 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </FilterPanel>
+      </AnimatePresence>
 
 
 

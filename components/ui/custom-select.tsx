@@ -12,6 +12,7 @@ export interface CustomSelectOption {
   locked?: boolean;
   onLockedClick?: () => void;
   onDelete?: () => void;
+  icon?: React.ElementType;
 }
 
 export function CustomSelect({ 
@@ -24,7 +25,8 @@ export function CustomSelect({
   actionButton,
   locked,
   onLockedClick,
-  id
+  id,
+  icon: Icon
 }: { 
   value: string; 
   onChange: (val: string) => void; 
@@ -36,6 +38,7 @@ export function CustomSelect({
   locked?: boolean;
   onLockedClick?: () => void;
   id?: string;
+  icon?: React.ElementType | React.ReactNode;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -115,7 +118,7 @@ export function CustomSelect({
           transition={{ duration: 0.15 }}
           className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-60"
         >
-          {searchable && options.length > 0 && (
+          {searchable && options.length > 5 && (
             <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-700/50 shrink-0">
               <div className="relative">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -176,9 +179,14 @@ export function CustomSelect({
                         : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50'
                     }`}
                   >
-                    <span className={`truncate mr-2 ${isOptLocked ? 'group-hover:text-slate-600 dark:group-hover:text-slate-300' : ''}`}>
-                      {opt.label}
-                    </span>
+                    <div className="flex items-center gap-2.5 min-w-0 mr-2">
+                      {opt.icon && (
+                        <opt.icon className="w-4 h-4 text-slate-400 dark:text-slate-500 shrink-0" />
+                      )}
+                      <span className={`truncate ${isOptLocked ? 'group-hover:text-slate-600 dark:group-hover:text-slate-300' : ''}`}>
+                        {opt.label}
+                      </span>
+                    </div>
                     <div className="flex items-center gap-1.5 shrink-0">
                       {isOptLocked && (
                         <Lock className="w-4 h-4 text-slate-400 shrink-0" />
@@ -218,6 +226,15 @@ export function CustomSelect({
     </AnimatePresence>
   );
 
+  const renderSelectIcon = (iconItem: any) => {
+    if (!iconItem) return null;
+    if (React.isValidElement(iconItem)) {
+      return <span className="text-slate-400 dark:text-slate-500 shrink-0">{iconItem}</span>;
+    }
+    const IconComp = iconItem as React.ElementType;
+    return <IconComp className="w-4 h-4 text-slate-400 dark:text-slate-500 shrink-0" />;
+  };
+
   return (
     <div className="relative">
       <button
@@ -245,9 +262,16 @@ export function CustomSelect({
           </span>
         ) : (
           <>
-            <span className={`truncate ${!selectedOption ? 'text-slate-400 dark:text-slate-500 font-normal' : ''}`}>
-              {selectedOption?.label || label || 'Select'}
-            </span>
+            <div className="flex items-center gap-2.5 min-w-0 mr-2">
+              {Icon ? (
+                renderSelectIcon(Icon)
+              ) : selectedOption?.icon ? (
+                renderSelectIcon(selectedOption.icon)
+              ) : null}
+              <span className={`truncate ${!selectedOption ? 'text-slate-400 dark:text-slate-500 font-normal' : ''}`}>
+                {selectedOption?.label || label || 'Select'}
+              </span>
+            </div>
             {locked ? (
               <Lock className="w-4 h-4 text-slate-400 dark:text-slate-500 shrink-0" />
             ) : (

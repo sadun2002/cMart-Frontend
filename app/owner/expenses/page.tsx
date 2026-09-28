@@ -2,8 +2,10 @@
 
 import { Suspense, useEffect, useState, useMemo, useRef } from 'react';
 import { 
-  Banknote, Search, Plus, Trash2, LayoutGrid, List, Filter, FileText, CheckCircle, Clock, X, Maximize, Minimize, Calendar, Lock, Upload, Eye, File as FileIcon, Download, RefreshCw, ChevronDown, ChevronUp, CreditCard, Receipt, SlidersHorizontal
+  Banknote, Search, Plus, Trash2, LayoutGrid, List, Filter, FileText, CheckCircle, Clock, X, Maximize, Minimize, Calendar, Lock, Upload, Eye, File as FileIcon, Download, RefreshCw, ChevronDown, ChevronUp, CreditCard, Receipt, SlidersHorizontal,
+  BarChart3, TrendingUp, PieChart, Layers, CheckCircle2, AlertCircle
 } from 'lucide-react';
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getDb } from '@/lib/db';
@@ -39,7 +41,559 @@ const EXPENSE_CATEGORIES = {
 
 const FLAT_CATEGORIES = Object.values(EXPENSE_CATEGORIES).flat();
 
+interface ExpensesOverviewDashboardProps {
+  expenses: any[];
+  totalExpenses: number;
+  thisMonthExpenses: number;
+  lastMonthExpenses: number;
+  recurringExpensesTotal: number;
+  monthDiff: number;
+  setActiveTab: (tab: 'overview' | 'table') => void;
+  setIsAddOpen: (open: boolean) => void;
+  setFilterCategory: (cat: string) => void;
+  setFilterStatus: (status: string) => void;
+  onViewExpense?: (exp: any) => void;
+}
+
+function ExpensesOverviewDashboard({
+  expenses,
+  totalExpenses,
+  thisMonthExpenses,
+  lastMonthExpenses,
+  recurringExpensesTotal,
+  monthDiff,
+  setActiveTab,
+  setIsAddOpen,
+  setFilterCategory,
+  setFilterStatus,
+  onViewExpense,
+}: ExpensesOverviewDashboardProps) {
+  const [chartType, setChartType] = useState<'bar' | 'line'>('bar');
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const isMonthHigher = monthDiff > 0;
+  const isMonthLower = monthDiff < 0;
+
+  // Chart Data: Spend by Expense Category
+  const chartData = useMemo(() => {
+    const map = new Map<string, number>();
+    expenses.forEach(e => {
+      const cat = e.category || 'Other';
+      map.set(cat, (map.get(cat) || 0) + Number(e.amount || 0));
+    });
+    return Array.from(map.entries())
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 10);
+  }, [expenses]);
+
+  // Top 5 Largest Expenses
+  const topExpenses = useMemo(() => {
+    return [...expenses]
+      .sort((a, b) => Number(b.amount || 0) - Number(a.amount || 0))
+      .slice(0, 5);
+  }, [expenses]);
+
+  // Bottom 1: Categories Breakdown
+  const topCategories = useMemo(() => {
+    const map = new Map<string, { total: number; count: number }>();
+    expenses.forEach(e => {
+      const cat = e.category || 'Other';
+      const existing = map.get(cat) || { total: 0, count: 0 };
+      map.set(cat, {
+        total: existing.total + Number(e.amount || 0),
+        count: existing.count + 1
+      });
+    });
+    return Array.from(map.entries())
+      .map(([category, info]) => ({
+        category,
+        total: info.total,
+        count: info.count,
+        percent: totalExpenses > 0 ? (info.total / totalExpenses) * 100 : 0
+      }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 5);
+  }, [expenses, totalExpenses]);
+
+  // Bottom 2: Recent Expense Records
+  const recentExpenses = useMemo(() => {
+    return [...expenses]
+      .sort((a, b) => new Date(b.date || b.createdAt || 0).getTime() - new Date(a.date || a.createdAt || 0).getTime())
+      .slice(0, 5);
+  }, [expenses]);
+
+  // Bottom 3: Payment Status & Method Breakdown
+  const paymentBreakdown = useMemo(() => {
+    const paid = expenses.filter(e => e.paymentStatus === 'Paid');
+    const pending = expenses.filter(e => e.paymentStatus === 'Pending');
+    const overdue = expenses.filter(e => e.paymentStatus === 'Overdue');
+    const recurring = expenses.filter(e => e.type === 'Recurring');
+    const oneTime = expenses.filter(e => e.type !== 'Recurring');
+
+    const paidSum = paid.reduce((s, e) => s + Number(e.amount || 0), 0);
+    const pendingSum = pending.reduce((s, e) => s + Number(e.amount || 0), 0);
+    const overdueSum = overdue.reduce((s, e) => s + Number(e.amount || 0), 0);
+
+    return {
+      paidCount: paid.length,
+      paidSum,
+      pendingCount: pending.length,
+      pendingSum,
+      overdueCount: overdue.length,
+      overdueSum,
+      recurringCount: recurring.length,
+      oneTimeCount: oneTime.length,
+    };
+  }, [expenses]);
+
+  return (
+    <div className="flex-1 overflow-y-auto no-scrollbar pr-1 pb-10 space-y-6">
+      {/* ──────────────── 1. REUSABLE TOP 4 KPI CARDS ──────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiCard 
+          title="Total Expenses" 
+          value={`Rs. ${totalExpenses.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`} 
+          icon={Banknote} 
+          iconColorClass="text-blue-600"
+          iconBgClass="bg-blue-50 dark:bg-blue-500/10"
+        />
+        <KpiCard 
+          title="This Month" 
+          value={`Rs. ${thisMonthExpenses.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`} 
+          icon={Calendar} 
+          iconColorClass="text-emerald-600"
+          iconBgClass="bg-emerald-50 dark:bg-emerald-500/10"
+        />
+        <KpiCard 
+          title="This Month vs Last" 
+          value={
+            <div className="flex items-center gap-2">
+              <span className="text-base font-bold text-slate-900 dark:text-white">
+                Rs. {thisMonthExpenses.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+              </span>
+              {isMonthHigher && (
+                <span className="text-xs font-bold text-red-500 bg-red-100 dark:bg-red-900/30 px-2 py-0.5 rounded-md">
+                  +Rs. {monthDiff.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                </span>
+              )}
+              {isMonthLower && (
+                <span className="text-xs font-bold text-emerald-500 bg-emerald-100 dark:bg-emerald-900/30 px-2 py-0.5 rounded-md">
+                  -Rs. {Math.abs(monthDiff).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                </span>
+              )}
+              {!isMonthHigher && !isMonthLower && (
+                <span className="text-xs font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md">
+                  No Change
+                </span>
+              )}
+            </div>
+          } 
+          icon={FileText} 
+          iconColorClass="text-purple-600"
+          iconBgClass="bg-purple-50 dark:bg-purple-500/10"
+        />
+        <KpiCard 
+          title="Recurring Expenses" 
+          value={`Rs. ${recurringExpensesTotal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`} 
+          icon={RefreshCw} 
+          iconColorClass="text-orange-600"
+          iconBgClass="bg-orange-50 dark:bg-orange-500/10"
+        />
+      </div>
+
+      {/* ──────────────── 2. MAIN ROW: CHART (2 Cols) + TOP 5 LARGEST EXPENSES (1 Col) ──────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left: Chart Card (h-[400px]) */}
+        <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 w-full text-left flex flex-col h-[400px] justify-between">
+          <div className="flex items-center justify-between mb-4 shrink-0">
+            <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <BarChart3 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              Category Expenses & Spending Breakdown
+            </h2>
+            <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => setChartType('bar')}
+                className={`px-3 py-1 rounded-md transition-all cursor-pointer ${chartType === 'bar' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
+              >
+                Bar
+              </button>
+              <button
+                type="button"
+                onClick={() => setChartType('line')}
+                className={`px-3 py-1 rounded-md transition-all cursor-pointer ${chartType === 'line' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
+              >
+                Line
+              </button>
+            </div>
+          </div>
+
+          <div className="flex-1 min-h-0 w-full relative">
+            {mounted ? (
+              chartData.length === 0 ? (
+                <div className="absolute inset-0 flex items-center justify-center text-xs text-slate-400">
+                  No expense records available to plot chart.
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  {chartType === 'bar' ? (
+                    <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" strokeOpacity={0.4} />
+                      <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`} />
+                      <Tooltip 
+                        formatter={(v: any) => [`Rs. ${Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 'Expenditure']} 
+                        contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.95)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '12px' }}
+                      />
+                      <Bar dataKey="value" fill="#3B82F6" radius={[6, 6, 0, 0]} />
+                    </BarChart>
+                  ) : (
+                    <LineChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" strokeOpacity={0.4} />
+                      <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`} />
+                      <Tooltip 
+                        formatter={(v: any) => [`Rs. ${Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 'Expenditure']} 
+                        contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.95)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '12px' }}
+                      />
+                      <Line type="monotone" dataKey="value" stroke="#3B82F6" strokeWidth={3} dot={{ r: 4, fill: '#3B82F6' }} activeDot={{ r: 6 }} />
+                    </LineChart>
+                  )}
+                </ResponsiveContainer>
+              )
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center text-xs text-slate-400">
+                Loading chart...
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 shrink-0 font-medium">
+            <span>Total Recorded Expenditure</span>
+            <span className="font-bold text-slate-900 dark:text-white">
+              Rs. {totalExpenses.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+          </div>
+        </div>
+
+        {/* Right: Top 5 Largest Expenses (h-[400px]) */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 md:p-6 w-full text-left flex flex-col h-[400px] justify-between">
+          <div className="flex items-center justify-between mb-3 shrink-0">
+            <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <Banknote className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              Top 5 Largest Expenses
+            </h2>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
+              Ranked
+            </span>
+          </div>
+
+          <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar space-y-2 pr-0.5">
+            {topExpenses.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-center text-slate-400 text-xs font-medium">
+                No expense data found.
+              </div>
+            ) : (
+              topExpenses.map((exp, i) => {
+                const rankColors = [
+                  'bg-amber-500 text-white',
+                  'bg-slate-400 text-white',
+                  'bg-orange-700 text-white',
+                  'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300',
+                  'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                ];
+                return (
+                  <div
+                    key={exp.id || i}
+                    onClick={() => onViewExpense ? onViewExpense(exp) : setActiveTab('table')}
+                    className="flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
+                    title="Click to view details"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${rankColors[i] || 'bg-slate-200 text-slate-700'}`}>
+                        {i + 1}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-blue-600 transition-colors">
+                          {exp.name || exp.description || 'Expense'}
+                        </div>
+                        <div className="text-[10px] text-slate-400 truncate">
+                          {exp.category} • {exp.date ? new Date(exp.date).toLocaleDateString() : 'N/A'}
+                        </div>
+                      </div>
+                    </div>
+                    <span className="text-xs font-black text-slate-900 dark:text-white shrink-0">
+                      Rs. {Number(exp.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center shrink-0">
+            <button
+              type="button"
+              onClick={() => setActiveTab('table')}
+              className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer leading-normal flex items-center gap-1"
+            >
+              View All in Expense Table →
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ──────────────── 3. BOTTOM ROW: 3 INSIGHTS & RANKINGS WIDGETS ──────────────── */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        {/* Card 1: Top Expense Categories */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 md:p-6 w-full text-left flex flex-col h-[400px] justify-between">
+          <div className="flex items-center justify-between mb-3 shrink-0">
+            <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <Layers className="w-5 h-5 text-indigo-500 dark:text-indigo-400" />
+              Top Categories
+            </h2>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">
+              Breakdown
+            </span>
+          </div>
+
+          <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar space-y-2.5 pr-0.5">
+            {topCategories.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-center text-slate-400 text-xs font-medium">
+                No expense category data.
+              </div>
+            ) : (
+              topCategories.map((c, i) => (
+                <div
+                  key={c.category || i}
+                  onClick={() => {
+                    setFilterCategory(c.category);
+                    setActiveTab('table');
+                  }}
+                  className="p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group space-y-1.5"
+                  title={`Filter by ${c.category}`}
+                >
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 transition-colors">
+                      {c.category}
+                    </span>
+                    <span className="font-black text-slate-900 dark:text-white">
+                      Rs. {c.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                    <div
+                      className="bg-indigo-500 h-full rounded-full transition-all"
+                      style={{ width: `${Math.min(100, Math.max(5, c.percent))}%` }}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between text-[10px] text-slate-400">
+                    <span>{c.count} {c.count === 1 ? 'record' : 'records'}</span>
+                    <span>{c.percent.toFixed(1)}% of total</span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center shrink-0">
+            <button
+              type="button"
+              onClick={() => setActiveTab('table')}
+              className="text-xs text-indigo-600 dark:text-indigo-400 font-bold hover:underline cursor-pointer leading-normal flex items-center gap-1"
+            >
+              View All in Expense Table →
+            </button>
+          </div>
+        </div>
+
+        {/* Card 2: Recent Expense Records */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 md:p-6 w-full text-left flex flex-col h-[400px] justify-between">
+          <div className="flex items-center justify-between mb-3 shrink-0">
+            <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <Clock className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
+              Recent Records
+            </h2>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
+              Latest
+            </span>
+          </div>
+
+          <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar space-y-2 pr-0.5">
+            {recentExpenses.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-center text-slate-400 text-xs font-medium">
+                No recent expense records.
+              </div>
+            ) : (
+              recentExpenses.map((exp, i) => (
+                <div
+                  key={exp.id || i}
+                  onClick={() => onViewExpense ? onViewExpense(exp) : setActiveTab('table')}
+                  className="flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
+                  title="Click to view details"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-emerald-600 transition-colors">
+                      {exp.name || exp.description || 'Expense'}
+                    </div>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span className="text-[10px] text-slate-400 truncate">
+                        {exp.date ? new Date(exp.date).toLocaleDateString() : 'N/A'}
+                      </span>
+                      <span className="text-slate-300 dark:text-slate-700">•</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                        {exp.paymentMethod || 'Cash'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <span className="text-xs font-black text-slate-900 dark:text-white block">
+                      Rs. {Number(exp.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                    <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${
+                      exp.paymentStatus === 'Paid' 
+                        ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20' 
+                        : exp.paymentStatus === 'Pending' 
+                        ? 'bg-amber-50 text-amber-600 dark:bg-amber-900/20' 
+                        : 'bg-red-50 text-red-600 dark:bg-red-900/20'
+                    }`}>
+                      {exp.paymentStatus || 'Paid'}
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center shrink-0">
+            <button
+              type="button"
+              onClick={() => setActiveTab('table')}
+              className="text-xs text-emerald-600 dark:text-emerald-400 font-bold hover:underline cursor-pointer leading-normal flex items-center gap-1"
+            >
+              View All in Expense Table →
+            </button>
+          </div>
+        </div>
+
+        {/* Card 3: Payment Status & Flow Insights */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 md:p-6 w-full text-left flex flex-col h-[400px] justify-between">
+          <div className="flex items-center justify-between mb-3 shrink-0">
+            <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <PieChart className="w-5 h-5 text-amber-500 dark:text-amber-400" />
+              Status & Payment Insights
+            </h2>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">
+              Overview
+            </span>
+          </div>
+
+          <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar space-y-3 pr-0.5">
+            {/* Paid Stat */}
+            <div 
+              onClick={() => {
+                setFilterStatus('paid');
+                setActiveTab('table');
+              }}
+              className="p-3 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30 cursor-pointer hover:border-emerald-300 transition-colors"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                  Paid Expenses
+                </span>
+                <span className="text-xs font-black text-emerald-700 dark:text-emerald-300">
+                  Rs. {paymentBreakdown.paidSum.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+              <p className="text-[10px] text-emerald-600/80 dark:text-emerald-400/80 mt-1">
+                {paymentBreakdown.paidCount} transactions settled
+              </p>
+            </div>
+
+            {/* Pending Stat */}
+            <div 
+              onClick={() => {
+                setFilterStatus('pending');
+                setActiveTab('table');
+              }}
+              className="p-3 rounded-xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/30 cursor-pointer hover:border-amber-300 transition-colors"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-amber-700 dark:text-amber-300 flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-amber-600" />
+                  Pending Approvals / Due
+                </span>
+                <span className="text-xs font-black text-amber-700 dark:text-amber-300">
+                  Rs. {paymentBreakdown.pendingSum.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+              <p className="text-[10px] text-amber-600/80 dark:text-amber-400/80 mt-1">
+                {paymentBreakdown.pendingCount} unpaid vouchers pending
+              </p>
+            </div>
+
+            {/* Overdue Stat */}
+            {paymentBreakdown.overdueCount > 0 && (
+              <div 
+                onClick={() => {
+                  setFilterStatus('overdue');
+                  setActiveTab('table');
+                }}
+                className="p-3 rounded-xl bg-rose-50/50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/30 cursor-pointer hover:border-rose-300 transition-colors"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-rose-700 dark:text-rose-300 flex items-center gap-1.5">
+                    <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
+                    Overdue Payments
+                  </span>
+                  <span className="text-xs font-black text-rose-700 dark:text-rose-300">
+                    Rs. {paymentBreakdown.overdueSum.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <p className="text-[10px] text-rose-600/80 dark:text-rose-400/80 mt-1">
+                  {paymentBreakdown.overdueCount} payments past due date
+                </p>
+              </div>
+            )}
+
+            {/* Schedule Type Stats */}
+            <div className="pt-2 border-t border-slate-100 dark:border-slate-800 grid grid-cols-2 gap-2 text-center">
+              <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/60">
+                <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-medium">One-Time</span>
+                <span className="text-sm font-black text-slate-900 dark:text-white">{paymentBreakdown.oneTimeCount}</span>
+              </div>
+              <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/60">
+                <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-medium">Recurring</span>
+                <span className="text-sm font-black text-slate-900 dark:text-white">{paymentBreakdown.recurringCount}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center shrink-0">
+            <button
+              type="button"
+              onClick={() => setActiveTab('table')}
+              className="text-xs text-amber-600 dark:text-amber-400 font-bold hover:underline cursor-pointer leading-normal flex items-center gap-1"
+            >
+              View All in Expense Table →
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
 function ExpensesPageContent() {
+  const [activeTab, setActiveTab] = useState<'overview' | 'table'>('overview');
   const [expenses, setExpenses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -439,102 +993,149 @@ function ExpensesPageContent() {
         </div>
       )}
 
-      {/* ──────────────── KPI CARDS ──────────────── */}
-      {!isFullscreen && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <KpiCard 
-            title="Total Expenses" 
-            value={`Rs. ${totalExpenses.toLocaleString(undefined, {minimumFractionDigits: 2})}`} 
-            icon={Banknote} 
-            iconColorClass="text-blue-600"
-            iconBgClass="bg-blue-50 dark:bg-blue-500/10"
-          />
-          <KpiCard 
-            title="This Month vs Last" 
-            value={
-              <div className="flex items-center gap-2">
-                Rs. {thisMonthExpenses.toLocaleString(undefined, {minimumFractionDigits: 2})}
-                {isMonthHigher && <span className="text-sm font-bold text-red-500 bg-red-100 dark:bg-red-900/30 px-2 py-0.5 rounded">+Rs. {monthDiff.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>}
-                {isMonthLower && <span className="text-sm font-bold text-emerald-500 bg-emerald-100 dark:bg-emerald-900/30 px-2 py-0.5 rounded">-Rs. {Math.abs(monthDiff).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>}
-                {!isMonthHigher && !isMonthLower && <span className="text-sm font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">No Change</span>}
-              </div>
-            } 
-            icon={FileText} 
-            iconColorClass="text-purple-600"
-            iconBgClass="bg-purple-50 dark:bg-purple-500/10"
-          />
-          <KpiCard 
-            title="This Month" 
-            value={`Rs. ${thisMonthExpenses.toLocaleString(undefined, {minimumFractionDigits: 2})}`} 
-            icon={Calendar} 
-            iconColorClass="text-emerald-600"
-            iconBgClass="bg-emerald-50 dark:bg-emerald-500/10"
-          />
-          <KpiCard 
-            title="Recurring Expenses" 
-            value={`Rs. ${recurringExpensesTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}`} 
-            icon={RefreshCw} 
-            iconColorClass="text-orange-600"
-            iconBgClass="bg-orange-50 dark:bg-orange-500/10"
-          />
-        </div>
-      )}
+      {/* ──────────────── NAVIGATION TABS & UNIFIED TOOLBAR ──────────────── */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+        {/* Left: Mode Toggle (Expenses Overview | Expenses Table) */}
+        <div className="flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm h-12 p-1 overflow-hidden shrink-0">
+          <button 
+            type="button"
+            onClick={() => setActiveTab('overview')}
+            className={`flex items-center justify-center px-5 h-full rounded-xl transition-all font-bold text-xs sm:text-sm cursor-pointer ${
+              activeTab === 'overview'
+                ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm'
+                : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
+            }`}
+          >
+            Expenses Overview
+          </button>
 
-      {/* ──────────────── SEARCH BAR & FILTERS ──────────────── */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-6">
-        <div className="relative w-full sm:w-80 flex-shrink-0 group">
-          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors">
-            <Search className="h-5 w-5" />
+          <div className="w-px h-full bg-slate-200 dark:bg-slate-800 mx-1" />
+
+          <button 
+            type="button"
+            onClick={() => setActiveTab('table')}
+            className={`flex items-center justify-center px-5 h-full rounded-xl transition-all font-bold text-xs sm:text-sm cursor-pointer ${
+              activeTab === 'table'
+                ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm'
+                : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
+            }`}
+          >
+            Expenses Table
+          </button>
+        </div>
+
+        {/* Right: Unified Toolbar Card (Search, Filters, View Toggles, Fullscreen) */}
+        <div className="flex items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm h-12 p-1 overflow-hidden shrink-0 ml-auto w-full sm:w-auto">
+          {/* Integrated Search Bar on Left */}
+          <div className="relative flex items-center flex-1 sm:w-60 h-full pl-3 pr-2">
+            <Search className="w-4 h-4 text-slate-400 mr-2 shrink-0 pointer-events-none" />
+            <input 
+              type="text"
+              placeholder="Search expenses..."
+              value={search}
+              onChange={e => {
+                setSearch(e.target.value);
+                if (activeTab === 'overview' && e.target.value.trim() !== '') {
+                  setActiveTab('table');
+                }
+              }}
+              className="w-full bg-transparent border-0 outline-none text-xs font-bold text-slate-900 dark:text-white placeholder:text-slate-400 placeholder:font-medium"
+            />
+            {search && (
+              <button 
+                type="button"
+                onClick={() => setSearch('')}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 ml-1 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
-          <input
-            type="text"
-            placeholder="Search expense ID, name, vendor..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-12 pr-4 h-12 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-2xl shadow-sm text-slate-900 dark:text-white font-bold placeholder:text-slate-400 placeholder:font-medium transition-all outline-none"
-          />
-        </div>
 
-        <div className="flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm h-12 p-1 overflow-hidden flex-shrink-0 ml-auto">
+          <div className="w-px h-full bg-slate-200 dark:bg-slate-800 mx-1" />
+
+          {/* Filter Button */}
           <button 
+            type="button"
             onClick={() => setIsFilterOpen(true)}
-            className="flex items-center justify-center px-4 h-full rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition-all gap-2 font-bold relative"
+            className="flex items-center justify-center px-3 sm:px-4 h-full rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition-all gap-1.5 font-bold text-xs cursor-pointer relative"
+            title="Filter & Sort"
           >
-            <Filter className="w-5 h-5" />
+            <Filter className="w-4 h-4" />
             <span className="hidden sm:inline">Filters</span>
-            {(filterCategory !== 'all' || filterStatus !== 'all' || filterMethod !== 'all' || filterDateRange !== 'all') && <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-blue-600"></span>}
+            {(filterCategory !== 'all' || filterStatus !== 'all' || filterMethod !== 'all' || filterDateRange !== 'all') && (
+              <span className="w-2 h-2 rounded-full bg-blue-600"></span>
+            )}
           </button>
           
-          <div className="w-px h-full bg-slate-200 dark:bg-slate-800 mx-1"></div>
-          
+          <div className="w-px h-full bg-slate-200 dark:bg-slate-800 mx-1" />
+
+          {/* View Mode Toggles */}
           <button 
-            onClick={() => setViewMode('list')}
+            type="button"
+            onClick={() => {
+              setActiveTab('table');
+              setViewMode('list');
+            }}
             title="List View"
-            className={`flex items-center justify-center w-12 h-full rounded-xl transition-all ${viewMode === 'list' ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+            className={`flex items-center justify-center w-10 sm:w-11 h-full rounded-xl transition-all cursor-pointer ${
+              viewMode === 'list' && activeTab === 'table'
+                ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm' 
+                : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'
+            }`}
           >
-            <List className="w-5 h-5" />
+            <List className="w-4 h-4" />
           </button>
           
           <button 
-            onClick={() => setViewMode('grid')}
+            type="button"
+            onClick={() => {
+              setActiveTab('table');
+              setViewMode('grid');
+            }}
             title="Grid View"
-            className={`flex items-center justify-center w-12 h-full rounded-xl transition-all ${viewMode === 'grid' ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+            className={`flex items-center justify-center w-10 sm:w-11 h-full rounded-xl transition-all cursor-pointer ${
+              viewMode === 'grid' && activeTab === 'table'
+                ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm' 
+                : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'
+            }`}
           >
-            <LayoutGrid className="w-5 h-5" />
+            <LayoutGrid className="w-4 h-4" />
           </button>
+
+          <div className="w-px h-full bg-slate-200 dark:bg-slate-800 mx-1" />
           
-          <div className="w-px h-full bg-slate-200 dark:bg-slate-800 mx-1"></div>
+          {/* Fullscreen Toggle */}
           <button 
+            type="button"
             onClick={() => setIsFullscreen(!isFullscreen)}
-            title="Full Screen"
-            className="flex items-center justify-center w-12 h-full rounded-xl transition-all text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800"
+            title={isFullscreen ? "Exit Full Screen" : "Full Screen"}
+            className="flex items-center justify-center w-10 sm:w-11 h-full rounded-xl transition-all text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer"
           >
-            {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
+            {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
           </button>
         </div>
       </div>
 
-      {/* ──────────────── DATA TABLE ──────────────── */}
+      {/* ──────────────── TAB CONTENT: OVERVIEW OR TABLE ──────────────── */}
+      {activeTab === 'overview' ? (
+        <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar">
+          <ExpensesOverviewDashboard
+            expenses={expenses}
+            totalExpenses={totalExpenses}
+            thisMonthExpenses={thisMonthExpenses}
+            lastMonthExpenses={lastMonthExpenses}
+            recurringExpensesTotal={recurringExpensesTotal}
+            monthDiff={monthDiff}
+            setActiveTab={setActiveTab}
+            setIsAddOpen={setIsAddOpen}
+            setFilterCategory={setFilterCategory}
+            setFilterStatus={setFilterStatus}
+            onViewExpense={(exp) => setViewingExpense(exp)}
+          />
+        </div>
+      ) : (
+      /* ──────────────── DATA TABLE ──────────────── */
       <div className={`flex-1 bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col min-h-[400px] ${isFullscreen ? 'm-0 rounded-none border-none' : ''}`}>
         <div className="flex-1 overflow-auto custom-scrollbar">
           {loading ? (
@@ -632,6 +1233,7 @@ function ExpensesPageContent() {
           )}
         </div>
       </div>
+      )}
 
       {/* ──────────────── VIEW EXPENSE DETAILS MODAL ──────────────── */}
       <MainRightPanel
@@ -1107,76 +1709,77 @@ function ExpensesPageContent() {
         <div className="space-y-6">
           <div>
             <label className="text-sm font-bold text-slate-700 dark:text-slate-300 block mb-2">Date Range</label>
-                  <select
-                    value={filterDateRange}
-                    onChange={(e) => setFilterDateRange(e.target.value)}
-                    className="w-full px-4 h-11 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl font-medium text-sm text-slate-900 dark:text-white transition-all outline-none"
-                  >
-                    <option value="all">All Time</option>
-                    <option value="today">Today</option>
-                    <option value="this_month">This Month</option>
-                    <option value="last_month">Last Month</option>
-                  </select>
-                </div>
+            <CustomSelect
+              icon={Calendar}
+              value={filterDateRange}
+              onChange={setFilterDateRange}
+              options={[
+                { value: 'all', label: 'All Time' },
+                { value: 'today', label: 'Today' },
+                { value: 'this_month', label: 'This Month' },
+                { value: 'last_month', label: 'Last Month' },
+              ]}
+            />
+          </div>
 
-                <div>
-                  <label className="text-sm font-bold text-slate-700 dark:text-slate-300 block mb-2">Category</label>
-                  <select
-                    value={filterCategory}
-                    onChange={(e) => setFilterCategory(e.target.value)}
-                    className="w-full px-4 h-11 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl font-medium text-sm text-slate-900 dark:text-white transition-all outline-none"
-                  >
-                    <option value="all">All Categories</option>
-                    {FLAT_CATEGORIES.map(c => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
-                </div>
+          <div>
+            <label className="text-sm font-bold text-slate-700 dark:text-slate-300 block mb-2">Category</label>
+            <CustomSelect
+              icon={Layers}
+              value={filterCategory}
+              onChange={setFilterCategory}
+              options={[
+                { value: 'all', label: 'All Categories' },
+                ...FLAT_CATEGORIES.map(c => ({ value: c, label: c }))
+              ]}
+            />
+          </div>
 
-                <div>
-                  <label className="text-sm font-bold text-slate-700 dark:text-slate-300 block mb-2">Payment Status</label>
-                  <select
-                    value={filterStatus}
-                    onChange={(e) => setFilterStatus(e.target.value)}
-                    className="w-full px-4 h-11 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl font-medium text-sm text-slate-900 dark:text-white transition-all outline-none"
-                  >
-                    <option value="all">All Statuses</option>
-                    <option value="Paid">Paid</option>
-                    <option value="Unpaid">Unpaid</option>
-                    <option value="Partially Paid">Partially Paid</option>
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="text-sm font-bold text-slate-700 dark:text-slate-300 block mb-2">Payment Method</label>
-                  <select
-                    value={filterMethod}
-                    onChange={(e) => setFilterMethod(e.target.value)}
-                    className="w-full px-4 h-11 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl font-medium text-sm text-slate-900 dark:text-white transition-all outline-none"
-                  >
-                    <option value="all">All Methods</option>
-                    <option value="Cash">Cash</option>
-                    <option value="Card">Card</option>
-                    <option value="Bank Transfer">Bank Transfer</option>
-                    <option value="Cheque">Cheque</option>
-                  </select>
-                </div>
+          <div>
+            <label className="text-sm font-bold text-slate-700 dark:text-slate-300 block mb-2">Payment Status</label>
+            <CustomSelect
+              icon={CheckCircle2}
+              value={filterStatus}
+              onChange={setFilterStatus}
+              options={[
+                { value: 'all', label: 'All Statuses' },
+                { value: 'Paid', label: 'Paid' },
+                { value: 'Unpaid', label: 'Unpaid' },
+                { value: 'Partially Paid', label: 'Partially Paid' },
+              ]}
+            />
+          </div>
+          
+          <div>
+            <label className="text-sm font-bold text-slate-700 dark:text-slate-300 block mb-2">Payment Method</label>
+            <CustomSelect
+              icon={CreditCard}
+              value={filterMethod}
+              onChange={setFilterMethod}
+              options={[
+                { value: 'all', label: 'All Methods' },
+                { value: 'Cash', label: 'Cash' },
+                { value: 'Card', label: 'Card' },
+                { value: 'Bank Transfer', label: 'Bank Transfer' },
+                { value: 'Cheque', label: 'Cheque' },
+              ]}
+            />
+          </div>
 
-                {!isStartup && branches.length > 0 && (
-                  <div>
-                    <label className="text-sm font-bold text-slate-700 dark:text-slate-300 block mb-2">Branch</label>
-                    <select
-                      value={filterBranch}
-                      onChange={(e) => setFilterBranch(e.target.value)}
-                      className="w-full px-4 h-11 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl font-medium text-sm text-slate-900 dark:text-white transition-all outline-none"
-                    >
-                      <option value="all">All Branches</option>
-                      {branches.map(b => (
-                        <option key={b.id} value={b.id}>{b.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
+          {!isStartup && branches.length > 0 && (
+            <div>
+              <label className="text-sm font-bold text-slate-700 dark:text-slate-300 block mb-2">Branch</label>
+              <CustomSelect
+                icon={Receipt}
+                value={filterBranch}
+                onChange={setFilterBranch}
+                options={[
+                  { value: 'all', label: 'All Branches' },
+                  ...branches.map(b => ({ value: String(b.id), label: b.name }))
+                ]}
+              />
+            </div>
+          )}
         </div>
       </FilterPanel>
 

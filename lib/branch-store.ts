@@ -7,6 +7,7 @@ export interface Branch {
   location: string;
   contact?: string;
   manager?: string;
+  isMain?: boolean;
 }
 
 interface BranchState {
@@ -22,9 +23,9 @@ interface BranchState {
 
 // Initial mock branches
 const defaultBranches: Branch[] = [
-  { id: 'b1', name: 'Colombo Main', location: '123 Galle Rd, Colombo', manager: 'Admin' },
-  { id: 'b2', name: 'Kandy Branch', location: '45 Peradeniya Rd, Kandy', manager: 'Kamal Perera' },
-  { id: 'b3', name: 'Galle Branch', location: '78 Fort, Galle', manager: 'Nimal Silva' },
+  { id: 'b1', name: 'Colombo Main', location: '123 Galle Rd, Colombo', manager: 'Admin', isMain: true },
+  { id: 'b2', name: 'Kandy Branch', location: '45 Peradeniya Rd, Kandy', manager: 'Kamal Perera', isMain: false },
+  { id: 'b3', name: 'Galle Branch', location: '78 Fort, Galle', manager: 'Nimal Silva', isMain: false },
 ];
 
 export const useBranchStore = create<BranchState>()(
@@ -45,6 +46,11 @@ export const useBranchStore = create<BranchState>()(
       })),
 
       deleteBranch: (id) => set((state) => {
+        const branchToDelete = state.branches.find(b => b.id === id);
+        // Protect Main branch or last remaining branch from deletion
+        if (branchToDelete?.isMain || state.branches[0]?.id === id || state.branches.length <= 1) {
+          return state;
+        }
         const newBranches = state.branches.filter(b => b.id !== id);
         return {
           branches: newBranches,

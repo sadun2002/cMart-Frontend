@@ -81,10 +81,14 @@ api.interceptors.response.use(
         // Suppress 403 for bulk sync if user doesn't have required plan
         return Promise.resolve({ data: { success: false, message: 'Plan does not support bulk sync' } });
       } else {
-        console.error(`[API Error] ${error.response.status} on ${originalRequest?.url}`, error.response.data);
+        console.warn(`[API Error] ${error.response.status} on ${originalRequest?.url}`, error.response.data);
       }
     } else {
-      console.error(`[API Network/Unknown Error] Request failed for ${originalRequest?.url}:`, error.message);
+      if (originalRequest?.url?.includes('/auth/me')) {
+        console.log(`[API Network] Offline session active for ${originalRequest?.url}`);
+      } else {
+        console.warn(`[API Network/Offline] Request failed for ${originalRequest?.url}:`, error.message);
+      }
     }
 
     if (error.response?.status === 401 && !originalRequest._retry) {
@@ -103,9 +107,21 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       const refreshToken = getLocalToken('refreshToken');
+      const isPublicAuthRoute = typeof window !== 'undefined' && (
+        window.location.pathname.startsWith('/reset-password') ||
+        window.location.pathname.startsWith('/forgot-password') ||
+        window.location.pathname.startsWith('/login') ||
+        window.location.pathname.startsWith('/register') ||
+        window.location.pathname.startsWith('/pricing') ||
+        window.location.pathname.startsWith('/s/') ||
+        window.location.pathname === '/'
+      );
+
       if (!refreshToken) {
         clearAuthCookies();
-        if (typeof window !== 'undefined') window.location.href = '/login';
+        if (typeof window !== 'undefined' && !isPublicAuthRoute) {
+          window.location.href = '/login';
+        }
         return Promise.reject(error);
       }
 
@@ -127,6 +143,9 @@ api.interceptors.response.use(
               localStorage.setItem('cmart-auth', JSON.stringify(parsed));
               window.dispatchEvent(new Event('storage')); // trigger cross-tab sync just in case
             }
+            if ((window as any).__cmartAuthStore?.getState) {
+              (window as any).__cmartAuthStore.getState().setTokens(accessToken, newRefreshToken);
+            }
           } catch (e) {}
         }
 
@@ -136,7 +155,9 @@ api.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError, null);
         clearAuthCookies();
-        if (typeof window !== 'undefined') window.location.href = '/login';
+        if (typeof window !== 'undefined' && !isPublicAuthRoute) {
+          window.location.href = '/login';
+        }
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
@@ -264,6 +285,7 @@ export const storeOwnerAPI = {
   // Online Orders & Customers
   getOnlineOrders: () => api.get('/storefront/admin/orders'),
   getOnlineCustomers: () => api.get('/storefront/admin/customers'),
+  updateOnlineCustomerStatus: (id: number, data: { active: boolean }) => api.patch(`/storefront/admin/customers/${id}`, data),
   updateOnlineOrder: (id: number, data: { status?: string; paymentStatus?: string }) => api.patch(`/storefront/admin/orders/${id}`, data),
   deleteOnlineOrder: (id: number) => api.delete(`/storefront/admin/orders/${id}`),
 

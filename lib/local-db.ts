@@ -149,12 +149,16 @@ export async function setLastSyncDate(date: Date) {
 
 export async function getSubscriptionEndDate(): Promise<Date | null> {
   const val = await getSecureConfig('subscriptionEndDate');
-  if (val) return new Date(val);
+  if (val && val.trim() !== '') return new Date(val);
   return null;
 }
 
-export async function setSubscriptionEndDate(date: Date) {
-  await setSecureConfig('subscriptionEndDate', date.toISOString());
+export async function setSubscriptionEndDate(date: Date | null) {
+  if (date) {
+    await setSecureConfig('subscriptionEndDate', date.toISOString());
+  } else {
+    await setSecureConfig('subscriptionEndDate', '');
+  }
 }
 
 export async function getLastSeenTimestamp(): Promise<number | null> {

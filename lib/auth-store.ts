@@ -3,7 +3,8 @@ import { persist } from 'zustand/middleware';
 import api, { setCookie, clearAuthCookies } from './api';
 import { userAPI } from './api';
 import { performBulkSync } from './sync-manager';
-import { saveOfflineUser, authenticateOfflineUser } from './local-db';
+import { saveOfflineUser, authenticateOfflineUser, isTauriEnv, setSubscriptionEndDate } from './local-db';
+import { getSubscriptionStatus } from './subscription-utils';
 
 // ============================================================
 // cMart — Auth Zustand Store
@@ -101,9 +102,24 @@ export const useAuthStore = create<AuthState>()(
           try {
             const { data } = await api.get('/auth/me');
             const me = data.data || data;
-            set({ user: { ...me, type: me.adminRole ? 'super_admin' : 'user' } });
+            const finalUser = { ...me, type: me.adminRole ? 'super_admin' : 'user' };
+            set({ user: finalUser });
+            
+            // Sync SQLite subscription end date if in Tauri
+            if (isTauriEnv()) {
+              const subInfo = getSubscriptionStatus(finalUser);
+              if (!subInfo.isExpired) {
+                setSubscriptionEndDate(subInfo.endDate || null).catch(() => {});
+              }
+            }
           } catch {
             // ignore me fetch failure, use payload data
+            if (isTauriEnv()) {
+              const subInfo = getSubscriptionStatus(payload.user);
+              if (!subInfo.isExpired) {
+                setSubscriptionEndDate(subInfo.endDate || null).catch(() => {});
+              }
+            }
           }
 
           // Check if tenant is pending
@@ -205,18 +221,31 @@ export const useAuthStore = create<AuthState>()(
       },
 
       loadMe: async () => {
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+          console.log('[Auth] Device is offline, skipping loadMe to preserve offline session');
+          return;
+        }
         set({ isLoading: true });
         try {
           const { data } = await api.get('/auth/me');
           const user = data.data || data;
-          set({ user: { ...user, type: user.adminRole ? 'super_admin' : 'user' }, isLoading: false });
+          const finalUser = { ...user, type: user.adminRole ? 'super_admin' : 'user' };
+          set({ user: finalUser, isLoading: false });
           
+          // Sync SQLite subscription end date if in Tauri
+          if (isTauriEnv()) {
+            const subInfo = getSubscriptionStatus(finalUser);
+            if (!subInfo.isExpired) {
+              setSubscriptionEndDate(subInfo.endDate || null).catch(() => {});
+            }
+          }
+
           // Trigger bulk sync if they are on a cloud tier
           if (user?.tenant?.plan === 'PRO' || user?.tenant?.plan === 'ENTERPRISE') {
-            performBulkSync().catch(err => console.error('Background sync failed:', err));
+            performBulkSync().catch(err => console.warn('Background sync failed/offline:', err));
           }
         } catch (err: any) {
-          if (!err.response || err.message === 'Network Error') {
+          if (!err.response || err.message === 'Network Error' || (err as any).code === 'ERR_NETWORK') {
             console.log('[Auth] Network error in loadMe, skipping logout to preserve offline session');
           } else {
             get().logout();
@@ -235,7 +264,7 @@ export const useAuthStore = create<AuthState>()(
         try {
           await userAPI.updatePlan(plan);
         } catch (err) {
-          console.error('Failed to update plan on server:', err);
+          console.warn('Failed to update plan on server (offline mode):', err);
         }
         // Refresh user data from server to get latest tenant/subscription info
         try {
@@ -276,6 +305,8 @@ export const useAuthStore = create<AuthState>()(
 // Cross-Tab Synchronization
 // ============================================================
 if (typeof window !== 'undefined') {
+  (window as any).__cmartAuthStore = useAuthStore;
+
   window.addEventListener('storage', (event) => {
     if (event.key === 'cmart-auth') {
       // When localStorage changes in another tab, rehydrate the store here

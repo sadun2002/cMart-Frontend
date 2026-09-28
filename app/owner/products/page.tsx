@@ -328,7 +328,7 @@ function ProductOverviewDashboard({
       {/* ──────────────── 2. MAIN DASHBOARD-STYLE GRID: CHART (2 Cols) + TOP 5 PRODUCTS (1 Col) ──────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left: Chart Card (Matching Dashboard Sales/Performance Chart) */}
-        <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 w-full text-left flex flex-col h-[380px] justify-between">
+        <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 w-full text-left flex flex-col h-[400px] justify-between">
           <div className="flex items-center justify-between mb-4 flex-shrink-0">
             <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
               <BarChart3 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
@@ -406,67 +406,65 @@ function ProductOverviewDashboard({
         </div>
 
         {/* Right: Top 5 Products Card (Matching Dashboard list-top5-products) */}
-        <div className="lg:col-span-1 bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 w-full text-left flex flex-col h-[380px] justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-4 md:mb-5">
-              <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <Package className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                Top 5 Capital Products
-              </h2>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
-                Ranked
-              </span>
-            </div>
-
-            <div className="space-y-3">
-              {overviewStats.topCapitalProducts.length === 0 ? (
-                <div className="py-12 text-center text-slate-400 text-xs font-medium">
-                  No product data found.
-                </div>
-              ) : (
-                overviewStats.topCapitalProducts.map(({ product: p, capital }, i) => {
-                  const rankColors = [
-                    'bg-amber-500 text-white',
-                    'bg-slate-400 text-white',
-                    'bg-orange-700 text-white',
-                    'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300',
-                    'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
-                  ];
-                  return (
-                    <div 
-                      key={p.id || i} 
-                      onClick={() => openEditPanel(p)}
-                      className="flex items-center justify-between gap-3 p-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
-                      title="Click to edit product"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 ${rankColors[i] || 'bg-slate-200 text-slate-700'}`}>
-                          {i + 1}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-blue-600 transition-colors">
-                            {p.name}
-                          </div>
-                          <div className="text-[10px] text-slate-400 truncate">
-                            {p.stock} units in stock
-                          </div>
-                        </div>
-                      </div>
-                      <span className="text-xs font-black text-slate-900 dark:text-white flex-shrink-0">
-                        Rs. {capital.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </span>
-                    </div>
-                  );
-                })
-              )}
-            </div>
+        <div className="lg:col-span-1 bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 md:p-6 w-full text-left flex flex-col h-[400px] justify-between">
+          <div className="flex items-center justify-between mb-3 shrink-0">
+            <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <Package className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              Top 5 Capital Products
+            </h2>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
+              Ranked
+            </span>
           </div>
 
-          <div className="mt-2 pt-2.5 pb-1 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center">
+          <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar space-y-2 pr-0.5">
+            {overviewStats.topCapitalProducts.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-center text-slate-400 text-xs font-medium">
+                No product data found.
+              </div>
+            ) : (
+              overviewStats.topCapitalProducts.slice(0, 5).map(({ product: p, capital }, i) => {
+                const rankColors = [
+                  'bg-amber-500 text-white',
+                  'bg-slate-400 text-white',
+                  'bg-orange-700 text-white',
+                  'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300',
+                  'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                ];
+                return (
+                  <div 
+                    key={p.id || i} 
+                    onClick={() => openEditPanel(p)}
+                    className="flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
+                    title="Click to edit product"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 ${rankColors[i] || 'bg-slate-200 text-slate-700'}`}>
+                        {i + 1}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-blue-600 transition-colors">
+                          {p.name}
+                        </div>
+                        <div className="text-[10px] text-slate-400 truncate">
+                          {p.stock} units in stock
+                        </div>
+                      </div>
+                    </div>
+                    <span className="text-xs font-black text-slate-900 dark:text-white flex-shrink-0">
+                      Rs. {capital.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center shrink-0">
             <button
               type="button"
               onClick={() => setActiveTab('inventory')}
-              className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer leading-normal"
+              className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer leading-normal flex items-center gap-1"
             >
               View All in Product Table →
             </button>
@@ -478,72 +476,70 @@ function ProductOverviewDashboard({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         
         {/* Card 1: Worst 5 Products (Slowest moving / low stock / 0 stock) */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 pb-5 md:pb-5 w-full text-left flex flex-col h-[380px] justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-4 md:mb-5">
-              <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <TrendingDown className="w-5 h-5 text-rose-500 dark:text-rose-400" />
-                Worst 5 Products
-              </h2>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400">
-                Slow / Low
-              </span>
-            </div>
-
-            <div className="space-y-3">
-              {overviewStats.worst5Products.length === 0 ? (
-                <div className="py-12 text-center text-slate-400 text-xs font-medium">
-                  No product data found.
-                </div>
-              ) : (
-                overviewStats.worst5Products.map(({ product: p, capital }, i) => {
-                  const rankColors = [
-                    'bg-rose-500 text-white',
-                    'bg-rose-400 text-white',
-                    'bg-slate-400 text-white',
-                    'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300',
-                    'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
-                  ];
-                  const isOutOfStock = Number(p.stock || 0) <= 0;
-                  return (
-                    <div 
-                      key={p.id || i} 
-                      onClick={() => openEditPanel(p)}
-                      className="flex items-center justify-between gap-3 p-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
-                      title="Click to edit product"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 ${rankColors[i] || 'bg-slate-200 text-slate-700'}`}>
-                          {i + 1}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-rose-600 transition-colors">
-                            {p.name}
-                          </div>
-                          <div className="text-[10px] truncate">
-                            {isOutOfStock ? (
-                              <span className="text-rose-600 dark:text-rose-400 font-bold">0 units (Out of stock)</span>
-                            ) : (
-                              <span className="text-slate-400">{p.stock} units in stock</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <span className="text-xs font-black text-slate-900 dark:text-white flex-shrink-0">
-                        Rs. {capital.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </span>
-                    </div>
-                  );
-                })
-              )}
-            </div>
+        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 md:p-6 w-full text-left flex flex-col h-[400px] justify-between">
+          <div className="flex items-center justify-between mb-3 shrink-0">
+            <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <TrendingDown className="w-5 h-5 text-rose-500 dark:text-rose-400" />
+              Worst 5 Products
+            </h2>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400">
+              Slow / Low
+            </span>
           </div>
 
-          <div className="mt-2 pt-2.5 pb-1 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center">
+          <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar space-y-2 pr-0.5">
+            {overviewStats.worst5Products.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-center text-slate-400 text-xs font-medium">
+                No product data found.
+              </div>
+            ) : (
+              overviewStats.worst5Products.slice(0, 5).map(({ product: p, capital }, i) => {
+                const rankColors = [
+                  'bg-rose-500 text-white',
+                  'bg-rose-400 text-white',
+                  'bg-slate-400 text-white',
+                  'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300',
+                  'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                ];
+                const isOutOfStock = Number(p.stock || 0) <= 0;
+                return (
+                  <div 
+                    key={p.id || i} 
+                    onClick={() => openEditPanel(p)}
+                    className="flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
+                    title="Click to edit product"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 ${rankColors[i] || 'bg-slate-200 text-slate-700'}`}>
+                        {i + 1}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-rose-600 transition-colors">
+                          {p.name}
+                        </div>
+                        <div className="text-[10px] truncate">
+                          {isOutOfStock ? (
+                            <span className="text-rose-600 dark:text-rose-400 font-bold">0 units (Out of stock)</span>
+                          ) : (
+                            <span className="text-slate-400">{p.stock} units in stock</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <span className="text-xs font-black text-slate-900 dark:text-white flex-shrink-0">
+                      Rs. {capital.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center shrink-0">
             <button
               type="button"
               onClick={() => setActiveTab('inventory')}
-              className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer leading-normal"
+              className="text-xs text-rose-600 dark:text-rose-400 font-bold hover:underline cursor-pointer leading-normal flex items-center gap-1"
             >
               View All in Product Table →
             </button>
@@ -551,67 +547,65 @@ function ProductOverviewDashboard({
         </div>
 
         {/* Card 2: Trending Products (High margin / fastest growth) */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 pb-5 md:pb-5 w-full text-left flex flex-col h-[380px] justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-4 md:mb-5">
-              <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
-                Trending Products
-              </h2>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
-                High Margin
-              </span>
-            </div>
-
-            <div className="space-y-3">
-              {overviewStats.trendingProducts.length === 0 ? (
-                <div className="py-12 text-center text-slate-400 text-xs font-medium">
-                  No product data found.
-                </div>
-              ) : (
-                overviewStats.trendingProducts.map(({ product: p, marginPercent }, i) => {
-                  const rankColors = [
-                    'bg-emerald-500 text-white',
-                    'bg-emerald-600 text-white',
-                    'bg-teal-500 text-white',
-                    'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300',
-                    'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
-                  ];
-                  return (
-                    <div 
-                      key={p.id || i} 
-                      onClick={() => openEditPanel(p)}
-                      className="flex items-center justify-between gap-3 p-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
-                      title="Click to edit product"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 ${rankColors[i] || 'bg-slate-200 text-slate-700'}`}>
-                          {i + 1}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-emerald-600 transition-colors">
-                            {p.name}
-                          </div>
-                          <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold truncate">
-                            {marginPercent > 0 ? `${Math.round(marginPercent)}% profit margin` : `${p.stock || 0} units available`}
-                          </div>
-                        </div>
-                      </div>
-                      <span className="text-xs font-black text-slate-900 dark:text-white flex-shrink-0">
-                        Rs. {Number(p.price || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </span>
-                    </div>
-                  );
-                })
-              )}
-            </div>
+        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 md:p-6 w-full text-left flex flex-col h-[400px] justify-between">
+          <div className="flex items-center justify-between mb-3 shrink-0">
+            <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
+              Trending Products
+            </h2>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
+              High Margin
+            </span>
           </div>
 
-          <div className="mt-2 pt-2.5 pb-1 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center">
+          <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar space-y-2 pr-0.5">
+            {overviewStats.trendingProducts.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-center text-slate-400 text-xs font-medium">
+                No product data found.
+              </div>
+            ) : (
+              overviewStats.trendingProducts.slice(0, 5).map(({ product: p, marginPercent }, i) => {
+                const rankColors = [
+                  'bg-emerald-500 text-white',
+                  'bg-emerald-600 text-white',
+                  'bg-teal-500 text-white',
+                  'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300',
+                  'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                ];
+                return (
+                  <div 
+                    key={p.id || i} 
+                    onClick={() => openEditPanel(p)}
+                    className="flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
+                    title="Click to edit product"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 ${rankColors[i] || 'bg-slate-200 text-slate-700'}`}>
+                        {i + 1}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-emerald-600 transition-colors">
+                          {p.name}
+                        </div>
+                        <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold truncate">
+                          {marginPercent > 0 ? `${Math.round(marginPercent)}% profit margin` : `${p.stock || 0} units available`}
+                        </div>
+                      </div>
+                    </div>
+                    <span className="text-xs font-black text-slate-900 dark:text-white flex-shrink-0">
+                      Rs. {Number(p.price || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center shrink-0">
             <button
               type="button"
               onClick={() => setActiveTab('inventory')}
-              className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer leading-normal"
+              className="text-xs text-emerald-600 dark:text-emerald-400 font-bold hover:underline cursor-pointer leading-normal flex items-center gap-1"
             >
               View All in Product Table →
             </button>
@@ -619,71 +613,69 @@ function ProductOverviewDashboard({
         </div>
 
         {/* Card 3: Featured Products (Catalog flagship / highlighted products) */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 pb-5 md:pb-5 w-full text-left flex flex-col h-[380px] justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-4 md:mb-5">
-              <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <Star className="w-5 h-5 text-amber-500 fill-amber-500/20 dark:text-amber-400" />
-                Featured Products
-              </h2>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">
-                Catalog
-              </span>
-            </div>
-
-            <div className="space-y-3">
-              {overviewStats.featuredProducts.length === 0 ? (
-                <div className="py-12 text-center text-slate-400 text-xs font-medium">
-                  No product data found.
-                </div>
-              ) : (
-                overviewStats.featuredProducts.map((p, i) => {
-                  const rankColors = [
-                    'bg-amber-500 text-white',
-                    'bg-amber-600 text-white',
-                    'bg-orange-500 text-white',
-                    'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300',
-                    'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
-                  ];
-                  const catInfo = getCategoryName(p.categoryId);
-                  const subLabel = p.showOnWebsite 
-                    ? 'Online Store Item' 
-                    : (catInfo?.main || p.brand || `${p.stock || 0} units`);
-                  return (
-                    <div 
-                      key={p.id || i} 
-                      onClick={() => openEditPanel(p)}
-                      className="flex items-center justify-between gap-3 p-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
-                      title="Click to edit product"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 ${rankColors[i] || 'bg-slate-200 text-slate-700'}`}>
-                          {i + 1}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-amber-600 transition-colors">
-                            {p.name}
-                          </div>
-                          <div className="text-[10px] text-slate-400 truncate">
-                            {subLabel}
-                          </div>
-                        </div>
-                      </div>
-                      <span className="text-xs font-black text-slate-900 dark:text-white flex-shrink-0">
-                        Rs. {Number(p.price || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </span>
-                    </div>
-                  );
-                })
-              )}
-            </div>
+        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 md:p-6 w-full text-left flex flex-col h-[400px] justify-between">
+          <div className="flex items-center justify-between mb-3 shrink-0">
+            <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <Star className="w-5 h-5 text-amber-500 fill-amber-500/20 dark:text-amber-400" />
+              Featured Products
+            </h2>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">
+              Catalog
+            </span>
           </div>
 
-          <div className="mt-2 pt-2.5 pb-1 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center">
+          <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar space-y-2 pr-0.5">
+            {overviewStats.featuredProducts.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-center text-slate-400 text-xs font-medium">
+                No product data found.
+              </div>
+            ) : (
+              overviewStats.featuredProducts.slice(0, 5).map((p, i) => {
+                const rankColors = [
+                  'bg-amber-500 text-white',
+                  'bg-amber-600 text-white',
+                  'bg-orange-500 text-white',
+                  'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300',
+                  'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                ];
+                const catInfo = getCategoryName(p.categoryId);
+                const subLabel = p.showOnWebsite 
+                  ? 'Online Store Item' 
+                  : (catInfo?.main || p.brand || `${p.stock || 0} units`);
+                return (
+                  <div 
+                    key={p.id || i} 
+                    onClick={() => openEditPanel(p)}
+                    className="flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
+                    title="Click to edit product"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 ${rankColors[i] || 'bg-slate-200 text-slate-700'}`}>
+                        {i + 1}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-amber-600 transition-colors">
+                          {p.name}
+                        </div>
+                        <div className="text-[10px] text-slate-400 truncate">
+                          {subLabel}
+                        </div>
+                      </div>
+                    </div>
+                    <span className="text-xs font-black text-slate-900 dark:text-white flex-shrink-0">
+                      Rs. {Number(p.price || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center shrink-0">
             <button
               type="button"
               onClick={() => setActiveTab('inventory')}
-              className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer leading-normal"
+              className="text-xs text-amber-600 dark:text-amber-400 font-bold hover:underline cursor-pointer leading-normal flex items-center gap-1"
             >
               View All in Product Table →
             </button>
@@ -2334,6 +2326,7 @@ function StoreProductsPageContent() {
         <div className="space-y-3">
           <label className="text-sm font-bold text-slate-900 dark:text-white">Stock Status</label>
           <CustomSelect
+            icon={Package}
             value={stockFilter}
             onChange={setStockFilter}
             options={[
@@ -2348,6 +2341,7 @@ function StoreProductsPageContent() {
         <div className="space-y-3">
           <label className="text-sm font-bold text-slate-900 dark:text-white">Sort By Price</label>
           <CustomSelect
+            icon={CircleDollarSign}
             value={sortMode}
             onChange={(val) => setSortMode(val as any)}
             options={[
@@ -2361,6 +2355,7 @@ function StoreProductsPageContent() {
         <div className="space-y-3">
           <label className="text-sm font-bold text-slate-900 dark:text-white">Date Filter</label>
           <CustomSelect
+            icon={Calendar}
             value={dateFilterType}
             onChange={(val) => setDateFilterType(val as any)}
             options={[
@@ -2374,21 +2369,27 @@ function StoreProductsPageContent() {
             <div className="grid grid-cols-2 gap-3 mt-3">
               <div>
                 <label className="text-xs font-bold text-slate-500 block mb-1">From</label>
-                <input 
-                  type="date"
-                  value={fromDate}
-                  onChange={(e) => setFromDate(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-500 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-300 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                />
+                <div className="relative">
+                  <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input 
+                    type="date"
+                    value={fromDate}
+                    onChange={(e) => setFromDate(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-500 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-300 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
               </div>
               <div>
                 <label className="text-xs font-bold text-slate-500 block mb-1">To</label>
-                <input 
-                  type="date"
-                  value={toDate}
-                  onChange={(e) => setToDate(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-500 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-300 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                />
+                <div className="relative">
+                  <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input 
+                    type="date"
+                    value={toDate}
+                    onChange={(e) => setToDate(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-500 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-300 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
               </div>
             </div>
           )}
@@ -2397,6 +2398,7 @@ function StoreProductsPageContent() {
         <div className="space-y-3">
           <label className="text-sm font-bold text-slate-900 dark:text-white">Category</label>
           <CustomSelect
+            icon={Tag}
             value={categoryFilter}
             onChange={setCategoryFilter}
             options={[

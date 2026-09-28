@@ -1,12 +1,15 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Tag, Plus, Trash2, Edit2, Calendar, Search, X, Check, Activity, Clock, Ban, CheckCircle2, ChevronDown, ChevronUp, ListFilter,
-  List, LayoutGrid, Maximize, Minimize, Filter, ImageIcon, Package, Folder, ChevronRight, Percent, Layers, Settings
+  List, LayoutGrid, Maximize, Minimize, Filter, ImageIcon, Package, Folder, ChevronRight, Percent, Layers, Settings,
+  BarChart3, TrendingUp
 } from 'lucide-react';
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/lib/auth-store';
+import { KpiCard } from '@/components/ui/kpi-card';
 import { CustomSelect } from '@/components/ui/custom-select';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -24,6 +27,436 @@ import {
   deletePromotionLocally, 
   togglePromotionActive 
 } from '@/lib/local-services';
+
+interface PromotionsOverviewProps {
+  promotions: any[];
+  setActiveTab: (tab: 'overview' | 'table') => void;
+  openFormPanel: (promo?: any) => void;
+  setStatusFilter: (status: string) => void;
+  setTypeFilter: (type: string) => void;
+  getStatus: (promo: any) => string;
+}
+
+function PromotionsOverviewDashboard({
+  promotions,
+  setActiveTab,
+  openFormPanel,
+  setStatusFilter,
+  setTypeFilter,
+  getStatus,
+}: PromotionsOverviewProps) {
+  const [chartType, setChartType] = useState<'bar' | 'line'>('bar');
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const totalPromotions = promotions.length;
+  const activeCount = promotions.filter(p => getStatus(p) === 'Active').length;
+  const scheduledCount = promotions.filter(p => getStatus(p) === 'Scheduled').length;
+  const expiredCount = promotions.filter(p => getStatus(p) === 'Expired' || getStatus(p) === 'Disabled').length;
+
+  // Chart data: Distribution by Promotion Type
+  const chartData = useMemo(() => {
+    const typeMap = new Map<string, number>();
+    promotions.forEach(p => {
+      const t = p.type || 'PERCENTAGE';
+      typeMap.set(t, (typeMap.get(t) || 0) + 1);
+    });
+    return Array.from(typeMap.entries()).map(([name, count]) => ({
+      name: name.replace(/_/g, ' '),
+      rawType: name,
+      count
+    })).sort((a, b) => b.count - a.count);
+  }, [promotions]);
+
+  // Card 1: Active Offers Live Now
+  const activePromotions = useMemo(() => {
+    return promotions.filter(p => getStatus(p) === 'Active');
+  }, [promotions, getStatus]);
+
+  // Card 2: Upcoming Scheduled Campaigns
+  const scheduledPromotions = useMemo(() => {
+    return promotions.filter(p => getStatus(p) === 'Scheduled');
+  }, [promotions, getStatus]);
+
+  // Card 3: Promotion Types & Breakdown
+  const typeBreakdown = useMemo(() => {
+    const map = new Map<string, number>();
+    promotions.forEach(p => {
+      const t = p.type || 'PERCENTAGE';
+      map.set(t, (map.get(t) || 0) + 1);
+    });
+    return Array.from(map.entries()).map(([type, count]) => ({ type, count })).sort((a, b) => b.count - a.count);
+  }, [promotions]);
+
+  // Card 4: Store-Wide vs Targeted Promotions
+  const scopeBreakdown = useMemo(() => {
+    const map = new Map<string, number>();
+    promotions.forEach(p => {
+      const s = p.appliesToType || (p.appliesToAll ? 'ALL_PRODUCTS' : 'TARGETED');
+      map.set(s, (map.get(s) || 0) + 1);
+    });
+    return Array.from(map.entries()).map(([scope, count]) => ({ scope, count })).sort((a, b) => b.count - a.count);
+  }, [promotions]);
+
+  return (
+    <div className="space-y-6">
+      {/* ──────────────── 1. KPI CARDS ──────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiCard 
+          title="Total Promotions" 
+          value={totalPromotions} 
+          icon={Tag} 
+          iconColorClass="text-blue-600" 
+          iconBgClass="bg-blue-50 dark:bg-blue-500/10" 
+        />
+        <KpiCard 
+          title="Active Live Now" 
+          value={activeCount} 
+          icon={Activity} 
+          iconColorClass="text-emerald-600" 
+          iconBgClass="bg-emerald-50 dark:bg-emerald-500/10" 
+        />
+        <KpiCard 
+          title="Scheduled Upcoming" 
+          value={scheduledCount} 
+          icon={Clock} 
+          iconColorClass="text-blue-500" 
+          iconBgClass="bg-blue-50 dark:bg-blue-500/10" 
+        />
+        <KpiCard 
+          title="Expired / Inactive" 
+          value={expiredCount} 
+          icon={Calendar} 
+          iconColorClass="text-amber-500" 
+          iconBgClass="bg-amber-50 dark:bg-amber-500/10" 
+        />
+      </div>
+
+      {/* ──────────────── 2. MID ROW: CHART (2 COLS) + CARD 1 (1 COL) ──────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Chart (2 cols, h-[400px]) */}
+        <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 md:p-6 flex flex-col h-[400px]">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 shrink-0">
+            <div>
+              <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <BarChart3 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                Promotion Mechanics & Type Distribution
+              </h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Breakdown of active and configured discount campaign structures
+              </p>
+            </div>
+
+            <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => setChartType('bar')}
+                className={`px-2.5 py-1 rounded-md transition-all ${chartType === 'bar' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
+              >
+                Bar
+              </button>
+              <button
+                type="button"
+                onClick={() => setChartType('line')}
+                className={`px-2.5 py-1 rounded-md transition-all ${chartType === 'line' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
+              >
+                Line
+              </button>
+            </div>
+          </div>
+
+          <div className="flex-1 min-h-0 w-full relative">
+            {mounted ? (
+              chartData.length === 0 ? (
+                <div className="absolute inset-0 flex items-center justify-center text-xs text-slate-400">
+                  No promotions created to plot.
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  {chartType === 'bar' ? (
+                    <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" strokeOpacity={0.4} />
+                      <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                      <Tooltip
+                        formatter={(v: any) => [`${v} Campaigns`, 'Promotions']}
+                        contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.95)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '12px' }}
+                      />
+                      <Bar dataKey="count" fill="#3B82F6" radius={[6, 6, 0, 0]} />
+                    </BarChart>
+                  ) : (
+                    <LineChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" strokeOpacity={0.4} />
+                      <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                      <Tooltip
+                        formatter={(v: any) => [`${v} Campaigns`, 'Promotions']}
+                        contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.95)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '12px' }}
+                      />
+                      <Line type="monotone" dataKey="count" stroke="#3B82F6" strokeWidth={2.5} dot={{ r: 4, fill: '#3B82F6' }} />
+                    </LineChart>
+                  )}
+                </ResponsiveContainer>
+              )
+            ) : null}
+          </div>
+        </div>
+
+        {/* Card 1: Active Offers Live Now (1 col, h-[400px]) */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 md:p-6 w-full text-left flex flex-col h-[400px] justify-between">
+          <div className="flex items-center justify-between mb-3 shrink-0">
+            <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <Activity className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+              Live Offers Now
+            </h2>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
+              Active ({activePromotions.length})
+            </span>
+          </div>
+
+          <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar space-y-2 pr-0.5">
+            {activePromotions.length === 0 ? (
+              <div className="py-12 text-center text-slate-400 text-xs font-medium">
+                No promotions are currently active.
+              </div>
+            ) : (
+              activePromotions.slice(0, 5).map((promo, i) => {
+                const rankColors = [
+                  'bg-emerald-600 text-white',
+                  'bg-emerald-500 text-white',
+                  'bg-teal-500 text-white',
+                  'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300',
+                  'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                ];
+                return (
+                  <div
+                    key={promo.id || i}
+                    onClick={() => openFormPanel(promo)}
+                    className="flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
+                    title="Click to view/edit promotion"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${rankColors[i] || 'bg-slate-200 text-slate-700'}`}>
+                        {i + 1}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-emerald-600 transition-colors">
+                          {promo.name}
+                        </div>
+                        <div className="text-[10px] text-slate-400 truncate">
+                          Ends: {new Date(promo.endDate).toLocaleDateString()}
+                        </div>
+                      </div>
+                    </div>
+                    <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 shrink-0">
+                      {promo.type === 'PERCENTAGE' ? `${promo.offerValue}% OFF` : `Rs. ${promo.offerValue}`}
+                    </span>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                setStatusFilter('active');
+                setActiveTab('table');
+              }}
+              className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer leading-normal flex items-center gap-1"
+            >
+              View Active in Promotions Table →
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ──────────────── 3. BOTTOM ROW: 3 RANKINGS / INSIGHTS CARDS ──────────────── */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Card 2: Upcoming Scheduled Campaigns */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 md:p-6 w-full text-left flex flex-col h-[400px] justify-between">
+          <div className="flex items-center justify-between mb-3 shrink-0">
+            <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <Clock className="w-5 h-5 text-blue-500 dark:text-blue-400" />
+              Scheduled Upcoming
+            </h2>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
+              Future ({scheduledPromotions.length})
+            </span>
+          </div>
+
+          <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar space-y-2 pr-0.5">
+            {scheduledPromotions.length === 0 ? (
+              <div className="py-12 text-center text-slate-400 text-xs font-medium">
+                No future campaigns scheduled.
+              </div>
+            ) : (
+              scheduledPromotions.slice(0, 5).map((promo, i) => (
+                <div
+                  key={promo.id || i}
+                  onClick={() => openFormPanel(promo)}
+                  className="flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
+                  title="Click to view/edit promotion"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+                      {i + 1}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-blue-600 transition-colors">
+                        {promo.name}
+                      </div>
+                      <div className="text-[10px] text-slate-400 truncate">
+                        Starts: {new Date(promo.startDate).toLocaleDateString()}
+                      </div>
+                    </div>
+                  </div>
+                  <span className="text-xs font-black text-blue-600 dark:text-blue-400 shrink-0">
+                    {promo.type === 'PERCENTAGE' ? `${promo.offerValue}%` : `Rs. ${promo.offerValue}`}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                setStatusFilter('scheduled');
+                setActiveTab('table');
+              }}
+              className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer leading-normal flex items-center gap-1"
+            >
+              View Scheduled in Table →
+            </button>
+          </div>
+        </div>
+
+        {/* Card 3: Promotion Types */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 md:p-6 w-full text-left flex flex-col h-[400px] justify-between">
+          <div className="flex items-center justify-between mb-3 shrink-0">
+            <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <Percent className="w-5 h-5 text-indigo-500 dark:text-indigo-400" />
+              Promotion Types
+            </h2>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">
+              Mechanics
+            </span>
+          </div>
+
+          <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar space-y-2 pr-0.5">
+            {typeBreakdown.length === 0 ? (
+              <div className="py-12 text-center text-slate-400 text-xs font-medium">
+                No promotion types recorded.
+              </div>
+            ) : (
+              typeBreakdown.slice(0, 5).map((t, i) => (
+                <div
+                  key={t.type || i}
+                  onClick={() => {
+                    setTypeFilter(t.type);
+                    setActiveTab('table');
+                  }}
+                  className="flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
+                  title="Click to filter by type in table"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
+                      {i + 1}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-indigo-600 transition-colors">
+                        {t.type.replace(/_/g, ' ')}
+                      </div>
+                      <div className="text-[10px] text-slate-400 truncate">
+                        {t.count} configured campaign{t.count !== 1 ? 's' : ''}
+                      </div>
+                    </div>
+                  </div>
+                  <span className="text-xs font-black text-indigo-600 dark:text-indigo-400 shrink-0">
+                    {Math.round((t.count / Math.max(1, totalPromotions)) * 100)}%
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center shrink-0">
+            <button
+              type="button"
+              onClick={() => setActiveTab('table')}
+              className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer leading-normal flex items-center gap-1"
+            >
+              Filter Types in Table →
+            </button>
+          </div>
+        </div>
+
+        {/* Card 4: Store-Wide vs Targeted */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 md:p-6 w-full text-left flex flex-col h-[400px] justify-between">
+          <div className="flex items-center justify-between mb-3 shrink-0">
+            <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <Layers className="w-5 h-5 text-purple-500 dark:text-purple-400" />
+              Promotion Scope
+            </h2>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400">
+              Audience
+            </span>
+          </div>
+
+          <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar space-y-2 pr-0.5">
+            {scopeBreakdown.length === 0 ? (
+              <div className="py-12 text-center text-slate-400 text-xs font-medium">
+                No promotion scope data.
+              </div>
+            ) : (
+              scopeBreakdown.slice(0, 5).map((s, i) => (
+                <div
+                  key={s.scope || i}
+                  onClick={() => setActiveTab('table')}
+                  className="flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
+                  title="Click to view promotions in table"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300">
+                      {i + 1}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-purple-600 transition-colors">
+                        {s.scope.replace(/_/g, ' ')}
+                      </div>
+                      <div className="text-[10px] text-slate-400 truncate">
+                        {s.count} promotion{s.count !== 1 ? 's' : ''} applied
+                      </div>
+                    </div>
+                  </div>
+                  <span className="text-xs font-black text-purple-600 dark:text-purple-400 shrink-0">
+                    {Math.round((s.count / Math.max(1, totalPromotions)) * 100)}%
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center shrink-0">
+            <button
+              type="button"
+              onClick={() => setActiveTab('table')}
+              className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer leading-normal flex items-center gap-1"
+            >
+              View Scope in Table →
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function PromotionsPage() {
   const { user } = useAuthStore();
@@ -77,6 +510,7 @@ export default function PromotionsPage() {
   const [active, setActive] = useState(true);
   
   // UI States
+  const [activeTab, setActiveTab] = useState<'overview' | 'table'>('overview');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectionSearch, setSelectionSearch] = useState('');
   
@@ -546,18 +980,19 @@ export default function PromotionsPage() {
       
       {/* ──────────────── HEADER ──────────────── */}
       {!isFullScreen && (
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 shrink-0">
           <div>
-            <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
-              <Tag className="w-8 h-8 text-blue-600" />
+            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
+              <Tag className="w-7 h-7 sm:w-8 h-8 text-blue-600" />
               Promotions & Offers
             </h1>
-            <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium">Manage automated discounts and special pricing.</p>
+            <p className="text-slate-500 dark:text-slate-400 mt-1 sm:mt-2 text-xs sm:text-sm font-medium">Manage automated discounts and special pricing.</p>
           </div>
           
           <button 
+            type="button"
             onClick={() => openFormPanel()}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5 active:translate-y-0"
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl font-bold shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5 active:translate-y-0 cursor-pointer text-xs sm:text-sm"
           >
             <Plus className="w-5 h-5" />
             Create Promotion
@@ -565,64 +1000,131 @@ export default function PromotionsPage() {
         </div>
       )}
 
-      {/* ──────────────── SEARCH & FILTER BAR ──────────────── */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-6">
-        <div className="relative w-full sm:w-80 flex-shrink-0 group">
-          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors">
-            <Search className="h-5 w-5" />
-          </div>
-          <input
-            type="text"
-            placeholder="Search promotions..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-12 pr-4 h-12 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-2xl shadow-sm text-slate-900 dark:text-white font-bold placeholder:text-slate-400 placeholder:font-medium transition-all outline-none"
-          />
+      {/* ──────────────── NAVIGATION TABS & UNIFIED TOOLBAR ──────────────── */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+        {/* Left: Mode Toggle (Promotions Overview | Promotions Table) */}
+        <div className="flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm h-12 p-1 overflow-hidden shrink-0">
+          <button 
+            type="button"
+            onClick={() => setActiveTab('overview')}
+            className={`flex items-center justify-center px-5 h-full rounded-xl transition-all font-bold text-xs sm:text-sm cursor-pointer ${
+              activeTab === 'overview'
+                ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm'
+                : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
+            }`}
+          >
+            Promotions Overview
+          </button>
+
+          <div className="w-px h-full bg-slate-200 dark:bg-slate-800 mx-1" />
+
+          <button 
+            type="button"
+            onClick={() => setActiveTab('table')}
+            className={`flex items-center justify-center px-5 h-full rounded-xl transition-all font-bold text-xs sm:text-sm cursor-pointer ${
+              activeTab === 'table'
+                ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm'
+                : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
+            }`}
+          >
+            Promotions Table
+          </button>
         </div>
 
-        <div className="flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm h-12 p-1 overflow-hidden flex-shrink-0 ml-auto">
-          
+        {/* Right: Unified Toolbar Card (Search, Filter, View Toggles, Fullscreen) */}
+        <div className="flex items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm h-12 p-1 overflow-hidden shrink-0 ml-auto w-full sm:w-auto">
+          {/* Integrated Search Bar on Left */}
+          <div className="relative flex items-center flex-1 sm:w-60 h-full pl-3 pr-2">
+            <Search className="w-4 h-4 text-slate-400 mr-2 shrink-0 pointer-events-none" />
+            <input 
+              type="text"
+              placeholder="Search promotions..."
+              value={searchQuery}
+              onChange={e => {
+                setSearchQuery(e.target.value);
+                if (activeTab === 'overview' && e.target.value.trim() !== '') {
+                  setActiveTab('table');
+                }
+              }}
+              className="w-full bg-transparent border-0 outline-none text-xs font-bold text-slate-900 dark:text-white placeholder:text-slate-400 placeholder:font-medium"
+            />
+            {searchQuery && (
+              <button 
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 ml-1 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          <div className="w-px h-full bg-slate-200 dark:bg-slate-800 mx-1" />
+
+          {/* Filter Button */}
           <button 
+            type="button"
             onClick={() => setIsFilterOpen(true)}
-            className="flex items-center justify-center px-4 h-full rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition-all gap-2 font-bold relative"
+            className="flex items-center justify-center px-3 sm:px-4 h-full rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition-all gap-1.5 font-bold text-xs cursor-pointer relative"
             title="Filter"
           >
-            <Filter className="w-5 h-5" />
+            <Filter className="w-4 h-4" />
             <span className="hidden sm:inline">Filters</span>
-            {(statusFilter !== 'all' || typeFilter !== 'all') && <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-blue-600"></span>}
+            {(statusFilter !== 'all' || typeFilter !== 'all') && (
+              <span className="w-2 h-2 rounded-full bg-blue-600"></span>
+            )}
           </button>
           
-          <div className="w-px h-full bg-slate-200 dark:bg-slate-800 mx-1"></div>
+          <div className="w-px h-full bg-slate-200 dark:bg-slate-800 mx-1" />
 
+          {/* View Mode Toggles */}
           <button 
+            type="button"
             onClick={() => setViewMode('list')}
             title="List View"
-            className={`flex items-center justify-center w-12 h-full rounded-xl transition-all ${viewMode === 'list' ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+            className={`flex items-center justify-center w-10 sm:w-11 h-full rounded-xl transition-all cursor-pointer ${viewMode === 'list' ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'}`}
           >
-            <List className="w-5 h-5" />
+            <List className="w-4 h-4" />
           </button>
           
           <button 
+            type="button"
             onClick={() => setViewMode('grid')}
             title="Grid View"
-            className={`flex items-center justify-center w-12 h-full rounded-xl transition-all ${viewMode === 'grid' ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+            className={`flex items-center justify-center w-10 sm:w-11 h-full rounded-xl transition-all cursor-pointer ${viewMode === 'grid' ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'}`}
           >
-            <LayoutGrid className="w-5 h-5" />
+            <LayoutGrid className="w-4 h-4" />
           </button>
-          <div className="w-px h-full bg-slate-200 dark:bg-slate-800 mx-1"></div>
+
+          <div className="w-px h-full bg-slate-200 dark:bg-slate-800 mx-1" />
           
+          {/* Fullscreen Toggle */}
           <button 
+            type="button"
             onClick={() => setIsFullScreen(!isFullScreen)}
             title="Toggle Fullscreen"
-            className="flex items-center justify-center w-12 h-full rounded-xl transition-all text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800"
+            className="flex items-center justify-center w-10 sm:w-11 h-full rounded-xl transition-all text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer"
           >
-            {isFullScreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
+            {isFullScreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
           </button>
         </div>
       </div>
 
-      {/* PROMOTIONS LIST/GRID */}
-      <div className={`flex-1 bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col min-h-[400px] ${isFullScreen ? 'm-0 rounded-none border-none' : ''}`}>
+      {/* ──────────────── CONTENT (OVERVIEW vs TABLE) ──────────────── */}
+      {activeTab === 'overview' ? (
+        <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar">
+          <PromotionsOverviewDashboard 
+            promotions={promotions}
+            setActiveTab={setActiveTab}
+            openFormPanel={openFormPanel}
+            setStatusFilter={setStatusFilter}
+            setTypeFilter={setTypeFilter}
+            getStatus={getStatus}
+          />
+        </div>
+      ) : (
+        /* PROMOTIONS LIST/GRID */
+        <div className={`flex-1 bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col min-h-[400px] ${isFullScreen ? 'm-0 rounded-none border-none' : ''}`}>
           {loading ? (
             <div className="p-12 text-center">
               <div className="w-8 h-8 border-4 border-slate-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
@@ -766,6 +1268,7 @@ export default function PromotionsPage() {
             </div>
           )}
         </div>
+      )}
 
         {/* SLIDE-OUT PANEL FOR FORM */}
         <MainRightPanel

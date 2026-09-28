@@ -72,7 +72,7 @@ function SalesOverviewDashboard({
       {/* ──────────────── 2. MAIN DASHBOARD GRID: CHART (2 Cols) + TOP SELLING PRODUCTS (1 Col) ──────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left: Chart Card (Sales Revenue & Orders Trend) */}
-        <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 w-full text-left flex flex-col h-[380px] justify-between">
+        <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 w-full text-left flex flex-col h-[400px] justify-between">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 flex-shrink-0">
             <div>
               <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
@@ -206,67 +206,65 @@ function SalesOverviewDashboard({
         </div>
 
         {/* Right: Card 1 - Top 5 Selling Products */}
-        <div className="lg:col-span-1 bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 pb-5 md:pb-5 w-full text-left flex flex-col h-[380px] justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-4 md:mb-5">
-              <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <ShoppingBag className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                Top Selling Products
-              </h2>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
-                By Volume
-              </span>
-            </div>
-
-            <div className="space-y-3">
-              {overviewStats.topSellingProducts.length === 0 ? (
-                <div className="py-12 text-center text-slate-400 text-xs font-medium">
-                  No sales items recorded yet.
-                </div>
-              ) : (
-                overviewStats.topSellingProducts.map((item, i) => {
-                  const rankColors = [
-                    'bg-amber-500 text-white',
-                    'bg-slate-400 text-white',
-                    'bg-orange-700 text-white',
-                    'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300',
-                    'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
-                  ];
-                  return (
-                    <div 
-                      key={i} 
-                      onClick={() => setActiveTab('table')}
-                      className="flex items-center justify-between gap-3 p-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
-                      title="Click to view sales table"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 ${rankColors[i] || 'bg-slate-200 text-slate-700'}`}>
-                          {i + 1}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-blue-600 transition-colors">
-                            {item.name}
-                          </div>
-                          <div className="text-[10px] text-slate-400 truncate">
-                            {item.quantity} units sold
-                          </div>
-                        </div>
-                      </div>
-                      <span className="text-xs font-black text-slate-900 dark:text-white flex-shrink-0">
-                        Rs. {item.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </span>
-                    </div>
-                  );
-                })
-              )}
-            </div>
+        <div className="lg:col-span-1 bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 md:p-6 w-full text-left flex flex-col h-[400px] justify-between">
+          <div className="flex items-center justify-between mb-3 shrink-0">
+            <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <ShoppingBag className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              Top Selling Products
+            </h2>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
+              By Volume
+            </span>
           </div>
 
-          <div className="mt-2 pt-2.5 pb-1 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center">
+          <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar space-y-2 pr-0.5">
+            {overviewStats.topSellingProducts.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-center text-slate-400 text-xs font-medium">
+                No sales items recorded yet.
+              </div>
+            ) : (
+              overviewStats.topSellingProducts.slice(0, 5).map((item, i) => {
+                const rankColors = [
+                  'bg-amber-500 text-white',
+                  'bg-slate-400 text-white',
+                  'bg-orange-700 text-white',
+                  'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300',
+                  'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                ];
+                return (
+                  <div 
+                    key={i} 
+                    onClick={() => setActiveTab('table')}
+                    className="flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
+                    title="Click to view sales table"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 ${rankColors[i] || 'bg-slate-200 text-slate-700'}`}>
+                        {i + 1}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-blue-600 transition-colors">
+                          {item.name}
+                        </div>
+                        <div className="text-[10px] text-slate-400 truncate">
+                          {item.quantity} units sold
+                        </div>
+                      </div>
+                    </div>
+                    <span className="text-xs font-black text-slate-900 dark:text-white flex-shrink-0">
+                      Rs. {item.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center shrink-0">
             <button
               type="button"
               onClick={() => setActiveTab('table')}
-              className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer leading-normal"
+              className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer leading-normal flex items-center gap-1"
             >
               View All in Sales Table →
             </button>
@@ -278,67 +276,65 @@ function SalesOverviewDashboard({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         
         {/* Card 2: Top Customers by Spend */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 pb-5 md:pb-5 w-full text-left flex flex-col h-[380px] justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-4 md:mb-5">
-              <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <Users className="w-5 h-5 text-indigo-500 dark:text-indigo-400" />
-                Top Customers
-              </h2>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">
-                By Spend
-              </span>
-            </div>
-
-            <div className="space-y-3">
-              {overviewStats.topCustomers.length === 0 ? (
-                <div className="py-12 text-center text-slate-400 text-xs font-medium">
-                  No customer records found.
-                </div>
-              ) : (
-                overviewStats.topCustomers.map((cust, i) => {
-                  const rankColors = [
-                    'bg-indigo-600 text-white',
-                    'bg-indigo-500 text-white',
-                    'bg-purple-500 text-white',
-                    'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300',
-                    'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
-                  ];
-                  return (
-                    <div 
-                      key={i} 
-                      onClick={() => setActiveTab('table')}
-                      className="flex items-center justify-between gap-3 p-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
-                      title="Click to view sales table"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 ${rankColors[i] || 'bg-slate-200 text-slate-700'}`}>
-                          {i + 1}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-indigo-600 transition-colors">
-                            {cust.name}
-                          </div>
-                          <div className="text-[10px] text-slate-400 truncate">
-                            {cust.count} orders placed
-                          </div>
-                        </div>
-                      </div>
-                      <span className="text-xs font-black text-slate-900 dark:text-white flex-shrink-0">
-                        Rs. {cust.spend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </span>
-                    </div>
-                  );
-                })
-              )}
-            </div>
+        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 md:p-6 w-full text-left flex flex-col h-[400px] justify-between">
+          <div className="flex items-center justify-between mb-3 shrink-0">
+            <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <Users className="w-5 h-5 text-indigo-500 dark:text-indigo-400" />
+              Top Customers
+            </h2>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">
+              By Spend
+            </span>
           </div>
 
-          <div className="mt-2 pt-2.5 pb-1 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center">
+          <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar space-y-2 pr-0.5">
+            {overviewStats.topCustomers.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-center text-slate-400 text-xs font-medium">
+                No customer records found.
+              </div>
+            ) : (
+              overviewStats.topCustomers.slice(0, 5).map((cust, i) => {
+                const rankColors = [
+                  'bg-indigo-600 text-white',
+                  'bg-indigo-500 text-white',
+                  'bg-purple-500 text-white',
+                  'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300',
+                  'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                ];
+                return (
+                  <div 
+                    key={i} 
+                    onClick={() => setActiveTab('table')}
+                    className="flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
+                    title="Click to view sales table"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 ${rankColors[i] || 'bg-slate-200 text-slate-700'}`}>
+                        {i + 1}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-indigo-600 transition-colors">
+                          {cust.name}
+                        </div>
+                        <div className="text-[10px] text-slate-400 truncate">
+                          {cust.count} orders placed
+                        </div>
+                      </div>
+                    </div>
+                    <span className="text-xs font-black text-slate-900 dark:text-white flex-shrink-0">
+                      Rs. {cust.spend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center shrink-0">
             <button
               type="button"
               onClick={() => setActiveTab('table')}
-              className="text-xs text-indigo-600 dark:text-indigo-400 font-bold hover:underline cursor-pointer leading-normal"
+              className="text-xs text-indigo-600 dark:text-indigo-400 font-bold hover:underline cursor-pointer leading-normal flex items-center gap-1"
             >
               View Customers in Sales Table →
             </button>
@@ -346,64 +342,62 @@ function SalesOverviewDashboard({
         </div>
 
         {/* Card 3: Payment Method Breakdown */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 pb-5 md:pb-5 w-full text-left flex flex-col h-[380px] justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-4 md:mb-5">
-              <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <CreditCard className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
-                Payment Channels
-              </h2>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
-                Share %
-              </span>
-            </div>
-
-            <div className="space-y-3">
-              {overviewStats.paymentMethods.length === 0 ? (
-                <div className="py-12 text-center text-slate-400 text-xs font-medium">
-                  No payment records found.
-                </div>
-              ) : (
-                overviewStats.paymentMethods.map((p, i) => {
-                  const methodLabel = p.method === 'PAYHERE_QR' ? 'Mobile QR' : p.method === 'CARD' ? 'Card Payment' : p.method === 'CASH' ? 'Cash Tendered' : p.method;
-                  return (
-                    <div 
-                      key={i} 
-                      onClick={() => {
-                        setPaymentMethodFilter(p.method.toLowerCase());
-                        setActiveTab('table');
-                      }}
-                      className="flex items-center justify-between gap-3 p-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
-                      title="Click to filter by payment method"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-xs font-bold text-slate-600 dark:text-slate-300 flex-shrink-0">
-                          {p.method === 'CASH' ? <Banknote className="w-4 h-4 text-emerald-500" /> : p.method === 'CARD' ? <CreditCard className="w-4 h-4 text-blue-500" /> : <QrCode className="w-4 h-4 text-purple-500" />}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-emerald-600 transition-colors">
-                            {methodLabel}
-                          </div>
-                          <div className="text-[10px] text-slate-400 truncate">
-                            {p.count} transactions ({p.percentage}%)
-                          </div>
-                        </div>
-                      </div>
-                      <span className="text-xs font-black text-slate-900 dark:text-white flex-shrink-0">
-                        Rs. {p.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </span>
-                    </div>
-                  );
-                })
-              )}
-            </div>
+        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 md:p-6 w-full text-left flex flex-col h-[400px] justify-between">
+          <div className="flex items-center justify-between mb-3 shrink-0">
+            <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <CreditCard className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
+              Payment Channels
+            </h2>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
+              Share %
+            </span>
           </div>
 
-          <div className="mt-2 pt-2.5 pb-1 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center">
+          <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar space-y-2 pr-0.5">
+            {overviewStats.paymentMethods.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-center text-slate-400 text-xs font-medium">
+                No payment records found.
+              </div>
+            ) : (
+              overviewStats.paymentMethods.slice(0, 5).map((p, i) => {
+                const methodLabel = p.method === 'PAYHERE_QR' ? 'Mobile QR' : p.method === 'CARD' ? 'Card Payment' : p.method === 'CASH' ? 'Cash Tendered' : p.method;
+                return (
+                  <div 
+                    key={i} 
+                    onClick={() => {
+                      setPaymentMethodFilter(p.method.toLowerCase());
+                      setActiveTab('table');
+                    }}
+                    className="flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
+                    title="Click to filter by payment method"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-xs font-bold text-slate-600 dark:text-slate-300 flex-shrink-0">
+                        {p.method === 'CASH' ? <Banknote className="w-4 h-4 text-emerald-500" /> : p.method === 'CARD' ? <CreditCard className="w-4 h-4 text-blue-500" /> : <QrCode className="w-4 h-4 text-purple-500" />}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-emerald-600 transition-colors">
+                          {methodLabel}
+                        </div>
+                        <div className="text-[10px] text-slate-400 truncate">
+                          {p.count} transactions ({p.percentage}%)
+                        </div>
+                      </div>
+                    </div>
+                    <span className="text-xs font-black text-slate-900 dark:text-white flex-shrink-0">
+                      Rs. {p.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center shrink-0">
             <button
               type="button"
               onClick={() => setActiveTab('table')}
-              className="text-xs text-emerald-600 dark:text-emerald-400 font-bold hover:underline cursor-pointer leading-normal"
+              className="text-xs text-emerald-600 dark:text-emerald-400 font-bold hover:underline cursor-pointer leading-normal flex items-center gap-1"
             >
               Filter Payment Methods in Table →
             </button>
@@ -411,66 +405,64 @@ function SalesOverviewDashboard({
         </div>
 
         {/* Card 4: Recent High-Value Orders */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 pb-5 md:pb-5 w-full text-left flex flex-col h-[380px] justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-4 md:mb-5">
-              <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <Receipt className="w-5 h-5 text-amber-500 dark:text-amber-400" />
-                Top Value Invoices
-              </h2>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">
-                Highest
-              </span>
-            </div>
-
-            <div className="space-y-3">
-              {overviewStats.recentHighValueOrders.length === 0 ? (
-                <div className="py-12 text-center text-slate-400 text-xs font-medium">
-                  No orders recorded.
-                </div>
-              ) : (
-                overviewStats.recentHighValueOrders.map((ord, i) => {
-                  const actualSale = sales.find(s => s.id === ord.id);
-                  return (
-                    <div 
-                      key={i} 
-                      onClick={() => {
-                        if (actualSale) {
-                          openViewPanel(actualSale);
-                        }
-                        setActiveTab('table');
-                      }}
-                      className="flex items-center justify-between gap-3 p-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
-                      title="Click to view invoice details"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
-                          {i + 1}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-amber-600 transition-colors">
-                            {ord.invoiceNo}
-                          </div>
-                          <div className="text-[10px] text-slate-400 truncate">
-                            {ord.customerName} • {new Date(ord.createdAt).toLocaleDateString()}
-                          </div>
-                        </div>
-                      </div>
-                      <span className="text-xs font-black text-slate-900 dark:text-white flex-shrink-0">
-                        Rs. {ord.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </span>
-                    </div>
-                  );
-                })
-              )}
-            </div>
+        <div className="bg-white dark:bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 md:p-6 w-full text-left flex flex-col h-[400px] justify-between">
+          <div className="flex items-center justify-between mb-3 shrink-0">
+            <h2 className="text-sm md:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <Receipt className="w-5 h-5 text-amber-500 dark:text-amber-400" />
+              Top Value Invoices
+            </h2>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">
+              Highest
+            </span>
           </div>
 
-          <div className="mt-2 pt-2.5 pb-1 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center">
+          <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar space-y-2 pr-0.5">
+            {overviewStats.recentHighValueOrders.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-center text-slate-400 text-xs font-medium">
+                No orders recorded.
+              </div>
+            ) : (
+              overviewStats.recentHighValueOrders.slice(0, 5).map((ord, i) => {
+                const actualSale = sales.find(s => s.id === ord.id);
+                return (
+                  <div 
+                    key={i} 
+                    onClick={() => {
+                      if (actualSale) {
+                        openViewPanel(actualSale);
+                      }
+                      setActiveTab('table');
+                    }}
+                    className="flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
+                    title="Click to view invoice details"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                        {i + 1}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-amber-600 transition-colors">
+                          {ord.invoiceNo}
+                        </div>
+                        <div className="text-[10px] text-slate-400 truncate">
+                          {ord.customerName} • {new Date(ord.createdAt).toLocaleDateString()}
+                        </div>
+                      </div>
+                    </div>
+                    <span className="text-xs font-black text-slate-900 dark:text-white flex-shrink-0">
+                      Rs. {ord.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-center flex items-center justify-center shrink-0">
             <button
               type="button"
               onClick={() => setActiveTab('table')}
-              className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer leading-normal"
+              className="text-xs text-amber-600 dark:text-amber-400 font-bold hover:underline cursor-pointer leading-normal flex items-center gap-1"
             >
               View Invoices in Sales Table →
             </button>
@@ -1229,6 +1221,7 @@ export default function SalesPage() {
         <div className="space-y-3">
           <label className="text-sm font-bold text-slate-900 dark:text-white">Payment Method</label>
           <CustomSelect
+            icon={CreditCard}
             value={paymentMethodFilter}
             onChange={setPaymentMethodFilter}
             options={[
@@ -1242,6 +1235,7 @@ export default function SalesPage() {
         <div className="space-y-3">
           <label className="text-sm font-bold text-slate-900 dark:text-white">Payment Status</label>
           <CustomSelect
+            icon={CheckCircle2}
             value={statusFilter}
             onChange={setStatusFilter}
             options={[
@@ -1256,6 +1250,7 @@ export default function SalesPage() {
         <div className="space-y-3">
           <label className="text-sm font-bold text-slate-900 dark:text-white">Sales Channel</label>
           <CustomSelect
+            icon={ShoppingBag}
             value={channelFilter}
             onChange={setChannelFilter}
             options={[
@@ -1271,21 +1266,27 @@ export default function SalesPage() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-bold text-slate-500 block mb-1">From</label>
-              <input 
-                type="date"
-                value={fromDate}
-                onChange={(e) => setFromDate(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-300 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-              />
+              <div className="relative">
+                <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input 
+                  type="date"
+                  value={fromDate}
+                  onChange={(e) => setFromDate(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-300 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
             </div>
             <div>
               <label className="text-xs font-bold text-slate-500 block mb-1">To</label>
-              <input 
-                type="date"
-                value={toDate}
-                onChange={(e) => setToDate(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-300 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-              />
+              <div className="relative">
+                <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input 
+                  type="date"
+                  value={toDate}
+                  onChange={(e) => setToDate(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-300 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
             </div>
           </div>
         </div>
