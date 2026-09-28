@@ -92,7 +92,7 @@ export default function LoginPage() {
   return (
     <div className="font-sans min-h-screen flex bg-white dark:bg-slate-950 transition-colors duration-300">
       {/* ── LEFT PANEL — Branding ── */}
-      <div className="hidden lg:flex lg:w-[52%] flex-col justify-between p-12 text-white relative overflow-hidden"
+      <div className="hidden lg:flex lg:w-[52%] flex-col p-12 text-white relative overflow-hidden"
         style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #2563eb 55%, #3b82f6 100%)' }}
       >
         {/* Decorative blobs matching home page */}
@@ -106,16 +106,16 @@ export default function LoginPage() {
           }}
         />
 
-        {/* Logo */}
-        <div className="relative z-10">
-          <Link href="/" className="inline-flex items-center gap-3 group">
-            <img src="/logo-small.png" alt="cMart Logo" className="w-10 h-10 object-contain group-hover:scale-105 transition-transform" />
-            <span className="text-2xl font-black tracking-tight">{COMPANY_NAME}</span>
-          </Link>
-        </div>
-
-        {/* Center content */}
+        {/* Top: Logo & Main Content tightly grouped */}
         <div className="relative z-10 space-y-8">
+          {/* Logo */}
+          <div>
+            <Link href="/" className="inline-flex items-center gap-3 group">
+              <img src="/logo-small.png" alt="cMart Logo" className="w-10 h-10 object-contain group-hover:scale-105 transition-transform" />
+              <span className="text-2xl font-black tracking-tight">{COMPANY_NAME}</span>
+            </Link>
+          </div>
+
           <div>
             <h2 className="text-4xl font-black leading-tight mb-3">
               Run your store<br />
@@ -163,7 +163,7 @@ export default function LoginPage() {
         </div>
 
         {/* Footer */}
-        <div className="relative z-10 text-blue-300/70 text-xs">
+        <div className="relative z-10 text-blue-300/70 text-xs mt-auto pt-8">
           &copy; {new Date().getFullYear()} {COMPANY_NAME}. All rights reserved.
         </div>
       </div>

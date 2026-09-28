@@ -290,10 +290,10 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex bg-white dark:bg-slate-950 transition-colors duration-300">
+    <div className="font-sans min-h-screen flex bg-white dark:bg-slate-950 transition-colors duration-300">
       {/* Left Panel — Branding */}
       <div
-        className="hidden lg:flex lg:w-[52%] flex-col justify-between p-12 text-white relative overflow-hidden"
+        className="hidden lg:flex lg:w-[52%] flex-col p-12 text-white relative overflow-hidden"
         style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #2563eb 55%, #3b82f6 100%)' }}
       >
         {/* Decorative blobs matching home page */}
@@ -304,15 +304,16 @@ export default function RegisterPage() {
           style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '32px 32px' }}
         />
 
-        <div className="relative z-10">
-          <Link href="/" className="inline-flex items-center gap-3 group">
-            <img src="/logo-small.png" alt="cMart Logo" className="w-10 h-10 object-contain group-hover:scale-105 transition-transform" />
-            <span className="text-2xl font-black tracking-tight">{COMPANY_NAME}</span>
-          </Link>
-        </div>
-
-        {/* Center content */}
+        {/* Top: Logo & Main Content tightly grouped */}
         <div className="relative z-10 space-y-8">
+          {/* Logo */}
+          <div>
+            <Link href="/" className="inline-flex items-center gap-3 group">
+              <img src="/logo-small.png" alt="cMart Logo" className="w-10 h-10 object-contain group-hover:scale-105 transition-transform" />
+              <span className="text-2xl font-black tracking-tight">{COMPANY_NAME}</span>
+            </Link>
+          </div>
+
           <div>
             <h2 className="text-4xl font-black leading-tight mb-3">
               Start your free<br />
@@ -359,7 +360,8 @@ export default function RegisterPage() {
           </div>
         </div>
 
-        <div className="relative z-10 text-blue-300/70 text-xs">
+        {/* Footer */}
+        <div className="relative z-10 text-blue-300/70 text-xs mt-auto pt-8">
           &copy; {new Date().getFullYear()} {COMPANY_NAME}. All rights reserved.
         </div>
       </div>
