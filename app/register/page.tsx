@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/lib/auth-store';
-import { COMPANY_NAME, PLANS } from '@/lib/constants';
+import { COMPANY_NAME, COMPANY_TAGLINE, PLANS } from '@/lib/constants';
 import { toast } from 'sonner';
 import { ChevronRight, ChevronLeft, Check, Store, AlertCircle, Eye, EyeOff, ChevronDown } from 'lucide-react';
 import { useForm } from 'react-hook-form';
@@ -340,7 +340,14 @@ export default function RegisterPage() {
       {/* Right Panel — Form */}
       <div className="flex-1 flex items-center justify-center p-6 bg-white dark:bg-slate-950 md:bg-gray-50 transition-colors overflow-y-auto">
         <div className="w-full max-w-md py-8">
-
+          {/* Mobile Logo Header */}
+          <div className="lg:hidden flex flex-col items-center mb-6">
+            <Link href="/" className="inline-flex items-center gap-2.5 group mb-1">
+              <img src="/logo-small.png" alt="cMart Logo" className="w-9 h-9 object-contain group-hover:scale-105 transition-transform" />
+              <span className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">{COMPANY_NAME}</span>
+            </Link>
+            <p className="text-gray-500 dark:text-slate-400 text-xs">{COMPANY_TAGLINE}</p>
+          </div>
 
           {/* Progress */}
           <div className="flex items-center gap-2 mb-8">

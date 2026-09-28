@@ -99,10 +99,8 @@ function ResetPasswordForm() {
   if (tokenError || !token) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-6 bg-white dark:bg-slate-950 md:bg-gray-50 transition-colors w-full min-h-screen">
-        <Link href="/" className="flex items-center gap-2 mb-8 group">
-          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-md group-hover:scale-105 transition-transform">
-            <span className="text-white font-black text-lg">c</span>
-          </div>
+        <Link href="/" className="flex items-center gap-3 mb-8 group">
+          <img src="/logo-small.png" alt="cMart Logo" className="w-10 h-10 object-contain group-hover:scale-105 transition-transform" />
           <span className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">{COMPANY_NAME}</span>
         </Link>
 
@@ -137,10 +135,8 @@ function ResetPasswordForm() {
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-6 bg-white dark:bg-slate-950 md:bg-gray-50 transition-colors w-full min-h-screen">
-      <Link href="/" className="flex items-center gap-2 mb-8 group">
-        <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-md group-hover:scale-105 transition-transform">
-          <span className="text-white font-black text-lg">c</span>
-        </div>
+      <Link href="/" className="flex items-center gap-3 mb-8 group">
+        <img src="/logo-small.png" alt="cMart Logo" className="w-10 h-10 object-contain group-hover:scale-105 transition-transform" />
         <span className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">{COMPANY_NAME}</span>
       </Link>
 

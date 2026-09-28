@@ -71,9 +71,7 @@ export default function ForgotPasswordPage() {
 
         <div className="relative z-10">
           <Link href="/" className="inline-flex items-center gap-3 mb-1 group">
-            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform">
-              <span className="text-blue-700 font-black text-lg">c</span>
-            </div>
+            <img src="/logo-small.png" alt="cMart Logo" className="w-10 h-10 object-contain group-hover:scale-105 transition-transform" />
             <span className="text-2xl font-black tracking-tight">{COMPANY_NAME}</span>
           </Link>
           <p className="text-blue-200 text-sm ml-[52px]">{COMPANY_TAGLINE}</p>
@@ -118,6 +116,15 @@ export default function ForgotPasswordPage() {
 
 
         <div className="w-full max-w-[420px]">
+          {/* Mobile Logo Header */}
+          <div className="lg:hidden flex flex-col items-center mb-6">
+            <Link href="/" className="inline-flex items-center gap-2.5 group mb-1">
+              <img src="/logo-small.png" alt="cMart Logo" className="w-9 h-9 object-contain group-hover:scale-105 transition-transform" />
+              <span className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">{COMPANY_NAME}</span>
+            </Link>
+            <p className="text-gray-500 dark:text-slate-400 text-xs">{COMPANY_TAGLINE}</p>
+          </div>
+
           <div className="md:bg-white md:dark:bg-slate-900 md:rounded-3xl md:shadow-xl md:shadow-blue-900/5 md:border md:border-gray-100 md:dark:border-slate-800 md:p-8">
             {sent ? (
               /* Success state */
@@ -127,7 +134,7 @@ export default function ForgotPasswordPage() {
                 </div>
                 <h1 className="text-2xl font-black text-gray-900 dark:text-white mb-2">Check your inbox</h1>
                 <p className="text-gray-500 dark:text-slate-400 text-sm leading-relaxed mb-6">
-                  We&apos;ve sent a password reset link to your email. It will expire in 15 minutes.
+                  We&apos;ve sent a password reset link to your email. It will expire in 1 hour.
                 </p>
                 <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/30 rounded-2xl flex items-start gap-3 text-left mb-6">
                   <Mail className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
