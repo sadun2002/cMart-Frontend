@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useAuthStore } from '@/lib/auth-store';
 import { COMPANY_NAME, COMPANY_TAGLINE, PLANS } from '@/lib/constants';
 import { toast } from 'sonner';
-import { ChevronRight, ChevronLeft, Check, Store, AlertCircle, Eye, EyeOff, ChevronDown } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Check, Store, AlertCircle, Eye, EyeOff, ChevronDown, ShoppingCart, Globe, BarChart3, Users } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -62,10 +62,11 @@ const BUSINESS_TYPES = [
   'Mobile Shop', 'Watch Shop', 'Optics', 'Flower Shop', 'Other'
 ];
 
-const PLANS_INFO = [
-  { plan: 'STARTUP', label: '30-Day Free Trial', desc: 'Local POS, fully offline capability' },
-  { plan: 'PRO', label: 'Pro — Rs. 2,490/mo', desc: 'Cloud Sync, Online Store, Reports' },
-  { plan: 'ENTERPRISE', label: 'Enterprise — Rs. 5,990/mo', desc: 'Unlimited everything, Multi-branch' },
+const FEATURES = [
+  { icon: ShoppingCart, title: 'Point of Sale', desc: 'Fast, reliable POS for in-store sales' },
+  { icon: Globe, title: 'Online Store', desc: 'Auto-generated e-commerce website' },
+  { icon: BarChart3, title: 'Smart Reports', desc: 'Real-time analytics and insights' },
+  { icon: Users, title: 'Team Management', desc: 'Employees, attendance & permissions' },
 ];
 
 export default function RegisterPage() {
@@ -292,48 +293,74 @@ export default function RegisterPage() {
     <div className="min-h-screen flex bg-white dark:bg-slate-950 transition-colors duration-300">
       {/* Left Panel — Branding */}
       <div
-        className="hidden lg:flex lg:w-[48%] flex-col justify-between p-12 text-white relative overflow-hidden"
-        style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #2563eb 60%, #3b82f6 100%)' }}
+        className="hidden lg:flex lg:w-[52%] flex-col justify-between p-12 text-white relative overflow-hidden"
+        style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #2563eb 55%, #3b82f6 100%)' }}
       >
         {/* Decorative blobs matching home page */}
         <div className="absolute top-0 right-0 w-[480px] h-[480px] bg-white/10 rounded-full blur-[120px] -translate-y-40 translate-x-40 pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-[380px] h-[380px] bg-blue-300/20 rounded-full blur-[100px] translate-y-40 -translate-x-20 pointer-events-none" />
-        <div className="absolute top-1/3 left-1/4 w-72 h-72 bg-emerald-300/10 rounded-full blur-[80px] pointer-events-none" />
+        <div className="absolute top-1/3 left-1/3 w-64 h-64 bg-emerald-300/10 rounded-full blur-[80px] pointer-events-none" />
         <div className="absolute inset-0 opacity-[0.07] pointer-events-none"
           style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '32px 32px' }}
         />
 
         <div className="relative z-10">
-          <Link href="/" className="inline-flex items-center gap-3 mb-1 group">
- <img src="/logo-small.png" alt="cMart Logo" className="w-10 h-10 object-contain group-hover:scale-105 transition-transform" />
+          <Link href="/" className="inline-flex items-center gap-3 group">
+            <img src="/logo-small.png" alt="cMart Logo" className="w-10 h-10 object-contain group-hover:scale-105 transition-transform" />
             <span className="text-2xl font-black tracking-tight">{COMPANY_NAME}</span>
           </Link>
-          <p className="text-blue-200 text-sm">The Smart Way to Run Your Store</p>
         </div>
 
-        <div className="relative z-10 space-y-6">
+        {/* Center content */}
+        <div className="relative z-10 space-y-8">
           <div>
-            <h2 className="text-3xl font-bold mb-2">Start your free 30-day trial</h2>
-            <p className="text-blue-200 text-sm">No credit card required. Cancel anytime.</p>
+            <h2 className="text-4xl font-black leading-tight mb-3">
+              Start your free<br />
+              <span className="text-blue-300">30-day trial.</span>
+            </h2>
+            <p className="text-blue-200 text-base leading-relaxed max-w-sm">
+              Everything you need to manage your business — in one powerful platform built for Sri Lanka.
+            </p>
           </div>
 
-          <div className="space-y-3">
-            {PLANS_INFO.map((p) => (
-              <div key={p.plan} className="flex items-center gap-4 bg-white/10 backdrop-blur-sm rounded-xl p-3.5 border border-white/5">
-                <div className="w-24 h-9 bg-white/20 rounded-xl flex items-center justify-center text-[11px] font-black tracking-wider shrink-0">
-                  {p.plan}
+          <div className="grid grid-cols-1 gap-3">
+            {FEATURES.map((f) => {
+              const Icon = f.icon;
+              return (
+                <div key={f.title} className="flex items-center gap-4 bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/10 hover:bg-white/15 transition-colors">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-blue-400/20 text-blue-300">
+                    <Icon className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="font-bold text-sm text-white">{f.title}</div>
+                    <div className="text-blue-200 text-xs mt-0.5">{f.desc}</div>
+                  </div>
                 </div>
-                <div>
-                  <div className="text-sm font-semibold">{p.label}</div>
-                  <div className="text-xs text-blue-200 mt-0.5">{p.desc}</div>
-                </div>
-              </div>
-            ))}
+              );
+            })}
+          </div>
+
+          {/* Social proof */}
+          <div className="flex items-center gap-4 pt-2">
+            <div className="flex -space-x-2">
+              {[
+                'https://randomuser.me/api/portraits/men/43.jpg',
+                'https://randomuser.me/api/portraits/women/68.jpg',
+                'https://randomuser.me/api/portraits/men/22.jpg',
+                'https://randomuser.me/api/portraits/women/44.jpg'
+              ].map((imgSrc, i) => (
+                <img key={i} src={imgSrc} className="w-8 h-8 rounded-full border-2 border-blue-600 object-cover" alt="Sri Lankan store owner" />
+              ))}
+            </div>
+            <div className="text-sm">
+              <span className="font-bold text-white">30+ stores</span>
+              <span className="text-blue-200"> already running on {COMPANY_NAME}</span>
+            </div>
           </div>
         </div>
 
         <div className="relative z-10 text-blue-300/70 text-xs">
-          &copy; {new Date().getFullYear()} {COMPANY_NAME}
+          &copy; {new Date().getFullYear()} {COMPANY_NAME}. All rights reserved.
         </div>
       </div>
 
@@ -342,11 +369,10 @@ export default function RegisterPage() {
         <div className="w-full max-w-md py-8">
           {/* Mobile Logo Header */}
           <div className="lg:hidden flex flex-col items-center mb-6">
-            <Link href="/" className="inline-flex items-center gap-2.5 group mb-1">
+            <Link href="/" className="inline-flex items-center gap-2.5 group">
               <img src="/logo-small.png" alt="cMart Logo" className="w-9 h-9 object-contain group-hover:scale-105 transition-transform" />
               <span className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">{COMPANY_NAME}</span>
             </Link>
-            <p className="text-gray-500 dark:text-slate-400 text-xs">{COMPANY_TAGLINE}</p>
           </div>
 
           {/* Progress */}

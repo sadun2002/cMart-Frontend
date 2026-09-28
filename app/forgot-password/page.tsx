@@ -70,11 +70,10 @@ export default function ForgotPasswordPage() {
         />
 
         <div className="relative z-10">
-          <Link href="/" className="inline-flex items-center gap-3 mb-1 group">
+          <Link href="/" className="inline-flex items-center gap-3 group">
             <img src="/logo-small.png" alt="cMart Logo" className="w-10 h-10 object-contain group-hover:scale-105 transition-transform" />
             <span className="text-2xl font-black tracking-tight">{COMPANY_NAME}</span>
           </Link>
-          <p className="text-blue-200 text-sm ml-[52px]">{COMPANY_TAGLINE}</p>
         </div>
 
         <div className="relative z-10 space-y-8">
@@ -104,6 +103,24 @@ export default function ForgotPasswordPage() {
               );
             })}
           </div>
+
+          {/* Social proof */}
+          <div className="flex items-center gap-4 pt-2">
+            <div className="flex -space-x-2">
+              {[
+                'https://randomuser.me/api/portraits/men/43.jpg',
+                'https://randomuser.me/api/portraits/women/68.jpg',
+                'https://randomuser.me/api/portraits/men/22.jpg',
+                'https://randomuser.me/api/portraits/women/44.jpg'
+              ].map((imgSrc, i) => (
+                <img key={i} src={imgSrc} className="w-8 h-8 rounded-full border-2 border-blue-600 object-cover" alt="Sri Lankan store owner" />
+              ))}
+            </div>
+            <div className="text-sm">
+              <span className="font-bold text-white">30+ stores</span>
+              <span className="text-blue-200"> already running on {COMPANY_NAME}</span>
+            </div>
+          </div>
         </div>
 
         <div className="relative z-10 text-blue-300/70 text-xs">
@@ -118,11 +135,10 @@ export default function ForgotPasswordPage() {
         <div className="w-full max-w-[420px]">
           {/* Mobile Logo Header */}
           <div className="lg:hidden flex flex-col items-center mb-6">
-            <Link href="/" className="inline-flex items-center gap-2.5 group mb-1">
+            <Link href="/" className="inline-flex items-center gap-2.5 group">
               <img src="/logo-small.png" alt="cMart Logo" className="w-9 h-9 object-contain group-hover:scale-105 transition-transform" />
               <span className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">{COMPANY_NAME}</span>
             </Link>
-            <p className="text-gray-500 dark:text-slate-400 text-xs">{COMPANY_TAGLINE}</p>
           </div>
 
           <div className="md:bg-white md:dark:bg-slate-900 md:rounded-3xl md:shadow-xl md:shadow-blue-900/5 md:border md:border-gray-100 md:dark:border-slate-800 md:p-8">

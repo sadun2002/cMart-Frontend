@@ -108,11 +108,10 @@ export default function LoginPage() {
 
         {/* Logo */}
         <div className="relative z-10">
-          <Link href="/" className="inline-flex items-center gap-3 mb-1 group">
- <img src="/logo-small.png" alt="cMart Logo" className="w-10 h-10 object-contain group-hover:scale-105 transition-transform" />
+          <Link href="/" className="inline-flex items-center gap-3 group">
+            <img src="/logo-small.png" alt="cMart Logo" className="w-10 h-10 object-contain group-hover:scale-105 transition-transform" />
             <span className="text-2xl font-black tracking-tight">{COMPANY_NAME}</span>
           </Link>
-          <p className="text-blue-200 text-sm ml-[52px]">{COMPANY_TAGLINE}</p>
         </div>
 
         {/* Center content */}
@@ -176,11 +175,10 @@ export default function LoginPage() {
         <div className="w-full max-w-[420px]">
           {/* Mobile Logo Header */}
           <div className="lg:hidden flex flex-col items-center mb-6">
-            <Link href="/" className="inline-flex items-center gap-2.5 group mb-1">
+            <Link href="/" className="inline-flex items-center gap-2.5 group">
               <img src="/logo-small.png" alt="cMart Logo" className="w-9 h-9 object-contain group-hover:scale-105 transition-transform" />
               <span className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">{COMPANY_NAME}</span>
             </Link>
-            <p className="text-gray-500 dark:text-slate-400 text-xs">{COMPANY_TAGLINE}</p>
           </div>
 
           {/* Card */}
