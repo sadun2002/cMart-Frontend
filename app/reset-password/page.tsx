@@ -10,15 +10,11 @@ import { ChevronRight, AlertCircle, CheckCircle, Eye, EyeOff } from 'lucide-reac
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { validatePassword, passwordZodSchema } from '@/lib/password-validator';
+import { PasswordRequirements } from '@/components/ui/password-requirements';
 
 const resetSchema = z.object({
-  password: z.string()
-    .min(8, 'Password must be at least 8 characters')
-    .max(50, 'Password is too long')
-    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
-    .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
-    .regex(/[0-9]/, 'Password must contain at least one number')
-    .regex(/[\W_]/, 'Password must contain at least one special character'),
+  password: passwordZodSchema,
   confirmPassword: z.string().min(1, 'Please confirm your password'),
 }).refine((data) => data.password === data.confirmPassword, {
   message: 'Passwords do not match',
@@ -43,10 +39,16 @@ function ResetPasswordForm() {
     register,
     handleSubmit,
     setError,
-    formState: { errors },
+    watch,
+    formState: { errors, isValid: isFormValid },
   } = useForm<ResetForm>({
     resolver: zodResolver(resetSchema),
+    mode: 'onChange',
   });
+
+  const passwordValue = watch('password') || '';
+  const confirmPasswordValue = watch('confirmPassword') || '';
+  const pwdValidation = validatePassword(passwordValue);
 
   useEffect(() => {
     // 1. Try searchParams
@@ -70,6 +72,20 @@ function ResetPasswordForm() {
   const onSubmit = async (data: ResetForm) => {
     if (!token) return;
     
+    // Explicit password validation using the shared validation function
+    const validation = validatePassword(data.password);
+    if (!validation.isValid) {
+      setError('password', { message: validation.errors[0] || 'Password does not meet all security requirements' });
+      toast.error('Please ensure your password meets all requirements.');
+      return;
+    }
+
+    if (data.password !== data.confirmPassword) {
+      setError('confirmPassword', { message: 'Passwords do not match' });
+      toast.error('Passwords do not match.');
+      return;
+    }
+
     setIsLoading(true);
     try {
       await api.post('/auth/reset-password', { token, password: data.password });
@@ -176,9 +192,12 @@ function ResetPasswordForm() {
 
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">
-                    New password
-                  </label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300">
+                      New password *
+                    </label>
+                    <span className="text-xs text-slate-500 dark:text-slate-400">Min 8 characters</span>
+                  </div>
                   <div className="relative">
                     <input
                       type={showPassword ? 'text' : 'password'}
@@ -198,11 +217,13 @@ function ResetPasswordForm() {
                   {errors.password && (
                     <p className="text-red-500 dark:text-red-400 text-xs mt-1.5">{errors.password.message}</p>
                   )}
+                  {/* Live Password Requirements & Strength Checklist */}
+                  <PasswordRequirements password={passwordValue} showWhenEmpty={false} />
                 </div>
 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">
-                    Confirm new password
+                    Confirm new password *
                   </label>
                   <div className="relative">
                     <input
@@ -227,8 +248,8 @@ function ResetPasswordForm() {
 
                 <button
                   type="submit"
-                  disabled={isLoading}
-                  className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white font-bold rounded-xl text-sm transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-600/25 dark:shadow-none hover:shadow-xl hover:shadow-blue-600/30 hover:-translate-y-0.5"
+                  disabled={isLoading || !pwdValidation.isValid || (confirmPasswordValue.length > 0 && passwordValue !== confirmPasswordValue)}
+                  className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed text-white font-bold rounded-xl text-sm transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-600/25 dark:shadow-none hover:shadow-xl hover:shadow-blue-600/30 hover:-translate-y-0.5"
                 >
                   {isLoading ? (
                     <>

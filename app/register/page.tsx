@@ -11,19 +11,15 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import api from '@/lib/api';
+import { validatePassword, passwordZodSchema } from '@/lib/password-validator';
+import { PasswordRequirements } from '@/components/ui/password-requirements';
 
 const step1Schema = z
   .object({
     name: z.string().min(1, 'Full name is required').max(100, 'Name is too long'),
     email: z.string().min(1, 'Email is required').email('Please enter a valid email').max(100, 'Email is too long'),
     phone: z.string().regex(/^\d{10}$/, 'Phone number must be exactly 10 digits'),
-    password: z.string()
-      .min(8, 'Password must be at least 8 characters')
-      .max(50, 'Password is too long')
-      .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
-      .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
-      .regex(/[0-9]/, 'Password must contain at least one number')
-      .regex(/[\W_]/, 'Password must contain at least one special character'),
+    password: passwordZodSchema,
     confirmPassword: z.string().min(1, 'Please confirm your password'),
   })
   .refine((data) => data.password === data.confirmPassword, {
@@ -123,6 +119,7 @@ export default function RegisterPage() {
 
   const step1 = useForm<Step1Form>({
     resolver: zodResolver(step1Schema),
+    mode: 'onChange',
     defaultValues: { name: '', email: '', phone: '', password: '', confirmPassword: '' },
   });
 
@@ -238,6 +235,11 @@ export default function RegisterPage() {
   const handleNext = async () => {
     const valid = await step1.trigger();
     if (!valid) return;
+    const pwdCheck = validatePassword(step1.getValues('password'));
+    if (!pwdCheck.isValid) {
+      step1.setError('password', { message: pwdCheck.errors[0] || 'Password does not meet all security requirements' });
+      return;
+    }
     setStep(2);
   };
 
@@ -465,6 +467,8 @@ export default function RegisterPage() {
                   {step1.formState.errors.password && (
                     <p className="text-red-500 dark:text-red-400 text-xs mt-1.5">{step1.formState.errors.password.message}</p>
                   )}
+                  {/* Live Password Requirements & Strength Checklist */}
+                  <PasswordRequirements password={step1.watch('password') || ''} showWhenEmpty={false} />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Confirm password *</label>
