@@ -39,19 +39,7 @@ export default function ForgotPasswordPage() {
   const onSubmit = async (data: ForgotForm) => {
     setIsLoading(true);
     try {
-      let targetFrontendUrl = `https://${PLATFORM_DOMAIN || 'cmart.chathudisa.com'}`;
-      if (typeof window !== 'undefined') {
-        const origin = window.location.origin;
-        if (origin && !origin.includes('localhost') && !origin.includes('tauri')) {
-          targetFrontendUrl = origin;
-        }
-      }
-
-      await api.post(
-        '/auth/forgot-password', 
-        { email: data.email },
-        { headers: { 'x-frontend-url': targetFrontendUrl } }
-      );
+      await api.post('/auth/forgot-password', { email: data.email });
       
       setSent(true);
       toast.success('Reset link sent!');
