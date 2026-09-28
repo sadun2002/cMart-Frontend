@@ -47,10 +47,11 @@ export default function ForgotPasswordPage() {
         }
       }
 
-      await api.post('/auth/forgot-password', { 
-        email: data.email,
-        frontendUrl: targetFrontendUrl 
-      });
+      await api.post(
+        '/auth/forgot-password', 
+        { email: data.email },
+        { headers: { 'x-frontend-url': targetFrontendUrl } }
+      );
       
       setSent(true);
       toast.success('Reset link sent!');
