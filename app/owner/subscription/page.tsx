@@ -209,7 +209,7 @@ export default function SubscriptionPage() {
                 className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5 active:translate-y-0 text-sm whitespace-nowrap cursor-pointer"
               >
                 <CreditCard className="w-5 h-5" />
-                Update Payment Method
+                Manage Payment Method
               </button>
             )}
           </div>
@@ -337,54 +337,6 @@ export default function SubscriptionPage() {
         <div className="flex-1 overflow-y-auto no-scrollbar pr-1 pb-10">
           <div className="max-w-6xl mx-auto w-full space-y-8">
             
-            {/* Recurring Payment Method & Auto-Renewal Card */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-              <div className="flex items-start sm:items-center gap-4 min-w-0">
-                <div className="w-14 h-14 rounded-2xl bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-100 dark:border-blue-500/20 shadow-xs">
-                  <CreditCard className="w-7 h-7" />
-                </div>
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h4 className="text-base font-bold text-slate-900 dark:text-white">
-                      Recurring Payment Method
-                    </h4>
-                    <span className="inline-flex items-center gap-1.5 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-500/20">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      Auto-Debit Active
-                    </span>
-                  </div>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 flex flex-wrap items-center gap-2">
-                    {currentPaymentMethod ? (
-                      <>
-                        <span className="font-semibold text-slate-700 dark:text-slate-200">
-                          {currentPaymentMethod.type === 'card' 
-                            ? `${(currentPaymentMethod.cardBrand || 'Card').toUpperCase()} ending in ${currentPaymentMethod.last4}`
-                            : currentPaymentMethod.cardholderName}
-                        </span>
-                        {currentPaymentMethod.expiry && (
-                          <span>• Expires {currentPaymentMethod.expiry}</span>
-                        )}
-                        <span>• Next cycle: {subStatus.formattedEndDate || 'Scheduled'}</span>
-                      </>
-                    ) : (
-                      <span>Visa ending in 4242 • Expires 12/28 • Auto-renewal active</span>
-                    )}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 shrink-0 w-full sm:w-auto">
-                <button
-                  type="button"
-                  onClick={() => setIsPaymentPanelOpen(true)}
-                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-white px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all cursor-pointer shadow-xs"
-                >
-                  <CreditCard className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                  Manage Payment Method
-                </button>
-              </div>
-            </div>
-
             {/* Upgrade / Available Plans */}
             <div className="font-sans space-y-6">
               <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -410,7 +362,6 @@ export default function SubscriptionPage() {
                     className={`px-4 sm:px-6 py-2 rounded-full text-xs sm:text-sm font-medium transition-all whitespace-nowrap flex items-center justify-center cursor-pointer ${billing === 'lifetime' ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
                   >
                     Lifetime
-                    <span className="text-[10px] font-black text-blue-600 bg-blue-100 dark:bg-blue-900/30 px-1.5 py-0.5 rounded-full uppercase tracking-wider hidden sm:inline-block">Startup Only</span>
                   </button>
                 </div>
               </div>

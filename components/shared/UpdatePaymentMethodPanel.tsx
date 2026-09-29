@@ -347,7 +347,7 @@ export function UpdatePaymentMethodPanel({
       <MainRightPanel
         isOpen={isOpen}
         onClose={onClose}
-        title="Update Payment Method"
+        title="Manage Payment Method"
         subtitle="Manage recurring subscription billing & card details"
         icon={CreditCard}
         formId={showAddForm ? "paymentMethodForm" : undefined}
