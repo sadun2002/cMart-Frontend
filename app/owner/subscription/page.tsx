@@ -558,14 +558,7 @@ export default function SubscriptionPage() {
       ) : (
         /* ──────────────── TAB CONTENT: BILLING HISTORY ──────────────── */
         <div className={`flex-1 bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col min-h-[400px] ${isFullscreen ? 'm-0 rounded-none border-none' : ''}`}>
-          <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50">
-            <h2 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
-              <CreditCard className="w-4 h-4 text-blue-600" />
-              Billing History ({filteredBillingHistory.length})
-            </h2>
-          </div>
-
-          <div className="flex-1 overflow-auto custom-scrollbar p-6">
+          <div className={`flex-1 overflow-auto custom-scrollbar ${viewMode === 'grid' || filteredBillingHistory.length === 0 || isLoadingHistory ? 'p-6' : ''}`}>
             {isLoadingHistory ? (
               <div className="py-20 text-center text-slate-400 font-medium">
                 Loading billing records...
@@ -581,32 +574,32 @@ export default function SubscriptionPage() {
                 <table className="w-full text-left border-collapse">
                   <thead className="bg-slate-50 dark:bg-slate-900/50 sticky top-0 z-10">
                     <tr>
-                      <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">Invoice ID</th>
-                      <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">Billing Date</th>
-                      <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">Plan / Type</th>
-                      <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">Amount</th>
-                      <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">Status</th>
-                      <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 dark:border-slate-800 text-right">Receipt</th>
+                      <th className="p-4 sm:px-6 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">Invoice ID</th>
+                      <th className="p-4 sm:px-6 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">Billing Date</th>
+                      <th className="p-4 sm:px-6 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">Plan / Type</th>
+                      <th className="p-4 sm:px-6 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">Amount</th>
+                      <th className="p-4 sm:px-6 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">Status</th>
+                      <th className="p-4 sm:px-6 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 dark:border-slate-800 text-right">Receipt</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
                     {filteredBillingHistory.map((record) => (
                       <tr key={record.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-                        <td className="p-4">
+                        <td className="p-4 sm:px-6">
                           <span className="font-mono font-bold text-slate-900 dark:text-white text-sm">
                             {record.payhereRef || `#INV-${record.id}`}
                           </span>
                         </td>
-                        <td className="p-4 text-sm font-medium text-slate-600 dark:text-slate-300">
+                        <td className="p-4 sm:px-6 text-sm font-medium text-slate-600 dark:text-slate-300">
                           {new Date(record.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
                         </td>
-                        <td className="p-4 text-sm font-bold text-slate-900 dark:text-white">
+                        <td className="p-4 sm:px-6 text-sm font-bold text-slate-900 dark:text-white">
                           Subscription Renewal
                         </td>
-                        <td className="p-4 text-sm font-black text-slate-900 dark:text-white">
+                        <td className="p-4 sm:px-6 text-sm font-black text-slate-900 dark:text-white">
                           {formatLKR(record.amountLKR)}
                         </td>
-                        <td className="p-4">
+                        <td className="p-4 sm:px-6">
                           <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
                             record.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/50' :
                             record.status === 'PENDING' ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400 border border-amber-200 dark:border-amber-800/50' :
@@ -615,7 +608,7 @@ export default function SubscriptionPage() {
                             {record.status}
                           </span>
                         </td>
-                        <td className="p-4 text-right">
+                        <td className="p-4 sm:px-6 text-right">
                           <button 
                             onClick={() => toast.success(`Receipt for ${record.payhereRef || `#INV-${record.id}`} downloaded.`)}
                             className="text-blue-600 hover:text-blue-700 font-bold text-xs bg-blue-50 hover:bg-blue-100 dark:bg-blue-500/10 dark:hover:bg-blue-500/20 px-3 py-1.5 rounded-lg transition-colors inline-flex items-center gap-1.5 cursor-pointer"

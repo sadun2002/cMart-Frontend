@@ -721,7 +721,11 @@ export function UpdatePaymentMethodPanel({
                         </div>
 
                         {/* ── TOGGLE 1: Use as Default Payment Method ── */}
-                        <label className="flex justify-between items-center cursor-pointer p-3.5 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors mt-2">
+                        <label className={`flex justify-between items-center cursor-pointer p-4 rounded-xl border-2 transition-all mt-2 shadow-xs ${
+                          setAsDefault 
+                            ? 'border-blue-500/70 bg-blue-50/50 dark:bg-blue-950/25 dark:border-blue-500/60 hover:bg-blue-50/70 dark:hover:bg-blue-950/35'
+                            : 'border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-900/70 hover:border-blue-400/80 dark:hover:border-blue-500/70 hover:bg-blue-50/30 dark:hover:bg-blue-950/20'
+                        }`}>
                           <div className="pr-3">
                             <span className="block text-xs font-bold text-slate-900 dark:text-white">Use as default payment method</span>
                             <span className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-0.5">
@@ -740,7 +744,11 @@ export function UpdatePaymentMethodPanel({
                         </label>
 
                         {/* ── TOGGLE 2: Auto Renewal ── */}
-                        <label className="flex justify-between items-center cursor-pointer p-3.5 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                        <label className={`flex justify-between items-center cursor-pointer p-4 rounded-xl border-2 transition-all shadow-xs ${
+                          autoRenewEnabled 
+                            ? 'border-blue-500/70 bg-blue-50/50 dark:bg-blue-950/25 dark:border-blue-500/60 hover:bg-blue-50/70 dark:hover:bg-blue-950/35'
+                            : 'border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-900/70 hover:border-blue-400/80 dark:hover:border-blue-500/70 hover:bg-blue-50/30 dark:hover:bg-blue-950/20'
+                        }`}>
                           <div className="pr-3">
                             <span className="block text-xs font-bold text-slate-900 dark:text-white">Auto renewal</span>
                             <span className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-0.5">
