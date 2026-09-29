@@ -77,6 +77,31 @@ export function UpdatePaymentMethodPanel({
   const [postalCode, setPostalCode] = useState('');
   const [country, setCountry] = useState('Sri Lanka');
   const [setAsDefault, setSetAsDefault] = useState(true);
+  const [autoRenewEnabled, setAutoRenewEnabled] = useState(true);
+
+  // Load auto-renew setting
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const stored = localStorage.getItem('cmart_auto_renew_enabled');
+      if (stored !== null) {
+        setAutoRenewEnabled(stored === 'true');
+      }
+    } catch (e) {}
+  }, [isOpen]);
+
+  const handleToggleAutoRenew = (enabled: boolean) => {
+    setAutoRenewEnabled(enabled);
+    try {
+      localStorage.setItem('cmart_auto_renew_enabled', String(enabled));
+      window.dispatchEvent(new Event('cmart_payment_methods_updated'));
+    } catch (e) {}
+    if (enabled) {
+      toast.success('Automatic renewal enabled');
+    } else {
+      toast.warning('Automatic renewal paused. Card will only be used for manual renewal.');
+    }
+  };
 
   // Accordion Section States
   const [openSections, setOpenSections] = useState({
@@ -368,17 +393,32 @@ export function UpdatePaymentMethodPanel({
 
             <div className="relative z-10 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wider bg-white/20 text-white backdrop-blur-md">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  Auto-Renewal Enabled
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wider backdrop-blur-md ${
+                  autoRenewEnabled ? 'bg-white/20 text-white' : 'bg-amber-500/30 text-amber-100 border border-amber-400/30'
+                }`}>
+                  <span className={`w-2 h-2 rounded-full ${autoRenewEnabled ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+                  {autoRenewEnabled ? 'Auto-Renewal Enabled' : 'Auto-Renewal Paused'}
                 </span>
-                <span className="text-xs font-bold text-blue-100 bg-white/10 px-2 py-0.5 rounded-md">
-                  {currentPlanName.toUpperCase()} PLAN
-                </span>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-bold text-blue-100 uppercase tracking-wider">
+                    {autoRenewEnabled ? 'ON' : 'OFF'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleAutoRenew(!autoRenewEnabled)}
+                    className={`w-10 h-5 rounded-full relative transition-colors cursor-pointer shrink-0 ${autoRenewEnabled ? 'bg-emerald-400' : 'bg-white/30'}`}
+                    title={autoRenewEnabled ? 'Click to pause automatic renewal' : 'Click to enable automatic renewal'}
+                  >
+                    <div className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${autoRenewEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
+                  </button>
+                </div>
               </div>
 
               <div>
-                <p className="text-xs text-blue-100 font-medium">Automatic Recurring Charge</p>
+                <p className="text-xs text-blue-100 font-medium">
+                  {autoRenewEnabled ? 'Automatic Recurring Charge' : 'Manual Renewal Mode'}
+                </p>
                 <div className="flex items-baseline gap-2 mt-0.5">
                   <span className="text-2xl font-black tracking-tight">{formatLKR(renewalAmountLKR)}</span>
                   <span className="text-xs text-blue-200 font-medium">/{billingCycle === 'yearly' ? 'year' : 'month'}</span>
@@ -390,8 +430,8 @@ export function UpdatePaymentMethodPanel({
                   <Calendar className="w-3.5 h-3.5 text-blue-200" />
                   Next renewal: <strong className="text-white font-bold">{renewalDate || 'Upcoming Cycle'}</strong>
                 </span>
-                <span className="flex items-center gap-1 text-[11px] text-emerald-300 font-bold">
-                  <ShieldCheck className="w-3.5 h-3.5" /> Direct Debit
+                <span className={`flex items-center gap-1 text-[11px] font-bold ${autoRenewEnabled ? 'text-emerald-300' : 'text-amber-200'}`}>
+                  <ShieldCheck className="w-3.5 h-3.5" /> {autoRenewEnabled ? 'Direct Debit' : 'Manual Pay'}
                 </span>
               </div>
             </div>
@@ -400,26 +440,28 @@ export function UpdatePaymentMethodPanel({
 
           {/* ──────────────── 2. SAVED PAYMENT METHODS ──────────────── */}
           <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 rounded-2xl overflow-hidden shadow-sm">
-            <div className="p-4 flex items-center justify-between bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-700/80">
+            <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-700/80">
               <div className="flex items-center gap-2">
                 <CreditCard className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                 <h3 className="text-sm font-bold text-slate-900 dark:text-white">
                   Connected Payment Methods ({paymentMethods.length})
                 </h3>
               </div>
+            </div>
+
+            <div className="p-4 space-y-3">
+              {/* Add New Card Button: Positioned below Connected Payment Methods text, above cards */}
               {!showAddForm && (
                 <button
                   type="button"
                   onClick={() => setShowAddForm(true)}
-                  className="flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 bg-blue-50 dark:bg-blue-500/10 hover:bg-blue-100 dark:hover:bg-blue-500/20 px-3 py-1.5 rounded-lg transition-all cursor-pointer"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border border-dashed border-blue-400/80 dark:border-blue-500/50 bg-blue-50/50 dark:bg-blue-500/10 hover:bg-blue-100/70 dark:hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 font-bold text-xs sm:text-sm transition-all shadow-xs cursor-pointer active:scale-[0.99]"
                 >
-                  <Plus className="w-3.5 h-3.5" />
-                  Add New Card
+                  <Plus className="w-4 h-4" />
+                  <span>Add New Card</span>
                 </button>
               )}
-            </div>
 
-            <div className="p-4 space-y-3">
               {paymentMethods.length === 0 ? (
                 <div className="text-center py-6 text-slate-500 text-xs">
                   <CreditCard className="w-8 h-8 mx-auto text-slate-300 dark:text-slate-600 mb-2" />
@@ -703,17 +745,44 @@ export function UpdatePaymentMethodPanel({
                           </div>
                         </div>
 
-                        {/* Set as Default Toggle */}
-                        <label className="flex items-center gap-3 pt-2 cursor-pointer select-none">
-                          <input
-                            type="checkbox"
-                            checked={setAsDefault}
-                            onChange={e => setSetAsDefault(e.target.checked)}
-                            className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer"
+                        {/* ── TOGGLE 1: Use as Default Payment Method ── */}
+                        <label className="flex justify-between items-center cursor-pointer p-3.5 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors mt-2">
+                          <div className="pr-3">
+                            <span className="block text-xs font-bold text-slate-900 dark:text-white">Use as default payment method</span>
+                            <span className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-0.5">
+                              Set this card as the primary payment method for transactions
+                            </span>
+                          </div>
+                          <div className={`w-10 h-5 rounded-full relative transition-colors shrink-0 ml-4 ${setAsDefault ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-600'}`}>
+                            <div className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${setAsDefault ? 'translate-x-5' : 'translate-x-0'}`} />
+                          </div>
+                          <input 
+                            type="checkbox" 
+                            className="hidden" 
+                            checked={setAsDefault} 
+                            onChange={(e) => setSetAsDefault(e.target.checked)} 
                           />
-                          <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                            Use as default payment method for recurring renewals
-                          </span>
+                        </label>
+
+                        {/* ── TOGGLE 2: Auto Renewal ── */}
+                        <label className="flex justify-between items-center cursor-pointer p-3.5 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                          <div className="pr-3">
+                            <span className="block text-xs font-bold text-slate-900 dark:text-white">Auto renewal</span>
+                            <span className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-0.5">
+                              {autoRenewEnabled 
+                                ? 'Automatically renew subscription on billing date' 
+                                : 'Disabled — card saved for manual renewal payments only'}
+                            </span>
+                          </div>
+                          <div className={`w-10 h-5 rounded-full relative transition-colors shrink-0 ml-4 ${autoRenewEnabled ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-600'}`}>
+                            <div className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${autoRenewEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
+                          </div>
+                          <input 
+                            type="checkbox" 
+                            className="hidden" 
+                            checked={autoRenewEnabled} 
+                            onChange={(e) => handleToggleAutoRenew(e.target.checked)} 
+                          />
                         </label>
                       </form>
                     ) : (
