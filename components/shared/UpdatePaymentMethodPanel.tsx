@@ -451,7 +451,7 @@ export function UpdatePaymentMethodPanel({
             </div>
 
             <div className="p-4 space-y-3">
-              {/* Add New Card Button: Positioned below Connected Payment Methods text, above cards */}
+              {/* Add Payment Method Button: Positioned below Connected Payment Methods text, above cards */}
               {!showAddForm && (
                 <button
                   type="button"
@@ -459,14 +459,14 @@ export function UpdatePaymentMethodPanel({
                   className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border border-dashed border-blue-400/80 dark:border-blue-500/50 bg-blue-50/50 dark:bg-blue-500/10 hover:bg-blue-100/70 dark:hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 font-bold text-xs sm:text-sm transition-all shadow-xs cursor-pointer active:scale-[0.99]"
                 >
                   <Plus className="w-4 h-4" />
-                  <span>Add New Card</span>
+                  <span>{paymentMethods.length > 0 ? 'Add New Payment Method' : 'Add Payment Method'}</span>
                 </button>
               )}
 
               {paymentMethods.length === 0 ? (
                 <div className="text-center py-6 text-slate-500 text-xs">
                   <CreditCard className="w-8 h-8 mx-auto text-slate-300 dark:text-slate-600 mb-2" />
-                  No payment methods attached yet. Add a card to ensure uninterrupted access.
+                  No payment methods attached yet. Add a payment method to ensure uninterrupted access.
                 </div>
               ) : (
                 paymentMethods.map(method => (
@@ -569,7 +569,7 @@ export function UpdatePaymentMethodPanel({
             >
               <span className="font-bold text-slate-900 dark:text-white flex items-center gap-2 text-sm">
                 <Plus className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                {showAddForm ? 'Hide Add Card Form' : 'Add New Card or Express Payment'}
+                {showAddForm ? 'Hide Payment Form' : (paymentMethods.length > 0 ? 'Add New Payment Method' : 'Add Payment Method')}
               </span>
               {showAddForm ? (
                 <ChevronUp className="w-4 h-4 text-slate-500" />
