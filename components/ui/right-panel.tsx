@@ -9,6 +9,8 @@ interface RightPanelProps {
   onCancel?: () => void;
   onDiscard?: () => void;
   requireConfirmOnClose?: boolean;
+  discardTitle?: string;
+  discardMessage?: string;
   title: string;
   subtitle?: string;
   icon?: React.ElementType;
@@ -44,7 +46,9 @@ function BaseRightPanel({
   onCancel,
   onDiscard,
   requireConfirmOnClose = false,
-}: RightPanelProps & { hasBackdrop?: boolean, requireConfirmOnClose?: boolean }) {
+  discardTitle,
+  discardMessage,
+}: RightPanelProps & { hasBackdrop?: boolean }) {
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
 
   const handleBackdropClick = () => {
@@ -158,16 +162,20 @@ function BaseRightPanel({
 
       <ConfirmDialog
         isOpen={showDiscardConfirm}
-        title="Discard Changes?"
-        message="Are you sure you want to discard your changes? All unsaved inputs will be cleared."
+        title={discardTitle || "Discard Changes?"}
+        message={discardMessage || "Are you sure you want to discard your changes? All unsaved inputs will be cleared."}
         confirmText="Discard"
         cancelText="Keep Editing"
         type="warning"
         onConfirm={() => {
           setShowDiscardConfirm(false);
-          if (onDiscard) onDiscard();
-          if (onCancel) onCancel();
-          else onClose();
+          if (onDiscard) {
+            onDiscard();
+          } else if (onCancel) {
+            onCancel();
+          } else {
+            onClose();
+          }
         }}
         onCancel={() => setShowDiscardConfirm(false)}
       />

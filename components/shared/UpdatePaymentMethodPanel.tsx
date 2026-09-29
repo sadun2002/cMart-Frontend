@@ -358,23 +358,17 @@ export function UpdatePaymentMethodPanel({
   };
 
   const defaultMethod = paymentMethods.find(m => m.isDefault) || paymentMethods[0];
-  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const hasUnsavedChanges = showAddForm && Boolean(cardNumber || cardholderName || expiry || cvc);
 
-  const handleRequestClose = () => {
-    if (hasUnsavedChanges) {
-      setShowDiscardConfirm(true);
-    } else {
-      resetForm();
-      setShowAddForm(false);
-      onClose();
-    }
+  const handleDirectClose = () => {
+    resetForm();
+    setShowAddForm(false);
+    onClose();
   };
 
   const handleDiscardChanges = () => {
     resetForm();
     setShowAddForm(false);
-    setShowDiscardConfirm(false);
     onClose();
   };
 
@@ -384,8 +378,12 @@ export function UpdatePaymentMethodPanel({
     <>
       <MainRightPanel
         isOpen={isOpen}
-        onClose={handleRequestClose}
-        onCancel={handleRequestClose}
+        onClose={handleDirectClose}
+        onCancel={handleDirectClose}
+        onDiscard={handleDiscardChanges}
+        requireConfirmOnClose={hasUnsavedChanges}
+        discardTitle="Discard Changes?"
+        discardMessage="Are you sure you want to discard your changes? All unsaved payment method inputs will be cleared."
         title="Manage Payment Method"
         subtitle="Manage recurring subscription billing & card details"
         icon={CreditCard}
@@ -394,7 +392,6 @@ export function UpdatePaymentMethodPanel({
         isSubmitting={isSubmitting}
         saveText={showAddForm ? "Save Payment Method" : undefined}
         hideFooter={!showAddForm}
-        requireConfirmOnClose={false}
         className="max-w-lg"
       >
         <div className="space-y-6 font-sans pb-8">
@@ -914,17 +911,6 @@ export function UpdatePaymentMethodPanel({
         onCancel={() => setDeleteConfirmDialog({ isOpen: false, methodId: null })}
       />
 
-      {/* Confirmation Dialog for Discarding Unsaved Form Inputs */}
-      <ConfirmDialog
-        isOpen={showDiscardConfirm}
-        title="Discard Changes?"
-        message="Are you sure you want to discard your changes? All unsaved payment method inputs will be cleared."
-        confirmText="Discard"
-        cancelText="Keep Editing"
-        type="warning"
-        onConfirm={handleDiscardChanges}
-        onCancel={() => setShowDiscardConfirm(false)}
-      />
     </>
   );
 }
