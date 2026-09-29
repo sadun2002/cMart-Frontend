@@ -472,13 +472,13 @@ export function UpdatePaymentMethodPanel({
                 paymentMethods.map(method => (
                   <div 
                     key={method.id}
-                    className={`relative p-3.5 rounded-xl border transition-all ${
+                    className={`relative p-4 rounded-2xl border-2 transition-all shadow-xs ${
                       method.isDefault 
-                        ? 'border-blue-500/70 bg-blue-50/40 dark:bg-blue-500/5 shadow-sm'
-                        : 'border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 hover:border-slate-300'
+                        ? 'border-blue-500/80 bg-blue-50/50 dark:bg-blue-950/20 shadow-blue-500/5'
+                        : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-600 shadow-slate-100 dark:shadow-none'
                     }`}
                   >
-                    <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3">
                         {/* Brand Icon Badge */}
                         <div className="w-12 h-9 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 flex items-center justify-center shrink-0 shadow-xs">
@@ -518,27 +518,26 @@ export function UpdatePaymentMethodPanel({
                             <span className="text-sm font-bold text-slate-900 dark:text-white">
                               {method.type === 'card' ? `•••• •••• •••• ${method.last4}` : method.cardholderName}
                             </span>
-                            {method.isDefault && (
-                              <span className="inline-flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-blue-600 text-white shadow-xs">
-                                <Check className="w-3 h-3" /> Default
-                              </span>
-                            )}
                           </div>
                           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                             {method.type === 'card' 
-                              ? `Expires ${method.expiry} • ${method.cardholderName}` 
-                              : `Authorized for recurring renewal • ${method.email || ''}`}
+                              ? `Expires ${method.expiry}` 
+                              : 'Authorized for recurring renewal'}
                           </p>
                         </div>
                       </div>
 
-                      {/* Actions */}
-                      <div className="flex items-center gap-1 shrink-0">
-                        {!method.isDefault && (
+                      {/* Actions & Status Badge - Right Aligned Next to Trash */}
+                      <div className="flex items-center gap-2 shrink-0">
+                        {method.isDefault ? (
+                          <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full bg-blue-600 text-white shadow-xs select-none">
+                            <Check className="w-3.5 h-3.5 stroke-[2.5]" /> Default
+                          </span>
+                        ) : (
                           <button
                             type="button"
                             onClick={() => handleSetDefault(method.id)}
-                            className="text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 px-2.5 py-1.5 rounded-lg hover:bg-slate-200/60 dark:hover:bg-slate-700/60 transition-all cursor-pointer"
+                            className="inline-flex items-center text-xs font-bold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-400 dark:hover:bg-blue-900/30 dark:hover:text-blue-300 dark:hover:border-blue-500 px-3 py-1.5 rounded-full shadow-xs hover:shadow-sm transition-all cursor-pointer"
                             title="Set as Default for Auto-Renewal"
                           >
                             Set Default
@@ -611,7 +610,7 @@ export function UpdatePaymentMethodPanel({
                             : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
                         }`}
                       >
-                        Express Wallets (Apple / Google / PayPal)
+                        Apple / Google / PayPal
                       </button>
                     </div>
 
@@ -777,7 +776,7 @@ export function UpdatePaymentMethodPanel({
                         <button
                           type="button"
                           onClick={() => handleExpressWalletUnavailable('Google')}
-                          className="w-full h-12 flex items-center justify-center gap-2.5 rounded-xl border-2 border-slate-300 dark:border-slate-600 hover:border-slate-400 dark:hover:border-slate-500 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all font-bold text-sm text-slate-800 dark:text-white cursor-pointer shadow-xs active:scale-[0.99]"
+                          className="w-full h-12 flex items-center justify-center gap-2.5 rounded-xl border-2 border-slate-300 dark:border-slate-600 hover:border-slate-800 dark:hover:border-slate-200 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/90 shadow-sm hover:shadow-md transition-all font-bold text-sm text-slate-800 dark:text-white cursor-pointer active:scale-[0.99]"
                         >
                           <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
                             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
