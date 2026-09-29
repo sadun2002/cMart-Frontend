@@ -54,13 +54,19 @@ export default function SubscriptionPage() {
         const stored = localStorage.getItem('cmart_saved_payment_methods');
         if (stored) {
           const list: SavedPaymentMethod[] = JSON.parse(stored);
-          if (Array.isArray(list) && list.length > 0) {
-            const def = list.find(m => m.isDefault) || list[0];
-            setCurrentPaymentMethod(def);
-            return;
+          if (Array.isArray(list)) {
+            const realMethods = list.filter(m => m.id !== 'pm_default_visa');
+            if (realMethods.length > 0) {
+              const def = realMethods.find(m => m.isDefault) || realMethods[0];
+              setCurrentPaymentMethod(def);
+              return;
+            }
           }
         }
-      } catch (e) {}
+        setCurrentPaymentMethod(null);
+      } catch (e) {
+        setCurrentPaymentMethod(null);
+      }
     };
 
     loadPaymentMethod();
@@ -188,7 +194,11 @@ export default function SubscriptionPage() {
                 ? `Your ${currentPlanData.name} plan subscription has expired${subStatus.formattedEndDate ? ` on ${subStatus.formattedEndDate}` : ''}. Renew your plan below to restore access.`
                 : subStatus.isTrial 
                   ? `You are currently on a Free Trial. ${subStatus.daysLeft !== null && subStatus.daysLeft > 0 ? `${subStatus.daysLeft} days remaining` : `${subStatus.hoursLeft} hours remaining`}.`
-                  : `Your next billing date is ${subStatus.formattedEndDate || 'scheduled'} for ${formatLKR(billing === 'yearly' ? currentPlanData.priceYearly / 12 : currentPlanData.priceMonthly)}.`
+                  : subStatus.formattedEndDate
+                    ? `Your next billing date is ${subStatus.formattedEndDate} for ${formatLKR(billing === 'yearly' ? currentPlanData.priceYearly / 12 : currentPlanData.priceMonthly)}.`
+                    : activePlanKey === 'STARTUP'
+                      ? 'You are currently on the Startup Free tier. Upgrade anytime to unlock advanced features.'
+                      : `Your next billing date is scheduled for ${formatLKR(billing === 'yearly' ? currentPlanData.priceYearly / 12 : currentPlanData.priceMonthly)}.`
               }
             </p>
           </div>

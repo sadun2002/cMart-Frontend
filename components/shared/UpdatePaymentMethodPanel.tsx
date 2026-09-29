@@ -29,18 +29,7 @@ export interface SavedPaymentMethod {
 
 const STORAGE_KEY = 'cmart_saved_payment_methods';
 
-const INITIAL_DEFAULT_PAYMENT_METHODS: SavedPaymentMethod[] = [
-  {
-    id: 'pm_default_visa',
-    type: 'card',
-    cardBrand: 'visa',
-    last4: '4242',
-    cardholderName: 'Store Owner',
-    expiry: '12/28',
-    isDefault: true,
-    addedAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
-  }
-];
+const INITIAL_DEFAULT_PAYMENT_METHODS: SavedPaymentMethod[] = [];
 
 interface UpdatePaymentMethodPanelProps {
   isOpen: boolean;
@@ -125,23 +114,26 @@ export function UpdatePaymentMethodPanel({
 
   const [validationError, setValidationError] = useState<{ field: string; message: string } | null>(null);
 
-  // Load from LocalStorage
+  // Load from LocalStorage (Real user methods only)
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setPaymentMethods(parsed);
+        if (Array.isArray(parsed)) {
+          // Remove legacy dummy demo card if present
+          const realMethods = parsed.filter(m => m.id !== 'pm_default_visa');
+          if (realMethods.length !== parsed.length) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(realMethods));
+          }
+          setPaymentMethods(realMethods);
           return;
         }
       }
-      // Initialize with default
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_DEFAULT_PAYMENT_METHODS));
-      setPaymentMethods(INITIAL_DEFAULT_PAYMENT_METHODS);
+      setPaymentMethods([]);
     } catch (e) {
-      setPaymentMethods(INITIAL_DEFAULT_PAYMENT_METHODS);
+      setPaymentMethods([]);
     }
   }, [isOpen]);
 
@@ -366,13 +358,34 @@ export function UpdatePaymentMethodPanel({
   };
 
   const defaultMethod = paymentMethods.find(m => m.isDefault) || paymentMethods[0];
-  const hasUnsavedChanges = Boolean(cardNumber || cardholderName || expiry || cvc);
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+  const hasUnsavedChanges = showAddForm && Boolean(cardNumber || cardholderName || expiry || cvc);
+
+  const handleRequestClose = () => {
+    if (hasUnsavedChanges) {
+      setShowDiscardConfirm(true);
+    } else {
+      resetForm();
+      setShowAddForm(false);
+      onClose();
+    }
+  };
+
+  const handleDiscardChanges = () => {
+    resetForm();
+    setShowAddForm(false);
+    setShowDiscardConfirm(false);
+    onClose();
+  };
+
+  const hasPaymentMethods = paymentMethods.length > 0;
 
   return (
     <>
       <MainRightPanel
         isOpen={isOpen}
-        onClose={onClose}
+        onClose={handleRequestClose}
+        onCancel={handleRequestClose}
         title="Manage Payment Method"
         subtitle="Manage recurring subscription billing & card details"
         icon={CreditCard}
@@ -381,7 +394,7 @@ export function UpdatePaymentMethodPanel({
         isSubmitting={isSubmitting}
         saveText={showAddForm ? "Save Payment Method" : undefined}
         hideFooter={!showAddForm}
-        requireConfirmOnClose={hasUnsavedChanges}
+        requireConfirmOnClose={false}
         className="max-w-lg"
       >
         <div className="space-y-6 font-sans pb-8">
@@ -395,30 +408,43 @@ export function UpdatePaymentMethodPanel({
             <div className="relative z-10 space-y-3">
               <div className="flex items-center justify-between">
                 <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wider backdrop-blur-md ${
-                  autoRenewEnabled ? 'bg-white/20 text-white' : 'bg-amber-500/30 text-amber-100 border border-amber-400/30'
+                  hasPaymentMethods 
+                    ? (autoRenewEnabled ? 'bg-white/20 text-white' : 'bg-amber-500/30 text-amber-100 border border-amber-400/30')
+                    : 'bg-white/15 text-blue-100 border border-white/20'
                 }`}>
-                  <span className={`w-2 h-2 rounded-full ${autoRenewEnabled ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
-                  {autoRenewEnabled ? 'Auto-Renewal Enabled' : 'Auto-Renewal Paused'}
+                  <span className={`w-2 h-2 rounded-full ${hasPaymentMethods ? (autoRenewEnabled ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400') : 'bg-slate-300'}`} />
+                  {hasPaymentMethods 
+                    ? (autoRenewEnabled ? 'Auto-Renewal Enabled' : 'Auto-Renewal Paused')
+                    : 'No Payment Method'}
                 </span>
 
                 <div className="flex items-center gap-2">
                   <span className="text-[11px] font-bold text-blue-100 uppercase tracking-wider">
-                    {autoRenewEnabled ? 'ON' : 'OFF'}
+                    {hasPaymentMethods && autoRenewEnabled ? 'ON' : 'OFF'}
                   </span>
                   <button
                     type="button"
-                    onClick={() => handleToggleAutoRenew(!autoRenewEnabled)}
-                    className={`w-10 h-5 rounded-full relative transition-colors cursor-pointer shrink-0 ${autoRenewEnabled ? 'bg-emerald-400' : 'bg-white/30'}`}
-                    title={autoRenewEnabled ? 'Click to pause automatic renewal' : 'Click to enable automatic renewal'}
+                    onClick={() => {
+                      if (!hasPaymentMethods) {
+                        toast.info('Please add a payment method below before enabling automatic renewals.');
+                        setShowAddForm(true);
+                        return;
+                      }
+                      handleToggleAutoRenew(!autoRenewEnabled);
+                    }}
+                    className={`w-10 h-5 rounded-full relative transition-colors cursor-pointer shrink-0 ${hasPaymentMethods && autoRenewEnabled ? 'bg-emerald-400' : 'bg-white/30'}`}
+                    title={hasPaymentMethods ? (autoRenewEnabled ? 'Click to pause automatic renewal' : 'Click to enable automatic renewal') : 'Add a payment method to enable auto-renewal'}
                   >
-                    <div className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${autoRenewEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
+                    <div className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${hasPaymentMethods && autoRenewEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
                   </button>
                 </div>
               </div>
 
               <div>
                 <p className="text-xs text-blue-100 font-medium">
-                  {autoRenewEnabled ? 'Automatic Recurring Charge' : 'Manual Renewal Mode'}
+                  {hasPaymentMethods 
+                    ? (autoRenewEnabled ? 'Automatic Recurring Charge' : 'Manual Renewal Mode')
+                    : 'Manual Renewal Mode (No linked payment method)'}
                 </p>
                 <div className="flex items-baseline gap-2 mt-0.5">
                   <span className="text-2xl font-black tracking-tight">{formatLKR(renewalAmountLKR)}</span>
@@ -429,10 +455,10 @@ export function UpdatePaymentMethodPanel({
               <div className="pt-2 border-t border-white/15 flex items-center justify-between text-xs text-blue-100">
                 <span className="flex items-center gap-1.5 font-medium">
                   <Calendar className="w-3.5 h-3.5 text-blue-200" />
-                  Next renewal: <strong className="text-white font-bold">{renewalDate || 'Upcoming Cycle'}</strong>
+                  Next renewal: <strong className="text-white font-bold">{renewalDate || 'Pending Setup'}</strong>
                 </span>
-                <span className={`flex items-center gap-1 text-[11px] font-bold ${autoRenewEnabled ? 'text-emerald-300' : 'text-amber-200'}`}>
-                  <ShieldCheck className="w-3.5 h-3.5" /> {autoRenewEnabled ? 'Direct Debit' : 'Manual Pay'}
+                <span className={`flex items-center gap-1 text-[11px] font-bold ${hasPaymentMethods && autoRenewEnabled ? 'text-emerald-300' : 'text-amber-200'}`}>
+                  <ShieldCheck className="w-3.5 h-3.5" /> {hasPaymentMethods && autoRenewEnabled ? 'Direct Debit' : 'Manual Pay'}
                 </span>
               </div>
             </div>
@@ -886,6 +912,18 @@ export function UpdatePaymentMethodPanel({
         type="danger"
         onConfirm={handleDeleteMethod}
         onCancel={() => setDeleteConfirmDialog({ isOpen: false, methodId: null })}
+      />
+
+      {/* Confirmation Dialog for Discarding Unsaved Form Inputs */}
+      <ConfirmDialog
+        isOpen={showDiscardConfirm}
+        title="Discard Changes?"
+        message="Are you sure you want to discard your changes? All unsaved payment method inputs will be cleared."
+        confirmText="Discard"
+        cancelText="Keep Editing"
+        type="warning"
+        onConfirm={handleDiscardChanges}
+        onCancel={() => setShowDiscardConfirm(false)}
       />
     </>
   );
