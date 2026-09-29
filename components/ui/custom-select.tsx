@@ -26,7 +26,8 @@ export function CustomSelect({
   locked,
   onLockedClick,
   id,
-  icon: Icon
+  icon: Icon,
+  buttonClassName,
 }: { 
   value: string; 
   onChange: (val: string) => void; 
@@ -39,6 +40,7 @@ export function CustomSelect({
   onLockedClick?: () => void;
   id?: string;
   icon?: React.ElementType | React.ReactNode;
+  buttonClassName?: string;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -254,7 +256,7 @@ export function CustomSelect({
           setIsOpen(!isOpen);
         }}
         disabled={disabled}
-        className={`w-full flex justify-between items-center px-4 h-11 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl font-medium text-sm text-slate-900 dark:text-white transition-all outline-none ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${locked ? 'bg-slate-100 dark:bg-slate-800/80 cursor-pointer' : ''}`}
+        className={buttonClassName || `w-full flex justify-between items-center px-4 h-11 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl font-medium text-sm text-slate-900 dark:text-white transition-all outline-none ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${locked ? 'bg-slate-100 dark:bg-slate-800/80 cursor-pointer' : ''}`}
       >
         {options.length === 0 && actionButton && !locked ? (
           <span className="text-blue-600 dark:text-blue-400 font-bold flex items-center gap-2">

@@ -13,6 +13,7 @@ import { z } from 'zod';
 import api from '@/lib/api';
 import { validatePassword, passwordZodSchema } from '@/lib/password-validator';
 import { PasswordRequirements } from '@/components/ui/password-requirements';
+import { CustomSelect } from '@/components/ui/custom-select';
 
 const step1Schema = z
   .object({
@@ -101,18 +102,11 @@ export default function RegisterPage() {
   const [suggestedSubdomains, setSuggestedSubdomains] = useState<string[]>([]);
   const [hasManuallyEditedSubdomain, setHasManuallyEditedSubdomain] = useState(false);
   const subdomainTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [hasEmailConflict, setHasEmailConflict] = useState(false);
+  const emailInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsDropdownOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
       if (subdomainTimeoutRef.current) clearTimeout(subdomainTimeoutRef.current);
     };
   }, []);
@@ -276,6 +270,25 @@ export default function RegisterPage() {
     } catch (err: any) {
       const msg = err.response?.data?.message || err.message || 'Registration failed';
       const errorMessage = Array.isArray(msg) ? msg[0] : msg;
+
+      const isEmailConflict = typeof errorMessage === 'string' && (
+        errorMessage.toLowerCase().includes('email already') ||
+        errorMessage.toLowerCase().includes('email exists') ||
+        err.response?.status === 409
+      );
+
+      if (isEmailConflict) {
+        setHasEmailConflict(true);
+        setStep(1);
+        step2.clearErrors('root');
+        toast.error('Email already registered. Please log in to your account or change email.');
+        setTimeout(() => {
+          emailInputRef.current?.focus();
+          emailInputRef.current?.select();
+        }, 150);
+        return;
+      }
+
       step2.setError('root', { message: errorMessage });
       toast.error(errorMessage);
     }
@@ -424,12 +437,29 @@ export default function RegisterPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Email address *</label>
-                  <input
-                    type="email"
-                    {...step1.register('email')}
-                    placeholder="john@example.com"
-                    className="w-full px-4 py-3 border-2 border-gray-200 dark:border-slate-700 rounded-xl text-sm bg-white dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:border-blue-500 dark:focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
-                  />
+                  {(() => {
+                    const { ref: emailHookRef, ...emailRest } = step1.register('email');
+                    return (
+                      <input
+                        type="email"
+                        {...emailRest}
+                        ref={(e) => {
+                          emailHookRef(e);
+                          emailInputRef.current = e;
+                        }}
+                        onChange={(e) => {
+                          emailRest.onChange(e);
+                          if (hasEmailConflict) setHasEmailConflict(false);
+                        }}
+                        placeholder="john@example.com"
+                        className={`w-full px-4 py-3 border-2 rounded-xl text-sm bg-white dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:ring-4 transition-all ${
+                          hasEmailConflict || step1.formState.errors.email
+                            ? 'border-red-500 dark:border-red-500 focus:border-red-500 dark:focus:border-red-500 focus:ring-red-500/10'
+                            : 'border-gray-200 dark:border-slate-700 focus:border-blue-500 dark:focus:border-blue-500 focus:ring-blue-500/10'
+                        }`}
+                      />
+                    );
+                  })()}
                   {step1.formState.errors.email && (
                     <p className="text-red-500 dark:text-red-400 text-xs mt-1.5">{step1.formState.errors.email.message}</p>
                   )}
@@ -467,8 +497,6 @@ export default function RegisterPage() {
                   {step1.formState.errors.password && (
                     <p className="text-red-500 dark:text-red-400 text-xs mt-1.5">{step1.formState.errors.password.message}</p>
                   )}
-                  {/* Live Password Requirements & Strength Checklist */}
-                  <PasswordRequirements password={step1.watch('password') || ''} showWhenEmpty={false} />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Confirm password *</label>
@@ -492,6 +520,8 @@ export default function RegisterPage() {
                     <p className="text-red-500 dark:text-red-400 text-xs mt-1.5">{step1.formState.errors.confirmPassword.message}</p>
                   )}
                 </div>
+                {/* Live Password Requirements & Strength Checklist — Positioned BELOW Confirm Password */}
+                <PasswordRequirements password={step1.watch('password') || ''} showWhenEmpty={false} />
                 <button
                   type="button"
                   onClick={handleNext}
@@ -527,37 +557,20 @@ export default function RegisterPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Business type *</label>
-                  <div className="relative" ref={dropdownRef}>
-                    <button
-                      type="button"
-                      onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                      className="w-full px-4 py-3 border-2 border-gray-200 dark:border-slate-700 rounded-xl text-sm bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all flex items-center justify-between"
-                    >
-                      <span className={step2.watch('businessType') ? '' : 'text-gray-400 dark:text-slate-500'}>
-                        {step2.watch('businessType') || 'Select your business type'}
-                      </span>
-                      <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} />
-                    </button>
-                    
-                    {isDropdownOpen && (
-                      <div className="absolute z-50 w-full mt-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-lg max-h-60 overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
-                        {BUSINESS_TYPES.map(type => (
-                          <button
-                            key={type}
-                            type="button"
-                            onClick={() => {
-                              step2.setValue('businessType', type);
-                              step2.trigger('businessType');
-                              setIsDropdownOpen(false);
-                            }}
-                            className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-slate-700/50 text-gray-700 dark:text-slate-300 transition-colors first:rounded-t-xl last:rounded-b-xl"
-                          >
-                            {type}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  <CustomSelect
+                    value={step2.watch('businessType')}
+                    onChange={(val) => {
+                      step2.setValue('businessType', val);
+                      step2.trigger('businessType');
+                    }}
+                    options={BUSINESS_TYPES.map(type => ({ label: type, value: type }))}
+                    label="Select your business type"
+                    buttonClassName={`w-full flex justify-between items-center px-4 py-3 border-2 rounded-xl text-sm bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:outline-none transition-all font-medium h-[48px] ${
+                      step2.formState.errors.businessType 
+                        ? 'border-red-500 dark:border-red-500 focus:border-red-500 dark:focus:border-red-500 focus:ring-4 focus:ring-red-500/10'
+                        : 'border-gray-200 dark:border-slate-700 focus:border-blue-500 dark:focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10'
+                    }`}
+                  />
                   {step2.formState.errors.businessType && (
                     <p className="text-red-500 dark:text-red-400 text-xs mt-1.5">{step2.formState.errors.businessType.message}</p>
                   )}

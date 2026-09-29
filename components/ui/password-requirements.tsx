@@ -22,7 +22,7 @@ export function PasswordRequirements({
   const { rules, score, strength, strengthColor, strengthLabel } = validatePassword(password);
 
   return (
-    <div className={`mt-2.5 p-3 rounded-xl bg-slate-50 dark:bg-slate-850/60 border border-slate-200/80 dark:border-slate-800 text-xs transition-all ${className}`}>
+    <div className={`mt-2.5 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/80 text-xs transition-all ${className}`}>
       {/* Strength indicator bar */}
       <div className="mb-2.5">
         <div className="flex items-center justify-between mb-1.5">
