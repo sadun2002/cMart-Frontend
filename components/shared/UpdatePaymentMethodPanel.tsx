@@ -331,36 +331,12 @@ export function UpdatePaymentMethodPanel({
     }
   };
 
-  // Link Express Wallet (Apple Pay / Google Pay / PayPal)
-  const handleConnectExpressWallet = async (type: 'apple_pay' | 'google_pay' | 'paypal') => {
-    setIsSubmitting(true);
-    try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const label = type === 'apple_pay' ? 'Apple Pay' : type === 'google_pay' ? 'Google Pay' : 'PayPal';
-      const email = type === 'paypal' ? 'business@paypal.com' : `${type}@wallet.account`;
-
-      const newMethod: SavedPaymentMethod = {
-        id: `pm_express_${Date.now()}`,
-        type,
-        isDefault: true,
-        email,
-        cardholderName: label,
-        addedAt: new Date().toISOString()
-      };
-
-      const updated = paymentMethods.map(m => ({ ...m, isDefault: false }));
-      updated.unshift(newMethod);
-      persistMethods(updated);
-
-      toast.success(`${label} connected as default auto-renewal method!`);
-      if (onSuccess) onSuccess(newMethod);
-      onClose();
-    } catch (e) {
-      toast.error('Failed to link express wallet');
-    } finally {
-      setIsSubmitting(false);
-    }
+  // Handle Express Wallet click (Currently Inactive / Coming Soon)
+  const handleExpressWalletUnavailable = (provider: 'Google' | 'Apple' | 'PayPal') => {
+    toast.info(`${provider} integration is coming soon!`, {
+      description: 'Digital wallet integrations are currently not enabled. Payment is only supported via Credit or Debit cards.',
+      duration: 4500
+    });
   };
 
   // Set Default Method
@@ -520,8 +496,8 @@ export function UpdatePaymentMethodPanel({
                               <CreditCard className="w-5 h-5 text-slate-600 dark:text-slate-300" />
                             )
                           ) : method.type === 'apple_pay' ? (
-                            <svg className="w-4 h-4 fill-current text-black dark:text-white" viewBox="0 0 170 170">
-                              <path d="M150.37 130.25c-2.45 5.66-5.35 10.87-8.71 15.66-4.58 6.53-8.33 11.05-11.22 13.56-4.48 4.12-9.28 6.23-14.42 6.35-3.69 0-8.14-1.05-13.32-3.18-5.19-2.12-9.97-3.17-14.34-3.17-4.58 0-9.49 1.05-14.75 3.17-5.26 2.13-9.5 3.24-12.74 3.35-4.35.13-9.16-1.9-14.42-6.08-3.7-3.04-7.69-7.85-11.96-14.42-5.46-8.36-9.75-18.06-12.87-29.09-3.13-11.04-4.69-21.75-4.69-32.14 0-14.68 3.8-26.68 11.41-36 7.6-9.32 17.06-14.15 28.37-14.5 4.9.11 10.38 1.43 16.44 3.96 6.06 2.53 10.28 3.88 12.66 4.07 1.83-.2 5.92-1.52 12.28-3.96 6.36-2.44 11.92-3.56 16.69-3.37 12.63.77 22.86 5.48 30.7 14.14-11.03 6.64-16.36 15.8-15.98 27.5.38 9.38 4.09 17.26 11.13 23.64 7.04 6.38 15.42 9.94 25.13 10.67-2.22 6.64-4.87 13.2-7.95 19.68zM119.22 33.64c0-7.39 2.65-14.28 7.95-20.67 5.3-6.39 11.97-10.49 20.02-12.3 0 1.25.07 2.22.21 2.91-.14 7.39-2.83 14.24-8.08 20.55-5.25 6.3-12.01 10.37-20.1 12.2-.21-.73-.32-1.63-.32-2.69z" />
+                            <svg className="w-4 h-4 fill-current text-black dark:text-white" viewBox="0 0 24 24">
+                              <path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701" />
                             </svg>
                           ) : method.type === 'google_pay' ? (
                             <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
@@ -531,9 +507,8 @@ export function UpdatePaymentMethodPanel({
                               <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
                             </svg>
                           ) : (
-                            <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none">
-                              <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944 3.72a.78.78 0 0 1 .77-.655h6.634c3.42 0 5.617 1.705 5.176 5.234-.413 3.303-2.584 5.127-5.597 5.127H9.274a.78.78 0 0 0-.77.656l-1.428 7.255z" fill="#003087"/>
-                              <path d="M19.345 7.828c-.413 3.303-2.584 5.127-5.597 5.127h-2.653a.78.78 0 0 0-.77.656l-1.077 5.474h3.693a.641.641 0 0 0 .633-.538l.68-3.456a.78.78 0 0 1 .77-.655h1.22c2.723 0 4.856-1.107 5.474-4.254.26-1.32.086-2.355-.373-3.084-.31-.491-.776-.879-1.37-1.144-.226.544-.45 1.13-.69 1.874z" fill="#0079C1"/>
+                            <svg className="w-4 h-4 fill-current text-[#003087]" viewBox="0 0 24 24">
+                              <path d="M15.607 4.653H8.941L6.645 19.251H1.82L4.862 0h7.995c3.754 0 6.375 2.294 6.473 5.513-.648-.478-2.105-.86-3.722-.86m6.57 5.546c0 3.41-3.01 6.853-6.958 6.853h-2.493L11.595 24H6.74l1.845-11.538h3.592c4.208 0 7.346-3.634 7.153-6.949a5.24 5.24 0 0 1 2.848 4.686M9.653 5.546h6.408c.907 0 1.942.222 2.363.541-.195 2.741-2.655 5.483-6.441 5.483H8.714Z" />
                             </svg>
                           )}
                         </div>
@@ -789,55 +764,52 @@ export function UpdatePaymentMethodPanel({
                     ) : (
                       /* Express Wallets */
                       <div className="space-y-3 py-2">
-                        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                          Authorize one-touch recurring billing via your preferred digital wallet:
-                        </p>
+                        <div className="flex items-center justify-between pb-1">
+                          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                            Digital wallet payment options:
+                          </p>
+                          <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+                            Coming Soon
+                          </span>
+                        </div>
 
                         {/* Google Pay */}
                         <button
                           type="button"
-                          onClick={() => handleConnectExpressWallet('google_pay')}
-                          disabled={isSubmitting}
-                          className="w-full h-12 flex items-center justify-center gap-2 rounded-xl border-2 border-slate-300 dark:border-slate-600 hover:border-slate-400 dark:hover:border-slate-500 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all font-bold text-sm text-slate-800 dark:text-white cursor-pointer shadow-xs active:scale-[0.99]"
+                          onClick={() => handleExpressWalletUnavailable('Google')}
+                          className="w-full h-12 flex items-center justify-center gap-2.5 rounded-xl border-2 border-slate-300 dark:border-slate-600 hover:border-slate-400 dark:hover:border-slate-500 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all font-bold text-sm text-slate-800 dark:text-white cursor-pointer shadow-xs active:scale-[0.99]"
                         >
-                          <svg className="h-7 w-auto dark:contrast-125 dark:brightness-110" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
-                            <g transform="translate(1.4065934065934016 1.4065934065934016) scale(2.81 2.81)">
-                              <path d="M 42.54 44.553 v 10.459 h -3.374 V 29.145 h 8.772 c 2.137 0 4.161 0.787 5.736 2.249 c 1.575 1.35 2.362 3.374 2.362 5.511 s -0.787 4.049 -2.362 5.511 c -1.575 1.462 -3.486 2.249 -5.736 2.249 L 42.54 44.553 L 42.54 44.553 z M 42.54 32.294 v 8.997 h 5.623 c 1.237 0 2.474 -0.45 3.261 -1.35 c 1.799 -1.687 1.799 -4.499 0.112 -6.186 l -0.112 -0.112 c -0.9 -0.9 -2.024 -1.462 -3.261 -1.35 L 42.54 32.294 L 42.54 32.294 z" style={{fill: "rgb(95,99,104)"}} />
-                              <path d="M 63.796 36.793 c 2.474 0 4.386 0.675 5.848 2.024 c 1.462 1.35 2.137 3.149 2.137 5.398 v 10.797 h -3.149 v -2.474 h -0.112 c -1.35 2.024 -3.261 3.037 -5.511 3.037 c -1.912 0 -3.599 -0.562 -4.948 -1.687 c -1.237 -1.125 -2.024 -2.699 -2.024 -4.386 c 0 -1.799 0.675 -3.261 2.024 -4.386 c 1.35 -1.125 3.261 -1.575 5.511 -1.575 c 2.024 0 3.599 0.337 4.836 1.125 v -0.787 c 0 -1.125 -0.45 -2.249 -1.35 -2.924 c -0.9 -0.787 -2.024 -1.237 -3.261 -1.237 c -1.912 0 -3.374 0.787 -4.386 2.362 l -2.924 -1.799 C 58.285 37.918 60.647 36.793 63.796 36.793 z M 59.522 49.614 c 0 0.9 0.45 1.687 1.125 2.137 c 0.787 0.562 1.687 0.9 2.587 0.9 c 1.35 0 2.699 -0.562 3.711 -1.575 c 1.125 -1.012 1.687 -2.249 1.687 -3.599 c -1.012 -0.787 -2.474 -1.237 -4.386 -1.237 c -1.35 0 -2.474 0.337 -3.374 1.012 C 59.972 47.815 59.522 48.602 59.522 49.614 z" style={{fill: "rgb(95,99,104)"}} />
-                              <path d="M 90 37.355 l -11.134 25.53 h -3.374 L 79.653 54 l -7.31 -16.532 h 3.599 l 5.286 12.709 h 0.112 l 5.173 -12.709 H 90 V 37.355 z" style={{fill: "rgb(95,99,104)"}} />
-                              <path d="M 29.157 42.304 c 0 -1.012 -0.112 -2.024 -0.225 -3.037 H 14.873 v 5.736 h 7.985 c -0.337 1.799 -1.35 3.486 -2.924 4.499 v 3.711 h 4.836 C 27.582 50.626 29.157 46.802 29.157 42.304 z" style={{fill: "rgb(66,133,244)"}} />
-                              <path d="M 14.873 56.812 c 4.049 0 7.423 -1.35 9.897 -3.599 l -4.836 -3.711 c -1.35 0.9 -3.037 1.462 -5.061 1.462 c -3.824 0 -7.198 -2.587 -8.322 -6.186 H 1.603 v 3.824 C 4.189 53.663 9.25 56.812 14.873 56.812 z" style={{fill: "rgb(52,168,83)"}} />
-                              <path d="M 6.551 44.778 c -0.675 -1.799 -0.675 -3.824 0 -5.736 v -3.824 H 1.603 c -2.137 4.161 -2.137 9.11 0 13.383 L 6.551 44.778 z" style={{fill: "rgb(251,188,4)"}} />
-                              <path d="M 14.873 32.969 c 2.137 0 4.161 0.787 5.736 2.249 l 0 0 l 4.274 -4.274 c -2.699 -2.474 -6.298 -3.936 -9.897 -3.824 c -5.623 0 -10.797 3.149 -13.271 8.21 l 4.948 3.824 C 7.676 35.556 11.05 32.969 14.873 32.969 z" style={{fill: "rgb(234,67,53)"}} />
-                            </g>
+                          <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
+                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
                           </svg>
+                          <span className="font-bold text-sm tracking-normal">Pay with Google</span>
                         </button>
 
                         {/* Apple Pay */}
                         <button
                           type="button"
-                          onClick={() => handleConnectExpressWallet('apple_pay')}
-                          disabled={isSubmitting}
-                          className="w-full h-12 flex items-center justify-center gap-2.5 rounded-xl bg-black text-white hover:bg-neutral-800 transition-all font-bold text-sm cursor-pointer shadow-xs active:scale-[0.99]"
+                          onClick={() => handleExpressWalletUnavailable('Apple')}
+                          className="w-full h-12 flex items-center justify-center gap-2.5 rounded-xl border-2 border-black dark:border-slate-700 bg-black text-white hover:bg-neutral-800 transition-all font-bold text-sm cursor-pointer shadow-xs active:scale-[0.99]"
                         >
-                          <svg className="w-5 h-5 fill-current shrink-0" viewBox="0 0 170 170">
-                            <path d="M150.37 130.25c-2.45 5.66-5.35 10.87-8.71 15.66-4.58 6.53-8.33 11.05-11.22 13.56-4.48 4.12-9.28 6.23-14.42 6.35-3.69 0-8.14-1.05-13.32-3.18-5.19-2.12-9.97-3.17-14.34-3.17-4.58 0-9.49 1.05-14.75 3.17-5.26 2.13-9.5 3.24-12.74 3.35-4.35.13-9.16-1.9-14.42-6.08-3.7-3.04-7.69-7.85-11.96-14.42-5.46-8.36-9.75-18.06-12.87-29.09-3.13-11.04-4.69-21.75-4.69-32.14 0-14.68 3.8-26.68 11.41-36 7.6-9.32 17.06-14.15 28.37-14.5 4.9.11 10.38 1.43 16.44 3.96 6.06 2.53 10.28 3.88 12.66 4.07 1.83-.2 5.92-1.52 12.28-3.96 6.36-2.44 11.92-3.56 16.69-3.37 12.63.77 22.86 5.48 30.7 14.14-11.03 6.64-16.36 15.8-15.98 27.5.38 9.38 4.09 17.26 11.13 23.64 7.04 6.38 15.42 9.94 25.13 10.67-2.22 6.64-4.87 13.2-7.95 19.68zM119.22 33.64c0-7.39 2.65-14.28 7.95-20.67 5.3-6.39 11.97-10.49 20.02-12.3 0 1.25.07 2.22.21 2.91-.14 7.39-2.83 14.24-8.08 20.55-5.25 6.3-12.01 10.37-20.1 12.2-.21-.73-.32-1.63-.32-2.69z" />
+                          <svg className="w-5 h-5 fill-current text-white shrink-0" viewBox="0 0 24 24">
+                            <path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701" />
                           </svg>
-                          <span className="font-bold text-sm tracking-wide">Pay with Apple Pay</span>
+                          <span className="font-bold text-sm tracking-normal">Pay with Apple</span>
                         </button>
 
                         {/* PayPal */}
                         <button
                           type="button"
-                          onClick={() => handleConnectExpressWallet('paypal')}
-                          disabled={isSubmitting}
-                          className="w-full h-12 flex items-center justify-center gap-2.5 rounded-xl bg-[#FFC439] hover:bg-[#F4BB33] transition-all font-extrabold text-sm text-[#003087] cursor-pointer shadow-xs active:scale-[0.99]"
+                          onClick={() => handleExpressWalletUnavailable('PayPal')}
+                          className="w-full h-12 flex items-center justify-center gap-2.5 rounded-xl border-2 border-[#FFC439] hover:border-[#F4BB33] bg-[#FFC439] hover:bg-[#F4BB33] transition-all font-bold text-sm text-[#003087] cursor-pointer shadow-xs active:scale-[0.99]"
                         >
-                          <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none">
-                            <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944 3.72a.78.78 0 0 1 .77-.655h6.634c3.42 0 5.617 1.705 5.176 5.234-.413 3.303-2.584 5.127-5.597 5.127H9.274a.78.78 0 0 0-.77.656l-1.428 7.255z" fill="#003087"/>
-                            <path d="M19.345 7.828c-.413 3.303-2.584 5.127-5.597 5.127h-2.653a.78.78 0 0 0-.77.656l-1.077 5.474h3.693a.641.641 0 0 0 .633-.538l.68-3.456a.78.78 0 0 1 .77-.655h1.22c2.723 0 4.856-1.107 5.474-4.254.26-1.32.086-2.355-.373-3.084-.31-.491-.776-.879-1.37-1.144-.226.544-.45 1.13-.69 1.874z" fill="#0079C1"/>
+                          <svg className="w-5 h-5 fill-current text-[#003087] shrink-0" viewBox="0 0 24 24">
+                            <path d="M15.607 4.653H8.941L6.645 19.251H1.82L4.862 0h7.995c3.754 0 6.375 2.294 6.473 5.513-.648-.478-2.105-.86-3.722-.86m6.57 5.546c0 3.41-3.01 6.853-6.958 6.853h-2.493L11.595 24H6.74l1.845-11.538h3.592c4.208 0 7.346-3.634 7.153-6.949a5.24 5.24 0 0 1 2.848 4.686M9.653 5.546h6.408c.907 0 1.942.222 2.363.541-.195 2.741-2.655 5.483-6.441 5.483H8.714Z" />
                           </svg>
-                          <span>PayPal Auto-Billing</span>
+                          <span className="font-bold text-sm tracking-normal">Pay with PayPal</span>
                         </button>
                       </div>
                     )}
