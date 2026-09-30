@@ -9,7 +9,7 @@ import {
   CalendarDays, Building2, Check, AlertTriangle, Info, Clock, 
   CheckCircle2, ArrowRight, Truck, ShieldAlert, FileText, Sparkles, UserCircle, Lock,
   Barcode, Tag, CircleDollarSign, Copy, Calendar, Users, Plus, Circle,
-  TrendingDown, TrendingUp, Star, BarChart3
+  TrendingDown, TrendingUp, Star, BarChart3, Edit2, Trash2
 } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -900,6 +900,7 @@ export default function InventoryPage() {
   // Slide-out Panel State
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [isAddProductPanelOpen, setIsAddProductPanelOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<any>(null);
   const [openSections, setOpenSections] = useState<{ [key: string]: boolean }>({
     action: true,
     quantity: false,
@@ -2027,100 +2028,183 @@ export default function InventoryPage() {
               />
             </div>
           ) : viewMode === 'list' ? (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden flex flex-col min-h-[400px]">
-              <div className="flex-1 overflow-x-auto">
-                <div className="min-w-max h-full flex flex-col">
-                  <div className="grid grid-cols-[300px_120px_100px_120px_120px_120px_120px] gap-4 h-16 px-5 items-center border-b border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/50 text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0">
-                    <div>Product</div>
-                    <div className="text-right">Available</div>
-                    <div className="text-right">Reserved</div>
-                    <div className="text-right">Reorder Lvl</div>
-                    <div className="text-right">Cost (Rs)</div>
-                    <div className="text-right">Selling (Rs)</div>
-                    <div className="text-center">Status</div>
-                  </div>
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden flex flex-col min-h-[400px] w-full">
+              {/* Table Header */}
+              <div className="grid grid-cols-[minmax(240px,2fr)_minmax(140px,1.2fr)_minmax(130px,1fr)_minmax(130px,1fr)_110px] gap-4 h-14 px-5 items-center border-b border-slate-200 dark:border-slate-800 bg-slate-50/75 dark:bg-slate-900/60 text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0">
+                <div>Product & Category</div>
+                <div>Identifiers</div>
+                <div>Stock & Status</div>
+                <div>Pricing & Valuation</div>
+                <div className="text-right pr-2">Action</div>
+              </div>
 
-                  <div className="flex-1 overflow-y-auto no-scrollbar">
-                    {filteredProducts.map(p => {
-                        const stockVal = Number(p.stock ?? p.stockQuantity ?? 0);
-                        const minVal = Number(p.minStock ?? p.lowStockLevel ?? 10);
-                        const isExpanded = expandedRowId === p.id;
-                        const pImg = p.images?.[0]?.url || (typeof p.images?.[0] === 'string' ? p.images[0] : null);
+              {/* Table Body */}
+              <div className="flex-1 flex flex-col divide-y divide-slate-100 dark:divide-slate-800/60">
+                {filteredProducts.map(p => {
+                  const stockVal = Number(p.stock ?? p.stockQuantity ?? 0);
+                  const minVal = Number(p.minStock ?? p.lowStockLevel ?? 10);
+                  const isExpanded = expandedRowId === p.id;
+                  const pImg = p.images?.[0]?.url || (typeof p.images?.[0] === 'string' ? p.images[0] : null);
+                  const catName = getCategoryName(p.categoryId);
 
-                        return (
-                          <div 
-                            key={p.id} 
-                            id={`inventory-row-${p.id}`}
-                            className="border-b border-slate-100 dark:border-slate-800/60 flex flex-col group scroll-mt-20"
-                          >
-                            <div 
-                              onClick={() => setExpandedRowId(prev => prev === p.id ? null : p.id)}
-                              className="grid grid-cols-[300px_120px_100px_120px_120px_120px_120px] gap-4 p-5 items-center hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors cursor-pointer"
-                            >
-                              <div className="flex items-center gap-3 min-w-0">
-                                <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 overflow-hidden border border-slate-200 dark:border-slate-700">
-                                  {pImg ? (
-                                    <img src={pImg} alt="" className="w-full h-full object-cover" />
-                                  ) : (
-                                    <Package className="w-5 h-5 text-slate-400" />
-                                  )}
-                                </div>
-                                <div className="min-w-0 flex flex-col">
-                                  <span className="font-bold text-slate-900 dark:text-white truncate">{p.name}</span>
-                                  <span className="text-xs text-slate-500 truncate">{p.barcode || p.sku || 'No identifier'}</span>
-                                </div>
-                              </div>
-                              <div className="text-right font-black text-slate-900 dark:text-white text-lg">
-                                {stockVal} <span className="text-xs font-semibold text-slate-400 uppercase">{p.unit || 'pcs'}</span>
-                              </div>
-                              <div className="text-right font-medium text-slate-500">
-                                0
-                              </div>
-                              <div className="text-right font-medium text-amber-600">
-                                {minVal}
-                              </div>
-                              <div className="text-right font-semibold text-slate-600 dark:text-slate-400">
-                                {Number(p.cost || 0).toFixed(2)}
-                              </div>
-                              <div className="text-right font-bold text-slate-900 dark:text-white">
-                                {Number(p.price || 0).toFixed(2)}
-                              </div>
-                              <div className="flex justify-center items-center gap-2">
-                                <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase ${
-                                  stockVal <= 0 ? 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400' :
-                                  stockVal <= minVal ? 'bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400' :
-                                  'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400'
-                                }`}>
-                                  {stockVal <= 0 ? 'Out of Stock' : stockVal <= minVal ? 'Low Stock' : 'In Stock'}
-                                </span>
-                                <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-                              </div>
-                            </div>
-                            
-                            <AnimatePresence>
-                              {isExpanded && (
-                                <motion.div
-                                  initial={{ height: 0, opacity: 0 }}
-                                  animate={{ height: 'auto', opacity: 1 }}
-                                  exit={{ height: 0, opacity: 0 }}
-                                  transition={{ duration: 0.25, ease: 'easeInOut' }}
-                                  className="overflow-hidden"
-                                >
-                                  <InventoryProductDetailView
-                                    product={p}
-                                    categoryName={getCategoryName(p.categoryId)}
-                                    branchName={activeBranch?.name}
-                                    onClose={() => setExpandedRowId(null)}
-                                    onManageStock={(prod) => handleOpenPanel('Stock In', prod)}
-                                  />
-                                </motion.div>
-                              )}
-                            </AnimatePresence>
+                  return (
+                    <React.Fragment key={p.id}>
+                      <div 
+                        id={`inventory-row-${p.id}`}
+                        onClick={() => setExpandedRowId(prev => prev === p.id ? null : p.id)}
+                        className={`cursor-pointer grid grid-cols-[minmax(240px,2fr)_minmax(140px,1.2fr)_minmax(130px,1fr)_minmax(130px,1fr)_110px] gap-4 p-4 sm:px-5 items-center transition-colors group scroll-mt-20 ${
+                          isExpanded 
+                            ? 'bg-blue-50/60 dark:bg-blue-900/15' 
+                            : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/40'
+                        }`}
+                      >
+                        {/* 1. Product Name, Category & Brand */}
+                        <div className="flex items-center gap-3.5 min-w-0">
+                          <div className="w-11 h-11 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0 text-slate-400 overflow-hidden shadow-xs border border-slate-200/60 dark:border-slate-700/60">
+                            {pImg ? (
+                              <img src={pImg} alt={p.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <Package className="w-5 h-5 opacity-60" />
+                            )}
                           </div>
-                        );
-                      })}
-                  </div>
-                </div>
+                          <div className="min-w-0 flex-1">
+                            <h3 className="font-bold text-slate-900 dark:text-white text-sm truncate" title={p.name}>
+                              {p.name}
+                            </h3>
+                            <div className="flex items-center gap-1.5 mt-0.5 text-xs text-slate-500 dark:text-slate-400 truncate">
+                              <span className="truncate font-medium">{catName}</span>
+                              {p.brand && (
+                                <>
+                                  <span className="text-slate-300 dark:text-slate-600">•</span>
+                                  <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 px-1.5 py-0.5 rounded truncate max-w-[90px] shrink-0">
+                                    {p.brand}
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                            {p.aliases && (
+                              <p className="text-[10px] text-slate-400 dark:text-slate-500 truncate" title={p.aliases}>
+                                Alias: {p.aliases}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* 2. Identifiers (SKU & Barcode) */}
+                        <div className="flex flex-col gap-1 min-w-0 justify-center">
+                          <div className="flex items-center gap-1.5 text-slate-800 dark:text-slate-200 font-bold text-xs truncate group/sku">
+                            <span className="text-slate-400 dark:text-slate-500 font-medium text-[11px]">SKU:</span>
+                            <span className="truncate font-mono">{p.sku || <span className="text-slate-400 italic font-sans font-normal text-[11px]">N/A</span>}</span>
+                            {p.sku && (
+                              <button 
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(p.sku); toast.success('SKU copied!'); }}
+                                className="p-0.5 opacity-0 group-hover/sku:opacity-100 hover:bg-slate-200/60 dark:hover:bg-slate-700 rounded transition-all shrink-0 cursor-pointer"
+                                title="Copy SKU"
+                              >
+                                <Copy className="w-3 h-3 text-slate-400 hover:text-blue-500" />
+                              </button>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400 font-medium text-[11px] truncate group/barcode">
+                            <Barcode className="w-3.5 h-3.5 shrink-0 text-slate-400" />
+                            <span className="truncate font-mono">{p.barcode || <span className="italic text-slate-400 font-sans text-[10px]">N/A</span>}</span>
+                            {p.barcode && (
+                              <button 
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(p.barcode); toast.success('Barcode copied!'); }}
+                                className="p-0.5 opacity-0 group-hover/barcode:opacity-100 hover:bg-slate-200/60 dark:hover:bg-slate-700 rounded transition-all shrink-0 cursor-pointer"
+                                title="Copy Barcode"
+                              >
+                                <Copy className="w-3 h-3 text-slate-400 hover:text-blue-500" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* 3. Stock & Status */}
+                        <div className="flex flex-col gap-1 min-w-0 justify-center">
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold w-max shadow-2xs ${
+                            stockVal <= 0 ? 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400' :
+                            stockVal <= minVal ? 'bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400' :
+                            'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400'
+                          }`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${
+                              stockVal <= 0 ? 'bg-red-500' :
+                              stockVal <= minVal ? 'bg-orange-500' :
+                              'bg-emerald-500'
+                            }`} />
+                            {stockVal} {p.unit || 'pcs'}
+                          </span>
+                          <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                            Reorder: <span className="font-semibold text-amber-600 dark:text-amber-400">{minVal}</span>
+                          </span>
+                        </div>
+
+                        {/* 4. Pricing & Valuation */}
+                        <div className="flex flex-col gap-0.5 min-w-0 justify-center text-xs">
+                          <div className="flex items-baseline gap-1.5">
+                            <span className="font-black text-slate-900 dark:text-white text-sm">Rs. {Number(p.price || 0).toFixed(2)}</span>
+                          </div>
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                            Cost: <span className="font-semibold text-slate-600 dark:text-slate-300">Rs. {Number(p.cost || 0).toFixed(2)}</span>
+                          </div>
+                          <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold truncate">
+                            Val: Rs. {(stockVal * Number(p.cost || 0)).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                          </div>
+                        </div>
+
+                        {/* 5. Action (Right-aligned with expand chevron) */}
+                        <div className="flex items-center justify-end gap-1 shrink-0">
+                          <button 
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); handleOpenPanel('Stock In', p); }} 
+                            className="p-2 text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-xl transition-colors cursor-pointer" 
+                            title="Manage Stock"
+                          >
+                            <SlidersHorizontal className="w-4 h-4" />
+                          </button>
+                          <button 
+                            type="button"
+                            onClick={(e) => { 
+                              e.stopPropagation(); 
+                              setEditingProduct(p);
+                              setIsAddProductPanelOpen(true);
+                            }} 
+                            className="p-2 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-colors cursor-pointer" 
+                            title="Edit Product"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <div className="p-1 text-slate-300 dark:text-slate-600 group-hover:text-slate-500 dark:group-hover:text-slate-400 transition-colors">
+                            <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180 text-blue-600 dark:text-blue-400' : ''}`} />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Inline Details Expansion for List */}
+                      <AnimatePresence>
+                        {isExpanded && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.25, ease: 'easeInOut' }}
+                            className="overflow-hidden border-b border-slate-100 dark:border-slate-800/60"
+                          >
+                            <InventoryProductDetailView
+                              product={p}
+                              categoryName={catName}
+                              branchName={activeBranch?.name}
+                              onClose={() => setExpandedRowId(null)}
+                              onManageStock={(prod) => handleOpenPanel('Stock In', prod)}
+                            />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </React.Fragment>
+                  );
+                })}
               </div>
             </div>
           ) : (
@@ -2155,16 +2239,28 @@ export default function InventoryPage() {
                             <Package className="w-8 h-8 opacity-40 text-slate-400" />
                           )}
                           
-                          {/* Hover overlay with Manage Stock */}
+                          {/* Hover overlay with Manage Stock & Edit */}
                           <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 backdrop-blur-[2px]">
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleOpenPanel('Stock In', p);
                               }}
-                              className="px-3 py-1.5 bg-white text-slate-900 rounded-full hover:bg-blue-600 hover:text-white font-bold text-xs transition-colors shadow-lg translate-y-2 group-hover:translate-y-0 duration-300 flex items-center gap-1.5 cursor-pointer"
+                              className="p-2.5 bg-white text-slate-900 rounded-full hover:bg-emerald-50 hover:text-emerald-600 transition-colors shadow-lg translate-y-2 group-hover:translate-y-0 duration-300 flex items-center cursor-pointer"
+                              title="Manage Stock"
                             >
-                              <SlidersHorizontal className="w-3.5 h-3.5" /> Manage Stock
+                              <SlidersHorizontal className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingProduct(p);
+                                setIsAddProductPanelOpen(true);
+                              }}
+                              className="p-2.5 bg-white text-slate-900 rounded-full hover:bg-blue-50 hover:text-blue-600 transition-colors shadow-lg translate-y-2 group-hover:translate-y-0 duration-300 flex items-center cursor-pointer delay-75"
+                              title="Edit Product"
+                            >
+                              <Edit2 className="w-4 h-4" />
                             </button>
                           </div>
 
@@ -2909,16 +3005,19 @@ export default function InventoryPage() {
         requiredTier="Pro"
       />
 
-      {/* Add Product Panel */}
+      {/* Add / Edit Product Panel */}
       <AddProductPanel
         isOpen={isAddProductPanelOpen}
+        editingProduct={editingProduct}
         suppliers={suppliers}
         onClose={() => {
           setIsAddProductPanelOpen(false);
+          setEditingProduct(null);
           setSecondaryPanel('PRODUCT');
         }}
         onSuccess={(newProduct: any) => {
           setIsAddProductPanelOpen(false);
+          setEditingProduct(null);
           if (newProduct) {
             setProducts(prev => {
               const exists = prev.find(p => p.id === newProduct.id);

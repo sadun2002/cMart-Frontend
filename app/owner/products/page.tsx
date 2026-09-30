@@ -6,7 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { generateSystemBarcode } from '@/lib/barcode-utils';
-import { Plus, Search, Trash2, Package, Tag, Filter, X, Barcode, Edit, List, LayoutGrid, Maximize, Minimize, Copy, ChevronDown, ChevronUp, CircleDollarSign, Printer, Download, Settings, Calendar, Check, Layers, Info, TrendingUp, TrendingDown, Star, AlertTriangle, CheckCircle2, ShieldAlert, Boxes, Sparkles, ArrowRight, AlertCircle, SearchX, BarChart3 } from 'lucide-react';
+import { Plus, Search, Trash2, Package, Tag, Filter, X, Barcode, Edit, Edit2, List, LayoutGrid, Maximize, Minimize, Copy, ChevronDown, ChevronUp, CircleDollarSign, Printer, Download, Settings, Calendar, Check, Layers, Info, TrendingUp, TrendingDown, Star, AlertTriangle, CheckCircle2, ShieldAlert, Boxes, Sparkles, ArrowRight, AlertCircle, SearchX, BarChart3 } from 'lucide-react';
 import { KpiCard } from '@/components/ui/kpi-card';
 import { ResponsiveContainer, BarChart, Bar, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
 import { FilterPanel } from '@/components/ui/filter-panel';
@@ -112,7 +112,7 @@ function ProductHistoryView({ product, categoryName, onClose, onUpdate, onDelete
         </div>
         <div className="flex items-center gap-3">
           <button onClick={() => onUpdate(product)} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 font-bold transition-colors shadow-sm shadow-blue-500/20">
-            <Edit className="w-4 h-4" /> Update
+            <Edit2 className="w-4 h-4" /> Update
           </button>
           <button onClick={() => onDelete(product.id)} className="flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-blue-600 text-blue-600 hover:bg-blue-50 dark:border-blue-500 dark:text-blue-400 dark:hover:bg-blue-500/10 font-bold transition-colors">
             <Trash2 className="w-4 h-4" /> Delete
@@ -2193,15 +2193,15 @@ function StoreProductsPageContent() {
                       <button 
                         type="button"
                         onClick={(e) => { e.stopPropagation(); openEditPanel(p); }} 
-                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-xl transition-colors cursor-pointer" 
+                        className="p-2 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-colors cursor-pointer" 
                         title="Edit Product"
                       >
-                        <Edit className="w-4 h-4" />
+                        <Edit2 className="w-4 h-4" />
                       </button>
                       <button 
                         type="button"
                         onClick={(e) => { e.stopPropagation(); handleDelete(p.id); }} 
-                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-colors cursor-pointer" 
+                        className="p-2 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl transition-colors cursor-pointer" 
                         title="Delete Product"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -2242,7 +2242,7 @@ function StoreProductsPageContent() {
                          {p.images && p.images.length > 0 ? <img src={typeof p.images[0] === 'string' ? p.images[0] : p.images[0].url} alt={p.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" /> : <Package className="w-8 h-8 opacity-50" />}
                          <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3 backdrop-blur-[2px]">
                             <button onClick={() => openEditPanel(p)} className="p-3 bg-white text-slate-900 rounded-full hover:bg-blue-50 hover:text-blue-600 transition-colors shadow-lg translate-y-4 group-hover:translate-y-0 duration-300">
-                              <Edit className="w-5 h-5" />
+                              <Edit2 className="w-5 h-5" />
                             </button>
                             <button onClick={() => handleDelete(p.id)} className="p-3 bg-white text-slate-900 rounded-full hover:bg-red-50 hover:text-red-600 transition-colors shadow-lg translate-y-4 group-hover:translate-y-0 duration-300 delay-75">
                               <Trash2 className="w-5 h-5" />
