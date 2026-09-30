@@ -25,6 +25,16 @@ function uuidv4() {
   });
 }
 
+function formatExpenseId(exp: any): string {
+  if (!exp) return 'EXP-UNKNOWN';
+  if (exp.offlineId && typeof exp.offlineId === 'string') {
+    return `EXP-${exp.offlineId.substring(0, 6).toUpperCase()}`;
+  }
+  const idStr = String(exp.id ?? '');
+  if (!idStr) return 'EXP-UNKNOWN';
+  return idStr.length >= 6 ? `EXP-${idStr.substring(0, 6).toUpperCase()}` : `EXP-${idStr.padStart(4, '0')}`;
+}
+
 const EXPENSE_CATEGORIES = {
   'Utilities': ['Electricity', 'Water', 'Internet', 'Telephone'],
   'Operations': ['Rent', 'Maintenance', 'Transport', 'Office Supplies'],
@@ -516,7 +526,7 @@ function ExpensesPageContent() {
                   {filteredExpenses.map((exp) => (
                     <tr key={exp.id} onClick={() => setViewingExpense(exp)} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group cursor-pointer">
                       <td className="px-5 py-4 whitespace-nowrap text-sm font-semibold text-slate-600 dark:text-slate-400">
-                        {exp.id ? `EXP-${exp.id.substring(0,6).toUpperCase()}` : 'EXP-UNKNOWN'}
+                        {formatExpenseId(exp)}
                       </td>
                       <td className="px-5 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">{exp.date}</td>
                       <td className="px-5 py-4 whitespace-nowrap">
@@ -603,7 +613,7 @@ function ExpensesPageContent() {
               <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
                 <div>
                   <div className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">
-                    {viewingExpense.id ? `EXP-${viewingExpense.id.substring(0,6).toUpperCase()}` : 'EXP-UNKNOWN'}
+                    {formatExpenseId(viewingExpense)}
                   </div>
                   <h2 className="text-2xl font-black text-slate-900 dark:text-white truncate max-w-[280px]">
                     {viewingExpense.name || viewingExpense.description}

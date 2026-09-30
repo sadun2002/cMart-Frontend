@@ -31,6 +31,16 @@ function uuidv4() {
   });
 }
 
+function formatExpenseId(exp: any): string {
+  if (!exp) return 'EXP-UNKNOWN';
+  if (exp.offlineId && typeof exp.offlineId === 'string') {
+    return `EXP-${exp.offlineId.substring(0, 6).toUpperCase()}`;
+  }
+  const idStr = String(exp.id ?? '');
+  if (!idStr) return 'EXP-UNKNOWN';
+  return idStr.length >= 6 ? `EXP-${idStr.substring(0, 6).toUpperCase()}` : `EXP-${idStr.padStart(4, '0')}`;
+}
+
 const EXPENSE_CATEGORIES = {
   'Utilities': ['Electricity', 'Water', 'Internet', 'Telephone'],
   'Operations': ['Rent', 'Maintenance', 'Transport', 'Office Supplies'],
@@ -1232,7 +1242,7 @@ function ExpensesPageContent() {
                             <h3 className="font-bold text-slate-900 dark:text-white text-sm truncate">{exp.name || exp.description}</h3>
                             <div className="flex items-center gap-1.5 mt-0.5">
                               <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
-                                {exp.id ? `EXP-${exp.id.substring(0,6).toUpperCase()}` : 'EXP-UNKNOWN'}
+                                {formatExpenseId(exp)}
                               </span>
                               <span className="text-slate-300 dark:text-slate-600">•</span>
                               <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">
@@ -1437,7 +1447,7 @@ function ExpensesPageContent() {
         isOpen={!!viewingExpense}
         onClose={() => setViewingExpense(null)}
         title={viewingExpense?.name || viewingExpense?.description || 'Expense Details'}
-        subtitle={viewingExpense?.id ? `EXP-${viewingExpense.id.substring(0,6).toUpperCase()}` : 'Expense Voucher Details'}
+        subtitle={viewingExpense ? formatExpenseId(viewingExpense) : 'Expense Voucher Details'}
         icon={Banknote}
         hideFooter={true}
         className="!max-w-md"
