@@ -124,7 +124,7 @@ function ProductHistoryView({ product, categoryName, onClose, onUpdate, onDelete
       </div>
       
       {/* Product Details Grid */}
-        <div className="grid grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
           {/* Box 1: Identification */}
           <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow">
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2"><Barcode className="w-4 h-4" /> Identification</h3>
@@ -2055,71 +2055,92 @@ function StoreProductsPageContent() {
             onAction={openAddPanel}
           />
         ) : viewMode === 'list' ? (
-          <div className="flex-1 overflow-x-auto">
-            <div className="min-w-max h-full flex flex-col">
+          <div className="flex-1 overflow-y-auto no-scrollbar flex flex-col w-full">
+            <div className="w-full flex flex-col">
               {/* Table Header */}
-              <div className="grid grid-cols-[300px_180px_200px_200px_150px_150px_120px_100px] gap-4 h-16 px-5 items-center border-b border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/50 text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0">
-                <div>Product Name</div>
-                <div>Category & Brand</div>
+              <div className="grid grid-cols-[minmax(240px,2fr)_minmax(140px,1.2fr)_minmax(130px,1fr)_minmax(130px,1fr)_110px] gap-4 h-14 px-5 items-center border-b border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/50 text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0 sticky top-0 z-10 backdrop-blur-sm">
+                <div>Product</div>
                 <div>Identifiers</div>
                 <div>Pricing</div>
                 <div>Inventory</div>
-                <div>Tracking</div>
-                <div className="text-center">Visibility</div>
-                <div className="text-center">Action</div>
+                <div className="text-right pr-2">Action</div>
               </div>
 
             {/* Table Body */}
-            <div className="flex-1 overflow-y-auto no-scrollbar">
+            <div className="flex-1 flex flex-col">
               {filteredProducts.map((p) => {
                   const catInfo = getCategoryName(p.categoryId);
                   return (
                   <React.Fragment key={p.id}>
-                    <div onClick={() => setViewingProduct(viewingProduct?.id === p.id ? null : p)} className={`cursor-pointer grid grid-cols-[300px_180px_200px_200px_150px_150px_120px_100px] gap-4 p-5 items-center transition-colors group ${viewingProduct?.id === p.id ? 'bg-blue-50/50 dark:bg-blue-900/10 border-b-0' : 'border-b border-slate-100 dark:border-slate-800/60 hover:bg-slate-50/50 dark:hover:bg-slate-800/30'}`}>
-                    <div className="flex items-center gap-4 min-w-0">
-                      <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0 text-slate-400 overflow-hidden">
+                    <div 
+                      onClick={() => setViewingProduct(viewingProduct?.id === p.id ? null : p)} 
+                      className={`cursor-pointer grid grid-cols-[minmax(240px,2fr)_minmax(140px,1.2fr)_minmax(130px,1fr)_minmax(130px,1fr)_110px] gap-4 p-4 sm:px-5 items-center transition-colors group ${viewingProduct?.id === p.id ? 'bg-blue-50/60 dark:bg-blue-900/15 border-b-0' : 'border-b border-slate-100 dark:border-slate-800/60 hover:bg-slate-50/50 dark:hover:bg-slate-800/30'}`}
+                    >
+                    {/* 1. Product Name, Category & Brand, Status */}
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <div className="w-11 h-11 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0 text-slate-400 overflow-hidden shadow-xs">
                         {p.images && p.images.length > 0 ? (
                           <img src={typeof p.images[0] === 'string' ? p.images[0] : p.images[0].url} alt={p.name} className="w-full h-full object-cover" />
                         ) : (
-                          <Package className="w-6 h-6" />
+                          <Package className="w-5 h-5 opacity-60" />
                         )}
                       </div>
-                      <div className="min-w-0">
-                        <h3 className="font-bold text-slate-900 dark:text-white text-base truncate" title={p.name}>{p.name}</h3>
-                        {p.aliases && <p className="text-[10px] text-slate-500 truncate" title={p.aliases}>Aliases: {p.aliases}</p>}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-bold text-slate-900 dark:text-white text-sm truncate" title={p.name}>{p.name}</h3>
+                          {p.showOnWebsite ? (
+                            <span className="hidden xl:inline-flex px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400 shrink-0">
+                              Online
+                            </span>
+                          ) : (
+                            <span className="hidden xl:inline-flex px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 shrink-0">
+                              POS Only
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-0.5 text-xs text-slate-500 dark:text-slate-400 truncate">
+                          {catInfo ? (
+                            <span className="truncate font-medium">{catInfo.sub ? `${catInfo.main} › ${catInfo.sub}` : catInfo.main}</span>
+                          ) : (
+                            <span className="italic text-slate-400">Uncategorized</span>
+                          )}
+                          {p.brand && (
+                            <>
+                              <span className="text-slate-300 dark:text-slate-600">•</span>
+                              <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 px-1.5 py-0.5 rounded truncate max-w-[90px] shrink-0">
+                                {p.brand}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                        {p.aliases && <p className="text-[10px] text-slate-400 dark:text-slate-500 truncate" title={p.aliases}>Alias: {p.aliases}</p>}
                       </div>
                     </div>
 
-                    <div className="min-w-0 flex flex-col justify-center">
-                      {catInfo ? (
-                        <>
-                          <span className="font-bold text-slate-700 dark:text-slate-300 truncate">{catInfo.main}</span>
-                          {catInfo.sub && <span className="text-xs text-slate-500 truncate">{catInfo.sub}</span>}
-                        </>
-                      ) : <span className="text-slate-400 italic text-sm">None</span>}
-                      {p.brand && <span className="text-[10px] font-bold text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-500/10 px-1.5 py-0.5 rounded w-max mt-1 truncate max-w-full">{p.brand}</span>}
-                    </div>
-                    
+                    {/* 2. Identifiers (SKU & Barcode) */}
                     <div className="flex flex-col gap-1 min-w-0 justify-center">
-                      <div className="flex items-center gap-2 text-slate-900 dark:text-white font-bold text-sm truncate group/sku">
-                        <span className="truncate">SKU: {p.sku || <span className="text-slate-400 italic font-normal text-xs">N/A</span>}</span>
+                      <div className="flex items-center gap-1.5 text-slate-800 dark:text-slate-200 font-bold text-xs truncate group/sku">
+                        <span className="text-slate-400 dark:text-slate-500 font-medium text-[11px]">SKU:</span>
+                        <span className="truncate">{p.sku || <span className="text-slate-400 italic font-normal text-[11px]">N/A</span>}</span>
                         {p.sku && (
                           <button 
+                            type="button"
                             onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(p.sku); toast.success('SKU copied!'); }}
-                            className="p-1 opacity-0 group-hover/sku:opacity-100 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-all shrink-0"
+                            className="p-0.5 opacity-0 group-hover/sku:opacity-100 hover:bg-slate-200/60 dark:hover:bg-slate-700 rounded transition-all shrink-0 cursor-pointer"
                             title="Copy SKU"
                           >
                             <Copy className="w-3 h-3 text-slate-400 hover:text-blue-500" />
                           </button>
                         )}
                       </div>
-                      <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-bold text-xs truncate group/barcode">
-                        <Barcode className="w-3 h-3 shrink-0" />
-                        <span className="truncate">{p.barcode || <span className="text-slate-400 italic font-normal text-[10px]">N/A</span>}</span>
+                      <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400 font-medium text-[11px] truncate group/barcode">
+                        <Barcode className="w-3.5 h-3.5 shrink-0 text-slate-400" />
+                        <span className="truncate font-mono">{p.barcode || <span className="italic text-slate-400 font-sans text-[10px]">N/A</span>}</span>
                         {p.barcode && (
                           <button 
+                            type="button"
                             onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(p.barcode); toast.success('Barcode copied!'); }}
-                            className="p-1 opacity-0 group-hover/barcode:opacity-100 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-all shrink-0"
+                            className="p-0.5 opacity-0 group-hover/barcode:opacity-100 hover:bg-slate-200/60 dark:hover:bg-slate-700 rounded transition-all shrink-0 cursor-pointer"
                             title="Copy Barcode"
                           >
                             <Copy className="w-3 h-3 text-slate-400 hover:text-blue-500" />
@@ -2128,68 +2149,66 @@ function StoreProductsPageContent() {
                       </div>
                     </div>
 
+                    {/* 3. Pricing */}
                     <div className="flex flex-col gap-0.5 min-w-0 justify-center text-xs">
-                      <div className="flex justify-between items-center w-full">
-                        <span className="text-slate-500">Price:</span>
-                        <span className="font-black text-blue-600 dark:text-blue-400">Rs. {Number(p.price || 0).toFixed(2)}</span>
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="font-black text-slate-900 dark:text-white text-sm">Rs. {Number(p.price || 0).toFixed(2)}</span>
                       </div>
-                      <div className="flex justify-between items-center w-full">
-                        <span className="text-slate-500">Cost:</span>
-                        <span className="font-bold text-slate-700 dark:text-slate-300">Rs. {Number(p.cost || 0).toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between items-center w-full">
-                        <span className="text-slate-500">W/S:</span>
-                        <span className="font-bold text-amber-600 dark:text-amber-500">Rs. {Number(p.wholesalePrice || 0).toFixed(2)}</span>
-                      </div>
-                      {p.taxRate && Number(p.taxRate) > 0 ? (
-                         <div className="flex justify-between items-center w-full mt-0.5 pt-0.5 border-t border-slate-100 dark:border-slate-800">
-                           <span className="text-slate-500 text-[10px]">Tax:</span>
-                           <span className="font-bold text-slate-500 text-[10px]">{p.taxRate}%</span>
-                         </div>
+                      {p.cost && Number(p.cost) > 0 ? (
+                        <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                          Cost: <span className="font-semibold text-slate-600 dark:text-slate-300">Rs. {Number(p.cost).toFixed(2)}</span>
+                        </div>
+                      ) : p.wholesalePrice && Number(p.wholesalePrice) > 0 ? (
+                        <div className="text-[11px] text-amber-600 dark:text-amber-400">
+                          W/S: <span className="font-semibold">Rs. {Number(p.wholesalePrice).toFixed(2)}</span>
+                        </div>
                       ) : null}
                     </div>
 
+                    {/* 4. Inventory */}
                     <div className="flex flex-col gap-1 min-w-0 justify-center">
-                      <span className={`inline-flex px-2 py-0.5 rounded text-[11px] uppercase font-bold w-max ${
+                      <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold w-max shadow-2xs ${
                         p.stock <= 0 ? 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400' :
                         p.stock <= (p.lowStockLevel || 5) ? 'bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400' :
                         'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400'
                       }`}>
-                         Stock: {formatStock(p.stock)} {p.unit}
+                        <span className={`w-1.5 h-1.5 rounded-full ${
+                          p.stock <= 0 ? 'bg-red-500' :
+                          p.stock <= (p.lowStockLevel || 5) ? 'bg-orange-500' :
+                          'bg-emerald-500'
+                        }`} />
+                        {formatStock(p.stock)} {p.unit || 'pcs'}
                       </span>
-                      {p.moq && Number(p.moq) > 0 && (
-                        <span className="text-[10px] text-slate-500 font-medium">MOQ: <span className="font-bold text-slate-700 dark:text-slate-300">{p.moq}</span></span>
-                      )}
-                    </div>
-                    
-                    <div className="flex flex-col gap-1 min-w-0 justify-center text-[10px]">
                       {p.trackExpiry ? (
-                         <div className="flex flex-col gap-0.5">
-                           <span className="text-slate-500">Expiry Tracked</span>
-                           {p.expiryDate && <span className="font-bold text-slate-700 dark:text-slate-300">{p.expiryDate}</span>}
-                         </div>
+                        <span className="text-[10px] text-purple-600 dark:text-purple-400 font-medium truncate">
+                          Expiry: {p.expiryDate ? new Date(p.expiryDate).toLocaleDateString() : 'Tracked'}
+                        </span>
                       ) : p.trackBatch ? (
-                         <span className="text-slate-500">Batch Tracked</span>
-                      ) : (
-                         <span className="text-slate-400 italic">No Tracking</span>
-                      )}
+                        <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-medium">Batch Tracked</span>
+                      ) : null}
                     </div>
 
-                    <div className="flex justify-center items-center">
-                      <span className={`inline-flex px-2 py-1 rounded-md text-[10px] uppercase font-bold ${
-                        p.showOnWebsite ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
-                      }`}>
-                        {p.showOnWebsite ? 'Published' : 'POS Only'}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={(e) => { e.stopPropagation(); openEditPanel(p); }} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit">
-                        <Edit className="w-5 h-5" />
+                    {/* 5. Action (Right-aligned with expand chevron) */}
+                    <div className="flex items-center justify-end gap-1 shrink-0">
+                      <button 
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); openEditPanel(p); }} 
+                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-xl transition-colors cursor-pointer" 
+                        title="Edit Product"
+                      >
+                        <Edit className="w-4 h-4" />
                       </button>
-                      <button onClick={(e) => { e.stopPropagation(); handleDelete(p.id); }} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete">
-                        <Trash2 className="w-5 h-5" />
+                      <button 
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); handleDelete(p.id); }} 
+                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-colors cursor-pointer" 
+                        title="Delete Product"
+                      >
+                        <Trash2 className="w-4 h-4" />
                       </button>
+                      <div className="p-1 text-slate-300 dark:text-slate-600 group-hover:text-slate-500 dark:group-hover:text-slate-400 transition-colors">
+                        <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${viewingProduct?.id === p.id ? 'rotate-180 text-blue-600 dark:text-blue-400' : ''}`} />
+                      </div>
                     </div>
                   </div>
 
