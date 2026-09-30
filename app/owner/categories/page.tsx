@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, Search, Trash2, FolderTree, Edit, X, Image as ImageIcon, ChevronRight, ChevronDown, ChevronUp, List, LayoutGrid, Package, Maximize, Minimize, Layers, Info, BarChart3 } from 'lucide-react';
+import { Plus, Search, Trash2, FolderTree, Edit2, X, Image as ImageIcon, ChevronRight, ChevronDown, ChevronUp, List, LayoutGrid, Package, Maximize, Minimize, Layers, Info, BarChart3 } from 'lucide-react';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { storeOwnerAPI } from '@/lib/api';
 import { toast } from 'sonner';
@@ -31,29 +31,41 @@ const CategoryRow = ({ category, level = 0, onEdit, onDelete, defaultExpanded = 
   return (
     <>
       <div 
-        className={`grid grid-cols-12 gap-4 p-5 border-b border-slate-100 dark:border-slate-800/60 items-center hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group`}
-        style={{ paddingLeft: `${1.25 + level * 2}rem` }}
+        onClick={() => {
+          if (hasChildren) setIsExpanded(!isExpanded);
+        }}
+        className={`grid grid-cols-[minmax(240px,2fr)_minmax(140px,1.2fr)_minmax(120px,1fr)_minmax(120px,1fr)_120px] gap-4 p-4 sm:px-5 border-b border-slate-100 dark:border-slate-800/60 items-center hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors group cursor-pointer`}
+        style={{ paddingLeft: `${1.25 + level * 1.5}rem` }}
       >
-        <div className="col-span-5 flex items-center gap-3">
+        {/* Col 1: Category Name & Indent */}
+        <div className="flex items-center gap-3 min-w-0">
           {hasChildren ? (
-            <button onClick={() => setIsExpanded(!isExpanded)} className="p-1 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500">
-              {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+            <button 
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsExpanded(!isExpanded);
+              }} 
+              className="p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 cursor-pointer shrink-0 transition-colors"
+              title={isExpanded ? 'Collapse' : 'Expand'}
+            >
+              <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180 text-blue-600' : ''}`} />
             </button>
           ) : (
-            <div className="w-6" /> // spacer
+            <div className="w-6 shrink-0" />
           )}
           
-          <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0 text-slate-400 overflow-hidden">
+          <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 text-slate-400 overflow-hidden border border-slate-200/50 dark:border-slate-700/50">
             {category.image ? (
               <img src={category.image} alt={category.name} className="w-full h-full object-cover" />
             ) : (
-              <FolderTree className="w-5 h-5" />
+              <FolderTree className="w-5 h-5 text-blue-500" />
             )}
           </div>
-          <div>
-            <h3 className="font-bold text-slate-900 dark:text-white text-base">{category.name}</h3>
+          <div className="min-w-0">
+            <h3 className="font-bold text-slate-900 dark:text-white text-sm truncate">{category.name}</h3>
             {category.description && <p className="text-xs text-slate-500 line-clamp-1">{category.description}</p>}
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className="text-[10px] text-slate-400 mt-0.5 font-medium">
               {category.updatedAt && category.updatedAt !== category.createdAt 
                 ? `Updated ${new Date(category.updatedAt).toLocaleDateString()}` 
                 : category.createdAt ? `Added ${new Date(category.createdAt).toLocaleDateString()}` : ''}
@@ -61,22 +73,76 @@ const CategoryRow = ({ category, level = 0, onEdit, onDelete, defaultExpanded = 
           </div>
         </div>
         
-        <div className="col-span-3 text-slate-500 text-sm font-medium flex items-center">
-          /{category.slug}
+        {/* Col 2: Slug */}
+        <div className="min-w-0">
+          <span className="font-mono text-xs text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800/80 px-2 py-0.5 rounded-md border border-slate-200/50 dark:border-slate-700/50 truncate block w-fit max-w-full">
+            /{category.slug}
+          </span>
         </div>
 
-        <div className="col-span-2 text-slate-500 text-sm font-medium flex items-center gap-2">
-          <Package className="w-4 h-4 text-slate-400" />
-          {category._count?.products || 0} Items
+        {/* Col 3: Items Count */}
+        <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300">
+          <Package className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+          <span>{category._count?.products || 0} Products</span>
         </div>
 
-        <div className="col-span-2 flex justify-end items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity pr-4">
-          <button onClick={() => onEdit(category)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
-            <Edit className="w-5 h-5" />
+        {/* Col 4: Hierarchy */}
+        <div>
+          {hasChildren ? (
+            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800/60 w-fit">
+              <Layers className="w-3 h-3 shrink-0" />
+              {category.children.length} Subcats
+            </span>
+          ) : level > 0 ? (
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 w-fit">
+              Subcategory
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-full bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 w-fit">
+              Root
+            </span>
+          )}
+        </div>
+
+        {/* Col 5: Actions */}
+        <div className="flex justify-end items-center gap-1">
+          <button 
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit(category);
+            }} 
+            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-xl transition-colors cursor-pointer"
+            title="Edit Category"
+          >
+            <Edit2 className="w-4 h-4" />
           </button>
-          <button onClick={() => onDelete(category.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-            <Trash2 className="w-5 h-5" />
+          <button 
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(category.id);
+            }} 
+            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-xl transition-colors cursor-pointer"
+            title="Delete Category"
+          >
+            <Trash2 className="w-4 h-4" />
           </button>
+          {hasChildren ? (
+            <button 
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsExpanded(!isExpanded);
+              }}
+              className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
+              title={isExpanded ? 'Collapse' : 'Expand'}
+            >
+              <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180 text-blue-600' : ''}`} />
+            </button>
+          ) : (
+            <div className="w-8 shrink-0" />
+          )}
         </div>
       </div>
 
@@ -984,11 +1050,12 @@ function CategoriesPageContent() {
         ) : viewMode === 'list' ? (
           <>
             {/* Table Header */}
-            <div className="grid grid-cols-12 gap-4 h-16 px-5 pl-9 items-center border-b border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/50 text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0">
-              <div className="col-span-5">Category Name</div>
-              <div className="col-span-3">Slug</div>
-              <div className="col-span-2">Products</div>
-              <div className="col-span-2 text-right pr-4">Action</div>
+            <div className="grid grid-cols-[minmax(240px,2fr)_minmax(140px,1.2fr)_minmax(120px,1fr)_minmax(120px,1fr)_120px] gap-4 h-14 px-5 items-center border-b border-slate-200 dark:border-slate-800 bg-slate-50/75 dark:bg-slate-900/60 text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0">
+              <div className="pl-9">Category Name</div>
+              <div>Slug</div>
+              <div>Catalog Items</div>
+              <div>Hierarchy</div>
+              <div className="text-right pr-2">Actions</div>
             </div>
 
             {/* Table Body */}
@@ -1007,7 +1074,7 @@ function CategoriesPageContent() {
                          {c.image ? <img src={c.image} alt={c.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" /> : <FolderTree className="w-12 h-12 opacity-50" />}
                          <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3 backdrop-blur-[2px]">
                             <button onClick={() => openEditPanel(c)} className="p-3 bg-white text-slate-900 rounded-full hover:bg-blue-50 hover:text-blue-600 transition-colors shadow-lg translate-y-4 group-hover:translate-y-0 duration-300">
-                              <Edit className="w-5 h-5" />
+                              <Edit2 className="w-5 h-5" />
                             </button>
                             <button onClick={() => handleDelete(c.id)} className="p-3 bg-white text-slate-900 rounded-full hover:bg-red-50 hover:text-red-600 transition-colors shadow-lg translate-y-4 group-hover:translate-y-0 duration-300 delay-75">
                               <Trash2 className="w-5 h-5" />

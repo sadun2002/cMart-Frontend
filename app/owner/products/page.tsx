@@ -6,7 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { generateSystemBarcode } from '@/lib/barcode-utils';
-import { Plus, Search, Trash2, Package, Tag, Filter, X, Barcode, Edit, Edit2, List, LayoutGrid, Maximize, Minimize, Copy, ChevronDown, ChevronUp, CircleDollarSign, Printer, Download, Settings, Calendar, Check, Layers, Info, TrendingUp, TrendingDown, Star, AlertTriangle, CheckCircle2, ShieldAlert, Boxes, Sparkles, ArrowRight, AlertCircle, SearchX, BarChart3 } from 'lucide-react';
+import { Plus, Search, Trash2, Package, Tag, Filter, X, Barcode, Edit2, List, LayoutGrid, Maximize, Minimize, Copy, ChevronDown, ChevronUp, CircleDollarSign, Printer, Download, Settings, Calendar, Check, Layers, Info, TrendingUp, TrendingDown, Star, AlertTriangle, CheckCircle2, ShieldAlert, Boxes, Sparkles, ArrowRight, AlertCircle, SearchX, BarChart3 } from 'lucide-react';
 import { KpiCard } from '@/components/ui/kpi-card';
 import { ResponsiveContainer, BarChart, Bar, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
 import { FilterPanel } from '@/components/ui/filter-panel';
@@ -207,41 +207,39 @@ function ProductHistoryView({ product, categoryName, onClose, onUpdate, onDelete
           <div className="p-5 border-b border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/50">
             <h3 className="font-black text-slate-900 dark:text-white">Recent Activity Log</h3>
           </div>
-          <div className="overflow-x-auto no-scrollbar">
-            <div className="min-w-max flex flex-col">
-              <div className="grid grid-cols-[200px_150px_450px_200px] gap-4 p-4 border-b border-slate-100 dark:border-slate-800/60 bg-slate-50/30 dark:bg-slate-900/30 text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0">
-                <div>Date</div>
-                <div>Action</div>
-                <div>Description</div>
-                <div>Performed By</div>
-              </div>
-              <div className="flex flex-col">
-                {history.map((h, i) => (
-                  <div key={i} className="grid grid-cols-[200px_150px_450px_200px] gap-4 p-4 border-b border-slate-100 dark:border-slate-800/60 items-center hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-                    <div className="text-sm font-bold text-slate-700 dark:text-slate-300">{new Date(h.date).toLocaleDateString()} {new Date(h.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
-                    <div>
-                      <span className={`inline-flex px-2 py-1 rounded-md text-[10px] uppercase font-bold ${
-                        h.action === 'CREATED' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' : 
-                        h.action === 'PRICE_UPDATE' ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400' :
-                        'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400'
-                      }`}>{h.action.replace('_', ' ')}</span>
-                    </div>
-                    <div className="text-sm font-medium text-slate-700 dark:text-slate-300 truncate">{h.desc}</div>
-                    <div className="flex flex-col">
-                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{h.by}</span>
-                      {h.role && (
-                        <span className="text-[10px] font-bold text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-500/10 px-1.5 py-0.5 rounded w-max mt-0.5">
-                          {h.role}
-                        </span>
-                      )}
-                    </div>
+          <div className="w-full flex flex-col">
+            <div className="grid grid-cols-[minmax(150px,1.2fr)_minmax(120px,0.9fr)_minmax(180px,2fr)_minmax(140px,1.1fr)] gap-4 p-4 border-b border-slate-100 dark:border-slate-800/60 bg-slate-50/30 dark:bg-slate-900/30 text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0">
+              <div>Date</div>
+              <div>Action</div>
+              <div>Description</div>
+              <div>Performed By</div>
+            </div>
+            <div className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800/60">
+              {history.map((h, i) => (
+                <div key={i} className="grid grid-cols-[minmax(150px,1.2fr)_minmax(120px,0.9fr)_minmax(180px,2fr)_minmax(140px,1.1fr)] gap-4 p-4 items-center hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                  <div className="text-sm font-bold text-slate-700 dark:text-slate-300">{new Date(h.date).toLocaleDateString()} {new Date(h.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                  <div>
+                    <span className={`inline-flex px-2 py-1 rounded-md text-[10px] uppercase font-bold ${
+                      h.action === 'CREATED' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' : 
+                      h.action === 'PRICE_UPDATE' ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400' :
+                      'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400'
+                    }`}>{h.action.replace('_', ' ')}</span>
                   </div>
-                ))}
+                  <div className="text-sm font-medium text-slate-700 dark:text-slate-300 truncate">{h.desc}</div>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{h.by}</span>
+                    {h.role && (
+                      <span className="text-[10px] font-bold text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-500/10 px-1.5 py-0.5 rounded w-max mt-0.5">
+                        {h.role}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
       </div>
-    </div>
   );
 }
 

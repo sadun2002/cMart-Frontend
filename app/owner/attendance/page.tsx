@@ -5,7 +5,7 @@ import {
   Users, CheckCircle, Clock, Calendar, ShieldAlert,
   Maximize, Minimize, Fingerprint, History, UserCheck,
   Search, Filter, List, LayoutGrid, X, ArrowRight, BarChart3,
-  TrendingUp, CheckCircle2, UserX, SlidersHorizontal, Activity
+  TrendingUp, CheckCircle2, UserX, SlidersHorizontal, Activity, ChevronDown
 } from 'lucide-react';
 import { 
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
@@ -479,6 +479,7 @@ export default function AttendancePage() {
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [expandedPunchId, setExpandedPunchId] = useState<number | string | null>(null);
 
   // Real-time clock for Kiosk Mode
   const [time, setTime] = useState(new Date());
@@ -975,56 +976,160 @@ export default function AttendancePage() {
                     onAction={simulatePunch}
                   />
                 ) : viewMode === 'list' ? (
-                  <table className="w-full text-left border-collapse">
-                    <thead className="bg-slate-50 dark:bg-slate-900/50 sticky top-0 z-10 backdrop-blur-sm">
-                      <tr>
-                        <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">Employee Name</th>
-                        <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">Time</th>
-                        <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">Type</th>
-                        <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 dark:border-slate-800 text-right">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
-                      {filteredPunches.map((punch) => (
-                        <tr key={punch.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
-                          <td className="p-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold">
-                                {punch.name.charAt(0)}
+                  <div className="flex-1 flex flex-col bg-white dark:bg-slate-900 overflow-hidden w-full">
+                    {/* Table Header */}
+                    <div className="grid grid-cols-[minmax(240px,2fr)_minmax(180px,1.4fr)_minmax(140px,1.2fr)_minmax(130px,1.1fr)_90px] gap-4 h-14 px-5 items-center border-b border-slate-200 dark:border-slate-800 bg-slate-50/75 dark:bg-slate-900/60 text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0">
+                      <div>Employee & Role</div>
+                      <div>Punch Timestamp</div>
+                      <div>Activity Type</div>
+                      <div>Status</div>
+                      <div className="text-right pr-2">Details</div>
+                    </div>
+
+                    {/* Table Body */}
+                    <div className="flex-1 overflow-y-auto no-scrollbar divide-y divide-slate-100 dark:divide-slate-800/60">
+                      {filteredPunches.map((punch) => {
+                        const emp = employees.find(e => e.id === punch.employeeId);
+                        const isExpanded = expandedPunchId === punch.id;
+                        const isLate = punch.status === 'Late';
+
+                        return (
+                          <div key={punch.id} className="flex flex-col">
+                            <div 
+                              onClick={() => setExpandedPunchId(prev => prev === punch.id ? null : punch.id)}
+                              className={`grid grid-cols-[minmax(240px,2fr)_minmax(180px,1.4fr)_minmax(140px,1.2fr)_minmax(130px,1.1fr)_90px] gap-4 p-4 sm:px-5 items-center transition-colors cursor-pointer group ${
+                                isExpanded ? 'bg-blue-50/60 dark:bg-blue-900/15' : 'hover:bg-slate-50/70 dark:hover:bg-slate-800/40'
+                              }`}
+                            >
+                              {/* Col 1: Employee & Role */}
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold text-base shrink-0 border border-blue-200/50 dark:border-blue-800/50">
+                                  {punch.name.charAt(0).toUpperCase()}
+                                </div>
+                                <div className="min-w-0">
+                                  <span className="font-bold text-slate-900 dark:text-white block text-sm truncate">{punch.name}</span>
+                                  <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider block truncate">
+                                    {emp?.role || 'Staff Member'}
+                                  </span>
+                                </div>
                               </div>
+
+                              {/* Col 2: Timestamp */}
+                              <div className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 min-w-0">
+                                <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                <span className="truncate">{new Date(punch.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+                                <span className="text-[10px] text-slate-400 font-normal">({new Date(punch.time).toLocaleDateString([], { month: 'short', day: 'numeric' })})</span>
+                              </div>
+
+                              {/* Col 3: Type */}
                               <div>
-                                <span className="font-bold text-slate-900 dark:text-white block">{punch.name}</span>
-                                <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                                  {employees.find(e => e.id === punch.employeeId)?.role || 'Employee'}
+                                <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold ${
+                                  punch.type === 'Check In' 
+                                    ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800/60' 
+                                    : 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800/60'
+                                }`}>
+                                  <Activity className="w-3 h-3 shrink-0" />
+                                  {punch.type}
                                 </span>
                               </div>
+
+                              {/* Col 4: Status */}
+                              <div>
+                                <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                                  isLate 
+                                    ? 'bg-rose-50 text-rose-600 border border-rose-200/60 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800/60' 
+                                    : 'bg-emerald-50 text-emerald-600 border border-emerald-200/60 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800/60'
+                                }`}>
+                                  <span className={`w-1.5 h-1.5 rounded-full ${isLate ? 'bg-rose-500' : 'bg-emerald-500'}`}></span>
+                                  {punch.status}
+                                </span>
+                              </div>
+
+                              {/* Col 5: Actions */}
+                              <div className="flex items-center justify-end">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setExpandedPunchId(prev => prev === punch.id ? null : punch.id);
+                                  }}
+                                  className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
+                                  title={isExpanded ? 'Collapse' : 'Expand Details'}
+                                >
+                                  <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180 text-blue-600' : ''}`} />
+                                </button>
+                              </div>
                             </div>
-                          </td>
-                          <td className="p-4 text-sm font-medium text-slate-600 dark:text-slate-300">
-                            {new Date(punch.time).toLocaleTimeString()}
-                          </td>
-                          <td className="p-4">
-                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                              punch.type === 'Check In' 
-                                ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400' 
-                                : 'bg-orange-100 text-orange-700 dark:bg-orange-500/10 dark:text-orange-400'
-                            }`}>
-                              {punch.type}
-                            </span>
-                          </td>
-                          <td className="p-4 text-right">
-                            <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm ${
-                              punch.status === 'Late' 
-                                ? 'bg-red-50 text-red-600 border border-red-200 dark:bg-red-500/10 dark:border-red-500/20' 
-                                : 'bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-emerald-500/10 dark:border-emerald-500/20'
-                            }`}>
-                              {punch.status}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+
+                            {/* Expandable Drawer */}
+                            <AnimatePresence>
+                              {isExpanded && (
+                                <motion.div
+                                  initial={{ height: 0, opacity: 0 }}
+                                  animate={{ height: 'auto', opacity: 1 }}
+                                  exit={{ height: 0, opacity: 0 }}
+                                  transition={{ duration: 0.25, ease: 'easeInOut' }}
+                                  className="overflow-hidden border-t border-slate-100 dark:border-slate-800/60 bg-slate-50/70 dark:bg-slate-800/30 p-6"
+                                >
+                                  <div className="space-y-4">
+                                    <div className="flex items-center justify-between">
+                                      <div>
+                                        <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                          <Fingerprint className="w-4 h-4 text-blue-600" />
+                                          Punch Event Verification: {punch.name}
+                                        </h4>
+                                        <p className="text-xs text-slate-500">Biometric timestamp log, shift validation, and terminal audit</p>
+                                      </div>
+                                      <span className="text-xs text-slate-400 font-mono">Punch ID: #{punch.id}</span>
+                                    </div>
+
+                                    {/* 4 Summary Cards */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                      <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
+                                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Punch Type</span>
+                                        <p className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+                                          <Activity className="w-4 h-4 text-blue-600" />
+                                          {punch.type}
+                                        </p>
+                                        <p className="text-[11px] text-slate-500 mt-1">Shift transition log</p>
+                                      </div>
+
+                                      <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
+                                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Time & Shift</span>
+                                        <p className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5 truncate">
+                                          <Clock className="w-4 h-4 text-purple-500 shrink-0" />
+                                          {new Date(punch.time).toLocaleTimeString()}
+                                        </p>
+                                        <p className="text-[11px] text-slate-500 mt-1">{new Date(punch.time).toDateString()}</p>
+                                      </div>
+
+                                      <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
+                                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Compliance Status</span>
+                                        <p className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5 truncate">
+                                          <span className={`w-2 h-2 rounded-full ${isLate ? 'bg-rose-500' : 'bg-emerald-500'}`}></span>
+                                          {isLate ? 'Late Arrival Warning' : 'On-Schedule Shift'}
+                                        </p>
+                                        <p className="text-[11px] text-slate-500 mt-1">Evaluated against shift roster</p>
+                                      </div>
+
+                                      <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
+                                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Verification Terminal</span>
+                                        <p className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5 truncate">
+                                          <Fingerprint className="w-4 h-4 text-emerald-500 shrink-0" />
+                                          Biometric Kiosk
+                                        </p>
+                                        <p className="text-[11px] text-slate-500 mt-1">Authorized store terminal</p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 ) : (
                   <div className="p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     {filteredPunches.map((punch) => (

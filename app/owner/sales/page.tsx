@@ -983,119 +983,119 @@ export default function SalesPage() {
         ) : viewMode === 'list' ? (
             <>
               {/* Table Header */}
-              <div className="grid grid-cols-12 gap-4 h-16 px-5 items-center border-b border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/50 text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0">
-                <div className="col-span-2">Invoice</div>
-                <div className="col-span-2">Date</div>
-                <div className="col-span-2">Customer</div>
-                <div className="col-span-1">Payment</div>
-                <div className="col-span-2">Total</div>
-                <div className="col-span-2 text-center">Status</div>
-                <div className="col-span-1 text-right">Actions</div>
+              <div className="grid grid-cols-[minmax(180px,1.8fr)_minmax(130px,1.2fr)_minmax(160px,1.5fr)_minmax(150px,1.3fr)_120px] gap-4 h-14 px-5 items-center border-b border-slate-200 dark:border-slate-800 bg-slate-50/75 dark:bg-slate-900/60 text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0">
+                <div>Invoice & Cashier</div>
+                <div>Date & Time</div>
+                <div>Customer & Channel</div>
+                <div>Total & Payment</div>
+                <div className="text-right pr-2">Actions</div>
               </div>
 
               {/* Table Body */}
-              <div className="flex-1 overflow-y-auto no-scrollbar">
+              <div className="flex-1 flex flex-col divide-y divide-slate-100 dark:divide-slate-800/60">
                 {filteredSales.map((s) => (
                     <React.Fragment key={s.id}>
-                      <div onClick={() => openViewPanel(s)} className={`grid grid-cols-12 gap-4 p-5 items-center transition-colors cursor-pointer group ${expandedSale === s.id ? 'bg-blue-50/50 dark:bg-blue-900/10 border-b-0' : 'border-b border-slate-100 dark:border-slate-800/60 hover:bg-slate-50/50 dark:hover:bg-slate-800/30'}`}>
-                        
-                        {/* Invoice */}
-                        <div className="col-span-2 flex items-center gap-3 min-w-0">
-                          <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center flex-shrink-0 text-blue-500">
+                      <div 
+                        onClick={() => setExpandedSale(prev => prev === s.id ? null : s.id)} 
+                        className={`grid grid-cols-[minmax(180px,1.8fr)_minmax(130px,1.2fr)_minmax(160px,1.5fr)_minmax(150px,1.3fr)_120px] gap-4 p-4 sm:px-5 items-center transition-colors cursor-pointer group ${
+                          expandedSale === s.id 
+                            ? 'bg-blue-50/60 dark:bg-blue-900/15' 
+                            : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/40'
+                        }`}
+                      >
+                        {/* 1. Invoice & Cashier */}
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center flex-shrink-0 text-blue-600 dark:text-blue-400">
                             <FileText className="w-5 h-5" />
                           </div>
                           <div className="min-w-0">
-                            <h3 className="font-bold text-slate-900 dark:text-white text-base truncate">{s.invoiceNo}</h3>
-                            <p className="text-xs text-slate-500 truncate flex items-center gap-1 mt-0.5">
-                              <UserCircle className="w-3 h-3" /> {s.user?.name || s.user?.email || 'Cashier'}
+                            <h3 className="font-bold text-slate-900 dark:text-white text-sm truncate">{s.invoiceNo}</h3>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 truncate flex items-center gap-1 mt-0.5">
+                              <UserCircle className="w-3.5 h-3.5 text-slate-400 shrink-0" /> {s.user?.name || s.user?.email || 'Cashier'}
                             </p>
                           </div>
                         </div>
 
-                        {/* Date */}
-                        <div className="col-span-2 flex flex-col justify-center min-w-0">
-                          <div className="flex items-center gap-1.5 text-sm font-bold text-slate-700 dark:text-slate-300 truncate">
-                            <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                        {/* 2. Date & Time */}
+                        <div className="flex flex-col justify-center min-w-0">
+                          <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
+                            <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                             {formatDate(s.createdAt)}
                           </div>
-                          <div className="flex items-center gap-1.5 text-xs text-slate-500 truncate mt-0.5">
-                            <Clock className="w-3 h-3" />
+                          <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                            <Clock className="w-3 h-3 text-slate-400 shrink-0" />
                             {formatTime(s.createdAt)}
                           </div>
                         </div>
 
-                        {/* Customer */}
-                        <div className="col-span-2 flex flex-col justify-center min-w-0">
+                        {/* 3. Customer & Channel */}
+                        <div className="flex flex-col justify-center min-w-0">
                           {s.customer ? (
                             <>
-                              <p className="text-sm font-bold text-slate-700 dark:text-slate-300 truncate">{s.customer.name}</p>
-                              <p className="text-xs text-slate-500 truncate">{s.customer.phone || 'No phone'}</p>
+                              <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{s.customer.name}</p>
+                              <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{s.customer.phone || 'No phone'}</p>
                             </>
                           ) : (
-                            <span className="text-sm font-medium italic text-slate-400">Walk-in Customer</span>
+                            <span className="text-xs font-medium italic text-slate-400">Walk-in Customer</span>
                           )}
-                        </div>
-
-                        {/* Payment Method */}
-                        <div className="col-span-1 flex flex-col justify-center min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            {s.paymentMethod === 'CASH' ? <Banknote className="w-4 h-4 text-emerald-500 shrink-0" /> : s.paymentMethod === 'PAYHERE_QR' ? <QrCode className="w-4 h-4 text-violet-500 shrink-0" /> : <CreditCard className="w-4 h-4 text-blue-500 shrink-0" />}
-                            <span className="text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-300 truncate">
-                              {s.paymentMethod === 'PAYHERE_QR' ? 'Mobile QR' : s.paymentMethod === 'CARD' ? 'Card' : 'Cash'}
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-slate-500 truncate mt-0.5 uppercase tracking-wider font-semibold">
-                            {s.channel || 'POS'}
-                          </p>
-                        </div>
-
-                        {/* Total */}
-                        <div className="col-span-2 flex flex-col justify-center min-w-0">
-                          <p className="text-base font-black text-slate-900 dark:text-white truncate">
-                            Rs. {formatCurrency(s.total)}
-                          </p>
-                          <p className="text-xs text-slate-500 font-medium">
-                            {s.items?.length || 0} items
-                          </p>
-                        </div>
-
-                        {/* Status */}
-                        <div className="col-span-2 flex items-center justify-center min-w-0">
-                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
-                            s.paymentStatus === 'COMPLETED' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' : 
-                            s.paymentStatus === 'PENDING' ? 'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400' :
-                            'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400'
-                          }`}>
-                            <span className="w-2 h-2 rounded-full bg-current" />
-                            {s.paymentStatus === 'REFUNDED' ? 'Refunded' : s.paymentStatus === 'PARTIAL_REFUND' ? 'Partial Refund' : s.paymentStatus}
+                          <span className="inline-flex items-center text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-0.5">
+                            Channel: {s.channel || 'POS'}
                           </span>
                         </div>
 
-                        {/* Actions */}
-                        <div className="col-span-1 flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {/* 4. Total & Payment */}
+                        <div className="flex flex-col justify-center min-w-0">
+                          <div className="flex items-baseline gap-1.5">
+                            <span className="text-sm font-black text-slate-900 dark:text-white truncate">
+                              Rs. {formatCurrency(s.total)}
+                            </span>
+                            <span className="text-[10px] text-slate-400">({s.items?.length || 0})</span>
+                          </div>
+                          <div className="flex items-center gap-1 mt-1">
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              s.paymentStatus === 'COMPLETED' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' : 
+                              s.paymentStatus === 'PENDING' ? 'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400' :
+                              'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400'
+                            }`}>
+                              <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                              {s.paymentStatus === 'REFUNDED' ? 'Refunded' : s.paymentStatus === 'PARTIAL_REFUND' ? 'Partial' : s.paymentStatus}
+                            </span>
+                            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
+                              • {s.paymentMethod === 'PAYHERE_QR' ? 'QR' : s.paymentMethod === 'CARD' ? 'Card' : 'Cash'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* 5. Actions Column (Right-aligned, tailored for sales) */}
+                        <div className="flex items-center justify-end gap-1 shrink-0">
                           <button
+                            type="button"
                             onClick={(e) => {
                               e.stopPropagation();
                               handlePrintReceipt(s);
                             }}
                             title="Print Receipt"
-                            className="p-2 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-colors"
+                            className="p-2 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-colors cursor-pointer"
                           >
                             <Printer className="w-4 h-4" />
                           </button>
                           {s.paymentStatus !== 'REFUNDED' && (
                             <button
+                              type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setRefundSale(s);
                                 setIsRefundPanelOpen(true);
                               }}
                               title="Refund Sale"
-                              className="p-2 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl transition-colors"
+                              className="p-2 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl transition-colors cursor-pointer"
                             >
                               <RotateCcw className="w-4 h-4" />
                             </button>
                           )}
+                          <div className="p-1 text-slate-300 dark:text-slate-600 group-hover:text-slate-500 dark:group-hover:text-slate-400 transition-colors">
+                            <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${expandedSale === s.id ? 'rotate-180 text-blue-600 dark:text-blue-400' : ''}`} />
+                          </div>
                         </div>
 
                       </div>
@@ -1435,21 +1435,21 @@ function SaleDetailsInline({ selectedSale, onClose, onRefund, onPrint, formatCur
             <Package className="w-5 h-5 text-blue-500" /> Purchased Items
           </h3>
         </div>
-        <div className="overflow-x-auto no-scrollbar">
-          <div className="min-w-max flex flex-col">
-            <div className="grid grid-cols-[300px_150px_100px_150px] gap-4 p-4 border-b border-slate-100 dark:border-slate-800/60 bg-slate-50/30 dark:bg-slate-900/30 text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0">
+        <div className="w-full overflow-hidden">
+          <div className="flex flex-col">
+            <div className="grid grid-cols-[minmax(180px,2fr)_minmax(100px,1fr)_80px_minmax(100px,1fr)] gap-4 p-4 border-b border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/50 text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0">
               <div>Item</div>
               <div className="text-right">Price</div>
               <div className="text-center">Qty</div>
               <div className="text-right">Subtotal</div>
             </div>
-            <div className="flex flex-col">
+            <div className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800/60">
               {selectedSale.items && selectedSale.items.map((item: any) => (
-                <div key={item.id} className="grid grid-cols-[300px_150px_100px_150px] gap-4 p-4 border-b border-slate-100 dark:border-slate-800/60 items-center hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                <div key={item.id} className="grid grid-cols-[minmax(180px,2fr)_minmax(100px,1fr)_80px_minmax(100px,1fr)] gap-4 p-4 items-center hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
                   <div className="text-sm font-bold text-slate-900 dark:text-white truncate">{item.productName}</div>
                   <div className="text-sm text-slate-600 dark:text-slate-300 text-right">Rs. {formatCurrency(item.price)}</div>
                   <div className="text-center">
-                    <span className="inline-flex items-center justify-center min-w-[2rem] px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-sm font-bold text-slate-700 dark:text-slate-300">
+                    <span className="inline-flex items-center justify-center min-w-[2rem] px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300">
                       {item.quantity}
                     </span>
                   </div>

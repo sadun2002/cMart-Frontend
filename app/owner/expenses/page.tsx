@@ -737,8 +737,9 @@ function ExpensesPageContent() {
     });
   };
 
-  // View Modal State
+  // View Modal & Inline Accordion State
   const [viewingExpense, setViewingExpense] = useState<any | null>(null);
+  const [expandedExpenseId, setExpandedExpenseId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchExpenses();
@@ -1151,60 +1152,211 @@ function ExpensesPageContent() {
               onAction={() => setIsAddOpen(true)}
             />
           ) : viewMode === 'list' ? (
-            <div className="min-w-full inline-block align-middle">
-              <table className="w-full text-left whitespace-nowrap min-w-[1000px]">
-                <thead className="sticky top-0 bg-slate-50/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-100 dark:border-slate-800 text-xs font-bold text-slate-500 uppercase tracking-wider z-10 shadow-sm">
-                  <tr>
-                    <th className="px-5 py-4 font-bold text-slate-500">Expense ID</th>
-                    <th className="px-5 py-4 font-bold text-slate-500">Date</th>
-                    <th className="px-5 py-4 font-bold text-slate-500">Expense Name</th>
-                    <th className="px-5 py-4 font-bold text-slate-500">Category</th>
-                    <th className="px-5 py-4 font-bold text-slate-500 text-right">Amount</th>
-                    <th className="px-5 py-4 font-bold text-slate-500 text-center">Status</th>
-                    <th className="px-5 py-4 font-bold text-slate-500 text-center">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                  {filteredExpenses.map((exp) => (
-                    <tr key={exp.id} onClick={() => setViewingExpense(exp)} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group cursor-pointer">
-                      <td className="px-5 py-4 whitespace-nowrap text-sm font-semibold text-slate-600 dark:text-slate-400">
-                        {exp.id ? `EXP-${exp.id.substring(0,6).toUpperCase()}` : 'EXP-UNKNOWN'}
-                      </td>
-                      <td className="px-5 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">{exp.date}</td>
-                      <td className="px-5 py-4 whitespace-nowrap">
-                        <div className="text-sm font-bold text-slate-900 dark:text-white">{exp.name || exp.description}</div>
-                      </td>
-                      <td className="px-5 py-4 whitespace-nowrap">
-                        <span className="px-2.5 py-1 bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 rounded-lg text-xs font-bold tracking-wide">
-                          {exp.category}
-                        </span>
-                      </td>
-                      <td className="px-5 py-4 whitespace-nowrap text-sm font-black text-slate-900 dark:text-white text-right">
-                        Rs. {Number(exp.amount).toLocaleString(undefined, {minimumFractionDigits: 2})}
-                      </td>
-                      <td className="px-5 py-4 whitespace-nowrap text-center">
-                        <span className={`px-2.5 py-1 rounded-lg text-xs font-bold tracking-wide ${
-                          exp.paymentStatus === 'Paid' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
-                          exp.paymentStatus === 'Unpaid' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
-                          'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
-                        }`}>
-                          {exp.paymentStatus || 'Paid'}
-                        </span>
-                      </td>
-                      <td className="px-5 py-4 whitespace-nowrap text-center">
-                        <div className="flex justify-center gap-2">
-                          <button onClick={(e) => { e.stopPropagation(); setViewingExpense(exp); }} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-all opacity-0 group-hover:opacity-100">
-                            <Eye className="w-5 h-5" />
-                          </button>
-                          <button onClick={(e) => { e.stopPropagation(); handleDelete(exp.id); }} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-all opacity-0 group-hover:opacity-100">
-                            <Trash2 className="w-5 h-5" />
-                          </button>
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden flex flex-col min-h-[400px] w-full">
+              {/* Table Header */}
+              <div className="grid grid-cols-[minmax(220px,2fr)_minmax(160px,1.4fr)_minmax(140px,1.2fr)_minmax(150px,1.3fr)_110px] gap-4 h-14 px-5 items-center border-b border-slate-200 dark:border-slate-800 bg-slate-50/75 dark:bg-slate-900/60 text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0">
+                <div>Expense & ID</div>
+                <div>Category & Account</div>
+                <div>Date & Timeline</div>
+                <div className="text-right">Amount & Status</div>
+                <div className="text-right pr-2">Actions</div>
+              </div>
+
+              {/* Table Body */}
+              <div className="flex-1 flex flex-col divide-y divide-slate-100 dark:divide-slate-800/60">
+                {filteredExpenses.map((exp) => {
+                  const isExpanded = expandedExpenseId === exp.id;
+
+                  return (
+                    <div key={exp.id} className="flex flex-col group scroll-mt-20">
+                      {/* Summary Row */}
+                      <div 
+                        onClick={() => setExpandedExpenseId(prev => prev === exp.id ? null : exp.id)}
+                        className={`grid grid-cols-[minmax(220px,2fr)_minmax(160px,1.4fr)_minmax(140px,1.2fr)_minmax(150px,1.3fr)_110px] gap-4 p-4 sm:px-5 items-center transition-colors cursor-pointer ${
+                          isExpanded 
+                            ? 'bg-blue-50/60 dark:bg-blue-900/15' 
+                            : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/40'
+                        }`}
+                      >
+                        {/* 1. Expense & ID */}
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-10 h-10 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0 text-slate-500 dark:text-slate-400">
+                            <Banknote className="w-5 h-5" />
+                          </div>
+                          <div className="min-w-0">
+                            <h3 className="font-bold text-slate-900 dark:text-white text-sm truncate">{exp.name || exp.description}</h3>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
+                                {exp.id ? `EXP-${exp.id.substring(0,6).toUpperCase()}` : 'EXP-UNKNOWN'}
+                              </span>
+                              <span className="text-slate-300 dark:text-slate-600">•</span>
+                              <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">
+                                {exp.type || 'One-time'}
+                              </span>
+                            </div>
+                          </div>
                         </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+
+                        {/* 2. Category & Account */}
+                        <div className="flex flex-col justify-center min-w-0 text-xs">
+                          <span className="font-bold text-slate-800 dark:text-slate-200 truncate">
+                            {exp.category}
+                          </span>
+                          <span className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                            {exp.paidFromAccount ? `From: ${exp.paidFromAccount}` : 'General'}
+                          </span>
+                        </div>
+
+                        {/* 3. Date & Timeline */}
+                        <div className="flex flex-col justify-center min-w-0 text-xs">
+                          <div className="flex items-center gap-1.5 text-slate-800 dark:text-slate-200 font-medium truncate">
+                            <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            <span>{exp.date}</span>
+                          </div>
+                          <span className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                            {exp.paymentMethod || 'Cash'}
+                          </span>
+                        </div>
+
+                        {/* 4. Amount & Status */}
+                        <div className="flex flex-col items-end justify-center min-w-0 text-xs">
+                          <span className="font-black text-slate-900 dark:text-white text-sm truncate">
+                            Rs. {Number(exp.amount).toLocaleString(undefined, {minimumFractionDigits: 2})}
+                          </span>
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold mt-1 ${
+                            exp.paymentStatus === 'Paid' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
+                            exp.paymentStatus === 'Unpaid' ? 'bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400' :
+                            'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                          }`}>
+                            {exp.paymentStatus || 'Paid'}
+                          </span>
+                        </div>
+
+                        {/* 5. Actions Column (Right-aligned, tailored for expenses) */}
+                        <div className="flex items-center justify-end gap-1 shrink-0">
+                          <button 
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setViewingExpense(exp); }} 
+                            className="p-2 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-colors cursor-pointer" 
+                            title="View Voucher"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          <button 
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); handleDelete(exp.id); }} 
+                            className="p-2 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl transition-colors cursor-pointer" 
+                            title="Delete Expense"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                          <div className="p-1 text-slate-300 dark:text-slate-600 group-hover:text-slate-500 dark:group-hover:text-slate-400 transition-colors">
+                            <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180 text-blue-600 dark:text-blue-400' : ''}`} />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* ──────────────── INLINE DETAILS EXPANSION ──────────────── */}
+                      <AnimatePresence>
+                        {isExpanded && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.25, ease: 'easeInOut' }}
+                            className="overflow-hidden border-t border-slate-100 dark:border-slate-800/60 bg-slate-50/70 dark:bg-slate-800/30 p-6"
+                          >
+                            <div className="space-y-6">
+                              {/* 4 Info Cards Grid */}
+                              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                {/* Card 1: Amount & Status */}
+                                <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-2">
+                                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                                    <Banknote className="w-3.5 h-3.5 text-blue-500" /> Amount & Status
+                                  </p>
+                                  <div className="space-y-1 text-xs">
+                                    <p className="text-slate-600 dark:text-slate-300">
+                                      <span className="font-semibold text-slate-800 dark:text-white">Amount:</span> Rs. {Number(exp.amount).toLocaleString(undefined, {minimumFractionDigits: 2})}
+                                    </p>
+                                    <p className="text-slate-600 dark:text-slate-300">
+                                      <span className="font-semibold text-slate-800 dark:text-white">Status:</span> {exp.paymentStatus || 'Paid'}
+                                    </p>
+                                    <p className="text-slate-600 dark:text-slate-300">
+                                      <span className="font-semibold text-slate-800 dark:text-white">Tax:</span> Rs. {Number(exp.tax || 0).toLocaleString()}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                {/* Card 2: Classification */}
+                                <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-2">
+                                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                                    <SlidersHorizontal className="w-3.5 h-3.5 text-purple-500" /> Classification
+                                  </p>
+                                  <div className="space-y-1 text-xs">
+                                    <p className="text-slate-600 dark:text-slate-300">
+                                      <span className="font-semibold text-slate-800 dark:text-white">Category:</span> {exp.category}
+                                    </p>
+                                    <p className="text-slate-600 dark:text-slate-300">
+                                      <span className="font-semibold text-slate-800 dark:text-white">Type:</span> {exp.type || 'One-time'} {exp.recurringFrequency ? `(${exp.recurringFrequency})` : ''}
+                                    </p>
+                                    <p className="text-slate-600 dark:text-slate-300">
+                                      <span className="font-semibold text-slate-800 dark:text-white">Method:</span> {exp.paymentMethod || 'Cash'}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                {/* Card 3: Payee & Accounts */}
+                                <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-2">
+                                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                                    <CreditCard className="w-3.5 h-3.5 text-emerald-500" /> Account & Payee
+                                  </p>
+                                  <div className="space-y-1 text-xs">
+                                    <p className="text-slate-600 dark:text-slate-300 truncate">
+                                      <span className="font-semibold text-slate-800 dark:text-white">Paid From:</span> {exp.paidFromAccount || 'Cash Drawer'}
+                                    </p>
+                                    {exp.dueDate && (
+                                      <p className="text-slate-600 dark:text-slate-300 truncate">
+                                        <span className="font-semibold text-slate-800 dark:text-white">Due Date:</span> {exp.dueDate}
+                                      </p>
+                                    )}
+                                    {exp.vendorId && (
+                                      <p className="text-slate-600 dark:text-slate-300 truncate">
+                                        <span className="font-semibold text-slate-800 dark:text-white">Vendor:</span> {suppliers.find(s => String(s.id) === exp.vendorId)?.name || `Vendor #${exp.vendorId}`}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Card 4: Quick Actions */}
+                                <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col justify-center gap-2">
+                                  <button
+                                    onClick={() => setViewingExpense(exp)}
+                                    className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 dark:bg-blue-500/10 dark:hover:bg-blue-500/20 dark:text-blue-400 rounded-xl font-bold text-xs transition-colors cursor-pointer"
+                                  >
+                                    <Eye className="w-3.5 h-3.5" /> View Voucher
+                                  </button>
+                                  <button
+                                    onClick={() => handleDelete(exp.id)}
+                                    className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-500/10 dark:hover:bg-rose-500/20 dark:text-rose-400 rounded-xl font-bold text-xs transition-colors cursor-pointer"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" /> Delete
+                                  </button>
+                                </div>
+                              </div>
+
+                              {(exp.notes || exp.description) && (
+                                <div className="p-3 bg-amber-50/80 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/40 rounded-xl text-xs text-amber-800 dark:text-amber-300">
+                                  <span className="font-bold">Description / Notes:</span> {exp.notes || exp.description}
+                                </div>
+                              )}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4">

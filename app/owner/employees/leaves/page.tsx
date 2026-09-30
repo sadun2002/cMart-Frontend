@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { 
   CalendarDays, CalendarCheck, Clock, XCircle, Search, Filter,
-  CheckCircle, MoreHorizontal, FileText, UserCircle, Maximize, Minimize, List, LayoutGrid, X, AlertCircle, Download, User as UserIcon, Users, Trash2, Edit, Plus, ChevronDown, ChevronUp, FileUp,
+  CheckCircle, MoreHorizontal, FileText, UserCircle, Maximize, Minimize, List, LayoutGrid, X, AlertCircle, Download, User as UserIcon, Users, Trash2, Edit2, Plus, ChevronDown, ChevronUp, FileUp,
   BarChart3, PieChart, Activity, Check, ArrowRight, ShieldCheck
 } from 'lucide-react';
 import { 
@@ -647,6 +647,7 @@ export default function LeaveManagementPage() {
   const [viewingRequest, setViewingRequest] = useState<any>(null);
   
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [expandedLeaveId, setExpandedLeaveId] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
   const [roleFilter, setRoleFilter] = useState('All');
@@ -918,90 +919,190 @@ export default function LeaveManagementPage() {
           {viewingRequest ? (
             <LeaveRequestDetailsView request={viewingRequest} onBack={() => setViewingRequest(null)} />
           ) : viewMode === 'list' ? (
-            <div className="flex-1 overflow-x-auto">
-              <div className="min-w-max h-full flex flex-col">
-                {/* Table Header */}
-                <div className="grid grid-cols-[150px_250px_150px_150px_150px_120px_100px] gap-4 h-16 px-5 items-center border-b border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/50 text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0">
-                  <div>Req ID</div>
-                  <div>Employee</div>
-                  <div>Leave Type</div>
-                  <div>Duration</div>
-                  <div>Applied On</div>
-                  <div className="text-right">Status</div>
-                  <div className="text-center">Action</div>
-                </div>
+            <div className="flex-1 flex flex-col min-w-0 w-full overflow-hidden">
+              {/* Table Header */}
+              <div className="grid grid-cols-[minmax(220px,1.4fr)_minmax(160px,1fr)_minmax(150px,1fr)_minmax(130px,0.8fr)_minmax(180px,1fr)] gap-4 h-14 px-5 items-center border-b border-slate-200 dark:border-slate-800 bg-slate-50/75 dark:bg-slate-900/60 text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0">
+                <div>Req ID & Employee</div>
+                <div>Leave Type & Reason</div>
+                <div>Duration & Dates</div>
+                <div>Applied Date</div>
+                <div className="text-right">Status & Actions</div>
+              </div>
 
-                {/* Table Body */}
-                <div className="flex-1 overflow-y-auto no-scrollbar">
-                  {loading ? (
-                    <div className="flex flex-col items-center justify-center h-64 text-slate-400 gap-4">
-                      <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                      <p className="font-medium">Loading leaves...</p>
-                    </div>
-                  ) : filteredLeaves.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-64 text-slate-400 gap-4">
-                      <CalendarDays className="w-12 h-12 opacity-20" />
-                      <p className="font-medium text-lg text-slate-500">No leave requests found.</p>
-                    </div>
-                  ) : (
-                    <>
-                    {filteredLeaves.map((leave) => (
-                      <div key={leave.id} onClick={() => setViewingRequest(leave)} className="cursor-pointer grid grid-cols-[150px_250px_150px_150px_150px_120px_100px] gap-4 p-5 border-b border-slate-100 dark:border-slate-800/60 items-center hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group">
-                        
-                        {/* Req ID */}
-                        <div className="text-sm font-bold text-slate-900 dark:text-white">{leave.id}</div>
-
-                        {/* Employee Name */}
-                        <div className="flex items-center gap-4 min-w-0">
-                          <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0 text-slate-400">
-                            <UserCircle className="w-5 h-5" />
+              {/* Table Body */}
+              <div className="flex-1 overflow-y-auto no-scrollbar divide-y divide-slate-100 dark:divide-slate-800/60">
+                {loading ? (
+                  <div className="flex flex-col items-center justify-center h-64 text-slate-400 gap-4">
+                    <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                    <p className="font-medium">Loading leaves...</p>
+                  </div>
+                ) : filteredLeaves.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-64 text-slate-400 gap-4">
+                    <CalendarDays className="w-12 h-12 opacity-20" />
+                    <p className="font-medium text-lg text-slate-500">No leave requests found.</p>
+                  </div>
+                ) : (
+                  <>
+                  {filteredLeaves.map((leave) => {
+                    const isExpanded = expandedLeaveId === leave.id;
+                    return (
+                      <div key={leave.id} className="transition-colors">
+                        <div 
+                          onClick={() => setExpandedLeaveId(isExpanded ? null : leave.id)}
+                          className={`grid grid-cols-[minmax(220px,1.4fr)_minmax(160px,1fr)_minmax(150px,1fr)_minmax(130px,0.8fr)_minmax(180px,1fr)] gap-4 p-4 sm:px-5 items-center transition-colors cursor-pointer group ${
+                            isExpanded ? 'bg-blue-50/60 dark:bg-blue-900/15' : 'hover:bg-slate-50/70 dark:hover:bg-slate-800/40'
+                          }`}
+                        >
+                          {/* Col 1: Req ID & Employee */}
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-100 dark:border-blue-900/40">
+                              <UserCircle className="w-5 h-5" />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-slate-900 dark:text-white text-sm truncate">{leave.employee}</span>
+                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 shrink-0">
+                                  {leave.id}
+                                </span>
+                              </div>
+                              <p className="text-xs font-medium text-slate-500 truncate mt-0.5">
+                                {leave.role}
+                              </p>
+                            </div>
                           </div>
-                          <div className="min-w-0">
-                            <h3 className="font-bold text-slate-900 dark:text-white text-base truncate">{leave.employee}</h3>
-                            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider truncate mt-0.5">
-                              {leave.role}
-                            </p>
+
+                          {/* Col 2: Leave Type & Reason */}
+                          <div className="flex flex-col justify-center min-w-0">
+                            <span className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate">{leave.type}</span>
+                            <span className="text-xs text-slate-500 truncate mt-0.5">{leave.reason || 'No reason provided'}</span>
+                          </div>
+
+                          {/* Col 3: Duration & Dates */}
+                          <div className="flex flex-col justify-center min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-sm font-bold text-slate-900 dark:text-white">{leave.days} Day{leave.days > 1 ? 's' : ''}</span>
+                            </div>
+                            <span className="text-xs text-slate-500 truncate mt-0.5">{leave.startDate} → {leave.endDate}</span>
+                          </div>
+
+                          {/* Col 4: Applied Date */}
+                          <div className="flex flex-col justify-center min-w-0">
+                            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{leave.appliedDate}</span>
+                            <span className="text-xs text-slate-400">{leave.approvedBy ? `By ${leave.approvedBy}` : 'Awaiting Review'}</span>
+                          </div>
+
+                          {/* Col 5: Status & Actions */}
+                          <div className="flex items-center justify-end gap-2">
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold shrink-0 ${
+                              leave.status === 'Approved' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/40' :
+                              leave.status === 'Rejected' ? 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400 border border-red-200/60 dark:border-red-800/40' :
+                              'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400 border border-amber-200/60 dark:border-amber-800/40'
+                            }`}>
+                              {leave.status}
+                            </span>
+
+                            <button 
+                              onClick={(e) => { 
+                                e.stopPropagation(); 
+                                toast.success('Leave request deleted'); 
+                                setLeaves(prev => prev.filter(l => l.id !== leave.id));
+                              }} 
+                              className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl transition-colors cursor-pointer" 
+                              title="Delete Request"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setViewingRequest(leave);
+                              }}
+                              className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-colors cursor-pointer"
+                              title="View Full Dossier"
+                            >
+                              <FileText className="w-4 h-4" />
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setExpandedLeaveId(isExpanded ? null : leave.id);
+                              }}
+                              className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-colors"
+                              title="Toggle Quick Info"
+                            >
+                              <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180 text-blue-600' : ''}`} />
+                            </button>
                           </div>
                         </div>
 
-                        {/* Leave Type */}
-                        <div className="flex flex-col justify-center min-w-0 space-y-1">
-                          <span className="text-sm font-semibold text-slate-700 dark:text-slate-300 truncate">{leave.type}</span>
-                        </div>
+                        {/* Inline Expandable Detail Drawer */}
+                        <AnimatePresence>
+                          {isExpanded && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: 'auto', opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.25, ease: 'easeInOut' }}
+                              className="overflow-hidden border-t border-slate-100 dark:border-slate-800/60 bg-slate-50/70 dark:bg-slate-800/30 p-6"
+                            >
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-sm">
+                                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Leave Category</p>
+                                  <p className="text-sm font-bold text-slate-900 dark:text-white mt-1">{leave.type}</p>
+                                  <p className="text-xs text-slate-500 mt-1 line-clamp-2">{leave.reason || 'No description provided'}</p>
+                                </div>
 
-                        {/* Duration */}
-                        <div className="flex flex-col justify-center min-w-0 space-y-1">
-                          <span className="text-sm font-semibold text-slate-700 dark:text-slate-300 leading-tight">{leave.days} Day{leave.days > 1 ? 's' : ''}</span>
-                          <span className="text-xs text-slate-500 mt-0.5">{leave.startDate}</span>
-                        </div>
+                                <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-sm">
+                                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Schedule & Days</p>
+                                  <p className="text-sm font-bold text-slate-900 dark:text-white mt-1">{leave.days} Day{leave.days > 1 ? 's' : ''}</p>
+                                  <p className="text-xs text-slate-500 mt-1">{leave.startDate} to {leave.endDate}</p>
+                                </div>
 
-                        {/* Applied On */}
-                        <div className="flex flex-col justify-center min-w-0">
-                          <span className="text-sm text-slate-500 font-medium">{leave.appliedDate}</span>
-                        </div>
+                                <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-sm">
+                                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Audit & Review</p>
+                                  <p className="text-sm font-bold text-slate-900 dark:text-white mt-1">Applied: {leave.appliedDate}</p>
+                                  <p className="text-xs text-slate-500 mt-1">Approver: {leave.approvedBy || 'Pending decision'}</p>
+                                </div>
 
-                        {/* Status */}
-                        <div className="flex justify-end">
-                          <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold ${
-                            leave.status === 'Approved' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' :
-                            leave.status === 'Rejected' ? 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400' :
-                            'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400'
-                          }`}>
-                            {leave.status}
-                          </span>
-                        </div>
-
-                        {/* Action */}
-                        <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button onClick={(e) => { e.stopPropagation(); toast.success('Deleted'); }} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer" title="Delete">
-                            <Trash2 className="w-5 h-5" />
-                          </button>
-                        </div>
+                                <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+                                  <div>
+                                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Actions</p>
+                                    <p className="text-xs text-slate-500 mt-0.5">Quick dossier actions</p>
+                                  </div>
+                                  <div className="flex items-center gap-2 mt-3">
+                                    <button
+                                      onClick={() => setViewingRequest(leave)}
+                                      className="flex-1 py-1.5 px-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-colors flex items-center justify-center gap-1.5"
+                                    >
+                                      <FileText className="w-3.5 h-3.5" />
+                                      Full Dossier
+                                    </button>
+                                    {leave.status === 'Pending' && (
+                                      <button
+                                        onClick={() => {
+                                          setLeaves(prev => prev.map(l => l.id === leave.id ? { ...l, status: 'Approved', approvedBy: 'Admin' } : l));
+                                          toast.success(`Leave request ${leave.id} approved`);
+                                        }}
+                                        className="py-1.5 px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-colors flex items-center justify-center gap-1"
+                                        title="Quick Approve"
+                                      >
+                                        <Check className="w-3.5 h-3.5" />
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                       </div>
-                    ))}
-                    </>
-                  )}
-                </div>
+                    );
+                  })}
+                  </>
+                )}
               </div>
             </div>
           ) : (

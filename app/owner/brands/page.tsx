@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Plus, Search, Trash2, Tag, Edit, X, Image as ImageIcon, List, LayoutGrid, Package, Maximize, Minimize, ChevronDown, ChevronUp, Info, BarChart3, TrendingUp, Layers } from 'lucide-react';
+import { Plus, Search, Trash2, Tag, Edit2, X, Image as ImageIcon, List, LayoutGrid, Package, Maximize, Minimize, ChevronDown, ChevronUp, Info, BarChart3, TrendingUp, Layers, Calendar, CheckCircle2 } from 'lucide-react';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { storeOwnerAPI } from '@/lib/api';
 import { toast } from 'sonner';
@@ -17,42 +17,199 @@ import { useAuthStore } from '@/lib/auth-store';
 import { saveBrandLocally, markBrandSynced, getLocalBrands, updateBrandLocally, deleteBrandLocally } from '@/lib/local-services';
 import { isTauriEnv } from '@/lib/local-db';
 
-// --- Brand Row Component ---
-const BrandRow = ({ brand, onEdit, onDelete }: any) => {
+// --- Brand Row Component with Inline Expandable Drawer ---
+const BrandRow = ({ brand, onEdit, onDelete, isExpanded, onToggleExpand }: any) => {
+  const productCount = brand._count?.products || 0;
+  const isActive = productCount > 0;
+
   return (
-    <div className={`grid grid-cols-12 gap-4 p-5 border-b border-slate-100 dark:border-slate-800/60 items-center hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group pl-6`}>
-      <div className="col-span-6 flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0 text-slate-400 overflow-hidden">
-          {brand.image ? (
-            <img src={brand.image} alt={brand.name} className="w-full h-full object-cover" />
+    <div className="flex flex-col border-b border-slate-100 dark:border-slate-800/60">
+      <div 
+        onClick={onToggleExpand}
+        className={`grid grid-cols-[minmax(240px,2fr)_minmax(140px,1.2fr)_minmax(120px,1fr)_minmax(130px,1fr)_120px] gap-4 p-4 sm:px-5 items-center transition-colors cursor-pointer group ${
+          isExpanded 
+            ? 'bg-blue-50/60 dark:bg-blue-900/15' 
+            : 'hover:bg-slate-50/70 dark:hover:bg-slate-800/40'
+        }`}
+      >
+        {/* Col 1: Brand & Description */}
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 text-slate-400 overflow-hidden border border-slate-200/50 dark:border-slate-700/50">
+            {brand.image ? (
+              <img src={brand.image} alt={brand.name} className="w-full h-full object-cover" />
+            ) : (
+              <Tag className="w-5 h-5 text-blue-500" />
+            )}
+          </div>
+          <div className="min-w-0">
+            <h3 className="font-bold text-slate-900 dark:text-white text-sm truncate">{brand.name}</h3>
+            {brand.description && <p className="text-xs text-slate-500 line-clamp-1">{brand.description}</p>}
+            <p className="text-[10px] text-slate-400 mt-0.5 font-medium">
+              {brand.updatedAt && brand.updatedAt !== brand.createdAt 
+                ? `Updated ${new Date(brand.updatedAt).toLocaleDateString()}` 
+                : brand.createdAt ? `Added ${new Date(brand.createdAt).toLocaleDateString()}` : ''}
+            </p>
+          </div>
+        </div>
+        
+        {/* Col 2: Catalog Products */}
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200">
+            <Package className="w-4 h-4 text-slate-400 shrink-0" />
+            <span>{productCount} Items</span>
+          </div>
+        </div>
+
+        {/* Col 3: Status */}
+        <div>
+          {isActive ? (
+            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+              Active
+            </span>
           ) : (
-            <Tag className="w-5 h-5" />
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-full bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+              <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+              No Items
+            </span>
           )}
         </div>
-        <div>
-          <h3 className="font-bold text-slate-900 dark:text-white text-base">{brand.name}</h3>
-          {brand.description && <p className="text-xs text-slate-500 line-clamp-1">{brand.description}</p>}
-          <p className="text-xs text-slate-400 mt-0.5">
-            {brand.updatedAt && brand.updatedAt !== brand.createdAt 
-              ? `Updated ${new Date(brand.updatedAt).toLocaleDateString()}` 
-              : brand.createdAt ? `Added ${new Date(brand.createdAt).toLocaleDateString()}` : ''}
-          </p>
+
+        {/* Col 4: Created Date */}
+        <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5 font-medium truncate">
+          <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+          <span>{brand.createdAt ? new Date(brand.createdAt).toLocaleDateString() : 'N/A'}</span>
+        </div>
+
+        {/* Col 5: Actions */}
+        <div className="flex justify-end items-center gap-1">
+          <button 
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit(brand);
+            }} 
+            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-xl transition-colors cursor-pointer"
+            title="Edit Brand"
+          >
+            <Edit2 className="w-4 h-4" />
+          </button>
+          <button 
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(brand.id);
+            }} 
+            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-xl transition-colors cursor-pointer"
+            title="Delete Brand"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+          <button 
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleExpand();
+            }}
+            className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
+            title={isExpanded ? 'Collapse' : 'Expand Details'}
+          >
+            <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180 text-blue-600' : ''}`} />
+          </button>
         </div>
       </div>
-      
-      <div className="col-span-4 text-slate-500 text-sm font-medium flex items-center gap-2">
-        <Package className="w-4 h-4 text-slate-400" />
-        {brand._count?.products || 0} Items
-      </div>
 
-      <div className="col-span-2 flex justify-end items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity pr-4">
-        <button onClick={() => onEdit(brand)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
-          <Edit className="w-5 h-5" />
-        </button>
-        <button onClick={() => onDelete(brand.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-          <Trash2 className="w-5 h-5" />
-        </button>
-      </div>
+      {/* Inline Detail Drawer */}
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25, ease: 'easeInOut' }}
+            className="overflow-hidden border-t border-slate-100 dark:border-slate-800/60 bg-slate-50/70 dark:bg-slate-800/30 p-6"
+          >
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <Tag className="w-4 h-4 text-blue-600" />
+                    Brand Overview: {brand.name}
+                  </h4>
+                  <p className="text-xs text-slate-500">Catalog details, brand inventory performance, and administrative controls</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onEdit(brand)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-xs cursor-pointer"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                    Edit Details
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDelete(brand.id)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 border border-rose-200 dark:border-rose-900/40 transition-colors cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Delete
+                  </button>
+                </div>
+              </div>
+
+              {/* 4 Summary Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Catalog Items</span>
+                  <p className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+                    <Package className="w-5 h-5 text-blue-600" />
+                    {productCount} Products
+                  </p>
+                  <p className="text-[11px] text-slate-500 mt-1">Associated with active SKUs</p>
+                </div>
+
+                <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Brand Identification</span>
+                  <p className="text-sm font-black text-slate-900 dark:text-white font-mono truncate">
+                    ID: #{brand.id}
+                  </p>
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    {brand.image ? 'Custom brand logo uploaded' : 'Default icon assigned'}
+                  </p>
+                </div>
+
+                <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Record Created</span>
+                  <p className="text-sm font-bold text-slate-900 dark:text-white">
+                    {brand.createdAt ? new Date(brand.createdAt).toLocaleDateString() : 'N/A'}
+                  </p>
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    {brand.createdAt ? new Date(brand.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                  </p>
+                </div>
+
+                <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Last Modified</span>
+                  <p className="text-sm font-bold text-slate-900 dark:text-white">
+                    {brand.updatedAt ? new Date(brand.updatedAt).toLocaleDateString() : 'Unchanged'}
+                  </p>
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    {brand.updatedAt ? new Date(brand.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Same as created'}
+                  </p>
+                </div>
+              </div>
+
+              {brand.description && (
+                <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Brand Description</span>
+                  <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">{brand.description}</p>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
@@ -476,6 +633,7 @@ function BrandsPageContent() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<{isOpen: boolean, id: number | null}>({isOpen: false, id: null});
   const [isDeleting, setIsDeleting] = useState(false);
+  const [expandedBrandId, setExpandedBrandId] = useState<number | string | null>(null);
 
   const handleClosePanel = () => {
     setIsPanelOpen(false);
@@ -882,15 +1040,24 @@ function BrandsPageContent() {
           />
         ) : viewMode === 'list' ? (
           <>
-            <div className="grid grid-cols-12 gap-4 h-16 px-5 pl-9 items-center border-b border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/50 text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0">
-              <div className="col-span-6">Brand Name</div>
-              <div className="col-span-4">Products</div>
-              <div className="col-span-2 text-right pr-4">Action</div>
+            <div className="grid grid-cols-[minmax(240px,2fr)_minmax(140px,1.2fr)_minmax(120px,1fr)_minmax(130px,1fr)_120px] gap-4 h-14 px-5 items-center border-b border-slate-200 dark:border-slate-800 bg-slate-50/75 dark:bg-slate-900/60 text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0">
+              <div>Brand & Description</div>
+              <div>Catalog Inventory</div>
+              <div>Status</div>
+              <div>Created Date</div>
+              <div className="text-right pr-2">Actions</div>
             </div>
 
             <div className="flex-1 overflow-y-auto no-scrollbar">
               {filteredBrands.map((b) => (
-                <BrandRow key={b.id} brand={b} onEdit={openEditPanel} onDelete={handleDelete} />
+                <BrandRow 
+                  key={b.id} 
+                  brand={b} 
+                  onEdit={openEditPanel} 
+                  onDelete={handleDelete}
+                  isExpanded={expandedBrandId === b.id}
+                  onToggleExpand={() => setExpandedBrandId(prev => prev === b.id ? null : b.id)}
+                />
               ))}
             </div>
           </>
@@ -903,7 +1070,7 @@ function BrandsPageContent() {
                          {b.image ? <img src={b.image} alt={b.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" /> : <Tag className="w-12 h-12 opacity-50" />}
                          <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3 backdrop-blur-[2px]">
                             <button onClick={() => openEditPanel(b)} className="p-3 bg-white text-slate-900 rounded-full hover:bg-blue-50 hover:text-blue-600 transition-colors shadow-lg translate-y-4 group-hover:translate-y-0 duration-300">
-                              <Edit className="w-5 h-5" />
+                              <Edit2 className="w-5 h-5" />
                             </button>
                             <button onClick={() => handleDelete(b.id)} className="p-3 bg-white text-slate-900 rounded-full hover:bg-red-50 hover:text-red-600 transition-colors shadow-lg translate-y-4 group-hover:translate-y-0 duration-300 delay-75">
                               <Trash2 className="w-5 h-5" />

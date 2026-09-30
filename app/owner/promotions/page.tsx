@@ -580,6 +580,7 @@ export default function PromotionsPage() {
   // Filter States
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [expandedPromoId, setExpandedPromoId] = useState<number | null>(null);
 
   useEffect(() => {
     loadData();
@@ -1140,77 +1141,220 @@ export default function PromotionsPage() {
             />
           ) : viewMode === 'list' ? (
             // LIST VIEW (TABLE)
-            <div className="overflow-x-auto no-scrollbar">
-              <div className="min-w-max">
-                <div className="grid grid-cols-[300px_150px_200px_200px_150px_120px] gap-4 p-4 border-b border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/50 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                  <div>Promotion Name</div>
-                  <div>Status</div>
-                  <div>Offer</div>
-                  <div>Duration</div>
-                  <div>Applies To</div>
-                  <div className="text-right">Actions</div>
-                </div>
-                
-                <div className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                  {filteredPromotions.map((promo) => (
-                    <div key={promo.id} className="grid grid-cols-[300px_150px_200px_200px_150px_120px] gap-4 p-4 items-center hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group">
-                      <div>
-                        <p className="font-bold text-slate-900 dark:text-white text-sm truncate">{promo.name}</p>
-                        <p className="text-xs text-slate-500 mt-0.5 truncate">{promo.type.replace(/_/g, ' ')}</p>
-                      </div>
-                      
-                      <div>
-                        {renderStatusBadge(getStatus(promo))}
-                      </div>
-                      
-                      <div>
-                        <p className="font-bold text-slate-700 dark:text-slate-300 text-sm">
-                          {promo.type === 'PERCENTAGE' && `${promo.offerValue}% OFF`}
-                          {promo.type === 'FIXED' && `Rs. ${promo.offerValue} OFF`}
-                          {promo.type === 'SPECIAL_PRICE' && `Rs. ${promo.offerValue} SPECIAL PRICE`}
-                          {promo.type === 'QUANTITY' && `BUY ${promo.quantityRequirement} FOR Rs. ${promo.offerValue}`}
-                          {promo.type === 'BUY_X_GET_Y' && `BUY ${promo.quantityRequirement} GET ${promo.rewardQuantity} FREE`}
-                        </p>
-                      </div>
-                      
-                      <div>
-                        <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                          {new Date(promo.startDate).toLocaleDateString()} - {new Date(promo.endDate).toLocaleDateString()}
-                        </p>
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden flex flex-col min-h-[400px] w-full">
+              {/* Table Header */}
+              <div className="grid grid-cols-[minmax(220px,2fr)_minmax(160px,1.4fr)_minmax(160px,1.3fr)_minmax(140px,1.2fr)_120px] gap-4 h-14 px-5 items-center border-b border-slate-200 dark:border-slate-800 bg-slate-50/75 dark:bg-slate-900/60 text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0">
+                <div>Promotion & Type</div>
+                <div>Offer Value</div>
+                <div>Duration & Dates</div>
+                <div>Applies To</div>
+                <div className="text-right pr-2">Actions</div>
+              </div>
+              
+              {/* Table Body */}
+              <div className="flex-1 flex flex-col divide-y divide-slate-100 dark:divide-slate-800/60">
+                {filteredPromotions.map((promo) => {
+                  const isExpanded = expandedPromoId === promo.id;
+
+                  return (
+                    <div key={promo.id} className="flex flex-col group scroll-mt-20">
+                      {/* Summary Row */}
+                      <div 
+                        onClick={() => setExpandedPromoId(prev => prev === promo.id ? null : promo.id)}
+                        className={`grid grid-cols-[minmax(220px,2fr)_minmax(160px,1.4fr)_minmax(160px,1.3fr)_minmax(140px,1.2fr)_120px] gap-4 p-4 sm:px-5 items-center transition-colors cursor-pointer ${
+                          isExpanded 
+                            ? 'bg-blue-50/60 dark:bg-blue-900/15' 
+                            : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/40'
+                        }`}
+                      >
+                        {/* 1. Promotion & Type */}
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-10 h-10 rounded-2xl bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center flex-shrink-0 text-blue-600 dark:text-blue-400">
+                            <Tag className="w-5 h-5" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-bold text-slate-900 dark:text-white text-sm truncate">{promo.name}</p>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              {renderStatusBadge(getStatus(promo))}
+                              <span className="text-slate-300 dark:text-slate-600">•</span>
+                              <span className="text-[10px] text-slate-400 uppercase font-semibold truncate">
+                                {promo.type.replace(/_/g, ' ')}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 2. Offer Value */}
+                        <div className="flex flex-col justify-center min-w-0 text-xs">
+                          <p className="font-black text-blue-600 dark:text-blue-400 text-sm truncate">
+                            {promo.type === 'PERCENTAGE' && `${promo.offerValue}% OFF`}
+                            {promo.type === 'FIXED' && `Rs. ${promo.offerValue} OFF`}
+                            {promo.type === 'SPECIAL_PRICE' && `Rs. ${promo.offerValue} SPECIAL PRICE`}
+                            {promo.type === 'QUANTITY' && `BUY ${promo.quantityRequirement} FOR Rs. ${promo.offerValue}`}
+                            {promo.type === 'BUY_X_GET_Y' && `BUY ${promo.quantityRequirement} GET ${promo.rewardQuantity} FREE`}
+                          </p>
+                          <span className="text-[11px] text-slate-400 truncate mt-0.5">
+                            {promo.minPurchaseAmount ? `Min: Rs. ${promo.minPurchaseAmount}` : 'No minimum spend'}
+                          </span>
+                        </div>
+
+                        {/* 3. Duration & Dates */}
+                        <div className="flex flex-col justify-center min-w-0 text-xs">
+                          <div className="flex items-center gap-1.5 text-slate-800 dark:text-slate-200 font-medium truncate">
+                            <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            <span>{new Date(promo.startDate).toLocaleDateString()}</span>
+                          </div>
+                          <span className="text-[11px] text-slate-400 truncate mt-0.5">
+                            Until {new Date(promo.endDate).toLocaleDateString()}
+                          </span>
+                        </div>
+
+                        {/* 4. Applies To */}
+                        <div className="flex flex-col justify-center min-w-0">
+                          <span className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-md text-[10px] font-bold tracking-wider uppercase w-max truncate">
+                            {promo.appliesToType || 'ALL'}
+                          </span>
+                        </div>
+
+                        {/* 5. Actions Column (Right-aligned, tailored for promotions) */}
+                        <div className="flex items-center justify-end gap-1 shrink-0">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleToggleActive(promo.id, promo.active);
+                            }}
+                            className={`p-2 rounded-xl transition-colors cursor-pointer ${
+                              promo.active 
+                                ? 'text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20' 
+                                : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'
+                            }`}
+                            title={promo.active ? 'Disable Promotion' : 'Enable Promotion'}
+                          >
+                            {promo.active ? <Ban className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
+                          </button>
+                          <button 
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openFormPanel(promo);
+                            }}
+                            className="p-2 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-colors cursor-pointer"
+                            title="Edit Promotion"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button 
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(promo.id);
+                            }}
+                            className="p-2 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl transition-colors cursor-pointer"
+                            title="Delete Promotion"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                          <div className="p-1 text-slate-300 dark:text-slate-600 group-hover:text-slate-500 dark:group-hover:text-slate-400 transition-colors">
+                            <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180 text-blue-600 dark:text-blue-400' : ''}`} />
+                          </div>
+                        </div>
                       </div>
 
-                      <div>
-                         <span className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-md text-[10px] font-bold tracking-wider uppercase">
-                            {promo.appliesToType}
-                         </span>
-                      </div>
+                      {/* ──────────────── INLINE DETAILS EXPANSION ──────────────── */}
+                      <AnimatePresence>
+                        {isExpanded && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.25, ease: 'easeInOut' }}
+                            className="overflow-hidden border-t border-slate-100 dark:border-slate-800/60 bg-slate-50/70 dark:bg-slate-800/30 p-6"
+                          >
+                            <div className="space-y-6">
+                              {/* 4 Info Cards Grid */}
+                              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                {/* Card 1: Offer Breakdown */}
+                                <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-2">
+                                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                                    <Percent className="w-3.5 h-3.5 text-blue-500" /> Offer Rules
+                                  </p>
+                                  <div className="space-y-1 text-xs">
+                                    <p className="text-slate-600 dark:text-slate-300">
+                                      <span className="font-semibold text-slate-800 dark:text-white">Type:</span> {promo.type.replace(/_/g, ' ')}
+                                    </p>
+                                    <p className="text-slate-600 dark:text-slate-300 font-bold text-blue-600 dark:text-blue-400">
+                                      Value: {promo.offerValue} {promo.type === 'PERCENTAGE' ? '%' : 'Rs.'}
+                                    </p>
+                                    <p className="text-slate-600 dark:text-slate-300">
+                                      <span className="font-semibold text-slate-800 dark:text-white">Min Spend:</span> {promo.minPurchaseAmount ? `Rs. ${promo.minPurchaseAmount}` : 'None'}
+                                    </p>
+                                  </div>
+                                </div>
 
-                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={() => handleToggleActive(promo.id, promo.active)}
-                          className={`p-2 rounded-lg transition-colors ${promo.active ? 'text-amber-600 hover:bg-amber-50' : 'text-emerald-600 hover:bg-emerald-50'}`}
-                          title={promo.active ? 'Disable' : 'Enable'}
-                        >
-                          {promo.active ? <Ban className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
-                        </button>
-                        <button 
-                          onClick={() => openFormPanel(promo)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Edit"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button 
-                          onClick={() => handleDelete(promo.id)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
+                                {/* Card 2: Validity */}
+                                <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-2">
+                                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                                    <Clock className="w-3.5 h-3.5 text-emerald-500" /> Validity Period
+                                  </p>
+                                  <div className="space-y-1 text-xs">
+                                    <p className="text-slate-600 dark:text-slate-300">
+                                      <span className="font-semibold text-slate-800 dark:text-white">Starts:</span> {new Date(promo.startDate).toLocaleDateString()}
+                                    </p>
+                                    <p className="text-slate-600 dark:text-slate-300">
+                                      <span className="font-semibold text-slate-800 dark:text-white">Ends:</span> {new Date(promo.endDate).toLocaleDateString()}
+                                    </p>
+                                    <div className="pt-1">
+                                      {renderStatusBadge(getStatus(promo))}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Card 3: Scope */}
+                                <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-2">
+                                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                                    <Package className="w-3.5 h-3.5 text-amber-500" /> Target Scope
+                                  </p>
+                                  <div className="space-y-1 text-xs">
+                                    <p className="text-slate-600 dark:text-slate-300">
+                                      <span className="font-semibold text-slate-800 dark:text-white">Scope:</span> {promo.appliesToType || 'All Items'}
+                                    </p>
+                                    <p className="text-slate-600 dark:text-slate-300">
+                                      <span className="font-semibold text-slate-800 dark:text-white">Total Targets:</span> {promo.selectedProducts?.length || promo.selectedCategories?.length || promo.selectedBrands?.length || 'Storewide'}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                {/* Card 4: Quick Actions */}
+                                <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col justify-center gap-2">
+                                  <button
+                                    onClick={() => openFormPanel(promo)}
+                                    className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 dark:bg-blue-500/10 dark:hover:bg-blue-500/20 dark:text-blue-400 rounded-xl font-bold text-xs transition-colors cursor-pointer"
+                                  >
+                                    <Edit2 className="w-3.5 h-3.5" /> Edit Promotion
+                                  </button>
+                                  <button
+                                    onClick={() => handleToggleActive(promo.id, promo.active)}
+                                    className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 rounded-xl font-bold text-xs transition-colors cursor-pointer"
+                                  >
+                                    {promo.active ? 'Disable' : 'Enable'} Promo
+                                  </button>
+                                </div>
+                              </div>
+
+                              {promo.bannerUrl && (
+                                <div className="p-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
+                                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Promotion Banner</p>
+                                  <img src={promo.bannerUrl} alt={promo.name} className="h-32 object-cover rounded-xl" />
+                                </div>
+                              )}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
-                  ))}
-                </div>
+                  );
+                })}
               </div>
             </div>
           ) : (

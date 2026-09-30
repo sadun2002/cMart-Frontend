@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { 
-  Plus, Search, Edit, Trash2, MapPin, Building2, User, Users, X, 
+  Plus, Search, Edit2, Trash2, MapPin, Building2, User, Users, X, 
   ChevronDown, ChevronUp, List, LayoutGrid, Maximize, Minimize, Filter,
   BarChart3, CheckCircle2, Phone, ShieldCheck, Navigation, ArrowRight, Activity
 } from 'lucide-react';
@@ -417,6 +417,7 @@ export default function BranchesPage() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [managerFilter, setManagerFilter] = useState('all'); // all, assigned, unassigned
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [expandedBranchId, setExpandedBranchId] = useState<string | null>(null);
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingBranch, setEditingBranch] = useState<Branch | null>(null);
@@ -810,7 +811,7 @@ export default function BranchesPage() {
                         </div>
                         <div className="flex gap-1">
                           <button onClick={() => openEdit(branch)} className="p-2 text-slate-400 hover:text-blue-600 bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors cursor-pointer" title="Edit branch">
-                            <Edit className="w-4 h-4" />
+                            <Edit2 className="w-4 h-4" />
                           </button>
                           {!isMain ? (
                             <button onClick={() => handleDelete(branch.id, branch.name)} className="p-2 text-slate-400 hover:text-red-600 bg-white dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors cursor-pointer" title="Delete branch">
@@ -845,65 +846,87 @@ export default function BranchesPage() {
                 })}
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead className="bg-slate-50 dark:bg-slate-900/50 sticky top-0 z-10">
-                    <tr>
-                      <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">Branch Name</th>
-                      <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">Location</th>
-                      <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">Manager</th>
-                      <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">Contact</th>
-                      <th className="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 dark:border-slate-800 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
-                    {filteredBranches.map(branch => {
-                      const isMain = isMainBranch(branch);
-                      return (
-                      <tr key={branch.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-                        <td className="p-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-xl bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-bold flex items-center justify-center shrink-0">
+              <div className="flex-1 flex flex-col bg-white dark:bg-slate-900 overflow-hidden w-full">
+                {/* Table Header */}
+                <div className="grid grid-cols-[minmax(240px,2fr)_minmax(180px,1.4fr)_minmax(140px,1.2fr)_minmax(130px,1.1fr)_120px] gap-4 h-14 px-5 items-center border-b border-slate-200 dark:border-slate-800 bg-slate-50/75 dark:bg-slate-900/60 text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0">
+                  <div>Branch & Identity</div>
+                  <div>Location & Address</div>
+                  <div>Manager</div>
+                  <div>Contact</div>
+                  <div className="text-right pr-2">Actions</div>
+                </div>
+
+                {/* Table Body */}
+                <div className="flex-1 overflow-y-auto no-scrollbar divide-y divide-slate-100 dark:divide-slate-800/60">
+                  {filteredBranches.map(branch => {
+                    const isMain = isMainBranch(branch);
+                    const isExpanded = expandedBranchId === branch.id;
+
+                    return (
+                      <div key={branch.id} className="flex flex-col">
+                        <div
+                          onClick={() => setExpandedBranchId(prev => prev === branch.id ? null : branch.id)}
+                          className={`grid grid-cols-[minmax(240px,2fr)_minmax(180px,1.4fr)_minmax(140px,1.2fr)_minmax(130px,1.1fr)_120px] gap-4 p-4 sm:px-5 items-center transition-colors cursor-pointer group ${
+                            isExpanded ? 'bg-blue-50/60 dark:bg-blue-900/15' : 'hover:bg-slate-50/70 dark:hover:bg-slate-800/40'
+                          }`}
+                        >
+                          {/* Col 1: Branch & Identity */}
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-bold flex items-center justify-center shrink-0 border border-blue-200/50 dark:border-blue-800/50">
                               <Building2 className="w-5 h-5" />
                             </div>
-                            <div>
+                            <div className="min-w-0">
                               <div className="flex items-center gap-2">
-                                <span className="font-bold text-slate-900 dark:text-white block text-sm">{branch.name}</span>
+                                <span className="font-bold text-slate-900 dark:text-white block text-sm truncate">{branch.name}</span>
                                 {isMain && (
-                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60">
-                                    Main Branch
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60 shrink-0">
+                                    Main
                                   </span>
                                 )}
                               </div>
                               <span className="text-[10px] text-slate-400 font-mono">ID: {branch.id}</span>
                             </div>
                           </div>
-                        </td>
-                        <td className="p-4 text-sm font-medium text-slate-600 dark:text-slate-300">
-                          <div className="flex items-center gap-1.5">
+
+                          {/* Col 2: Location */}
+                          <div className="text-sm font-medium text-slate-600 dark:text-slate-300 flex items-center gap-1.5 min-w-0">
                             <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                            {branch.location}
+                            <span className="truncate">{branch.location}</span>
                           </div>
-                        </td>
-                        <td className="p-4 text-sm font-bold text-slate-700 dark:text-slate-300">
-                          {branch.manager || <span className="text-slate-400 font-normal italic">Unassigned</span>}
-                        </td>
-                        <td className="p-4 text-sm text-slate-600 dark:text-slate-400 font-mono">
-                          {branch.contact || <span className="text-slate-400 italic">None</span>}
-                        </td>
-                        <td className="p-4 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
+
+                          {/* Col 3: Manager */}
+                          <div className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 min-w-0">
+                            <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            <span className="truncate">{branch.manager || <span className="text-slate-400 font-normal italic">Unassigned</span>}</span>
+                          </div>
+
+                          {/* Col 4: Contact */}
+                          <div className="text-xs text-slate-600 dark:text-slate-400 font-mono flex items-center gap-1.5 min-w-0">
+                            <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            <span className="truncate">{branch.contact || <span className="text-slate-400 font-sans italic">None</span>}</span>
+                          </div>
+
+                          {/* Col 5: Actions */}
+                          <div className="flex items-center justify-end gap-1">
                             <button
-                              onClick={() => openEdit(branch)}
-                              className="p-2 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors cursor-pointer"
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openEdit(branch);
+                              }}
+                              className="p-2 text-slate-400 hover:text-blue-600 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors cursor-pointer"
                               title="Edit branch"
                             >
-                              <Edit className="w-4 h-4" />
+                              <Edit2 className="w-4 h-4" />
                             </button>
                             {!isMain ? (
                               <button
-                                onClick={() => handleDelete(branch.id, branch.name)}
-                                className="p-2 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors cursor-pointer"
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDelete(branch.id, branch.name);
+                                }}
+                                className="p-2 text-slate-400 hover:text-rose-600 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors cursor-pointer"
                                 title="Delete branch"
                               >
                                 <Trash2 className="w-4 h-4" />
@@ -916,13 +939,96 @@ export default function BranchesPage() {
                                 <Trash2 className="w-4 h-4 opacity-30" />
                               </span>
                             )}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setExpandedBranchId(prev => prev === branch.id ? null : branch.id);
+                              }}
+                              className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
+                              title={isExpanded ? 'Collapse' : 'Expand Details'}
+                            >
+                              <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180 text-blue-600' : ''}`} />
+                            </button>
                           </div>
-                        </td>
-                      </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                        </div>
+
+                        {/* Expandable Drawer */}
+                        <AnimatePresence>
+                          {isExpanded && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: 'auto', opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.25, ease: 'easeInOut' }}
+                              className="overflow-hidden border-t border-slate-100 dark:border-slate-800/60 bg-slate-50/70 dark:bg-slate-800/30 p-6"
+                            >
+                              <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                      <Building2 className="w-4 h-4 text-blue-600" />
+                                      Branch Location Details: {branch.name}
+                                    </h4>
+                                    <p className="text-xs text-slate-500">Physical address, assigned management, and terminal operations</p>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => openEdit(branch)}
+                                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-xs cursor-pointer"
+                                    >
+                                      <Edit2 className="w-3.5 h-3.5" />
+                                      Edit Branch
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* 4 Summary Cards */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                  <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
+                                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Branch Type</span>
+                                    <p className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+                                      {isMain ? 'Headquarters / Main Branch' : 'Standard Store Outlet'}
+                                    </p>
+                                    <p className="text-[11px] text-slate-500 mt-1 font-mono">ID: {branch.id}</p>
+                                  </div>
+
+                                  <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
+                                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Operating Location</span>
+                                    <p className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5 truncate">
+                                      <MapPin className="w-4 h-4 text-rose-500 shrink-0" />
+                                      {branch.location}
+                                    </p>
+                                    <p className="text-[11px] text-slate-500 mt-1">Configured POS geo-fence</p>
+                                  </div>
+
+                                  <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
+                                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Assigned Manager</span>
+                                    <p className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5 truncate">
+                                      <User className="w-4 h-4 text-blue-500 shrink-0" />
+                                      {branch.manager || 'No Manager Assigned'}
+                                    </p>
+                                    <p className="text-[11px] text-slate-500 mt-1">Authorized store supervisor</p>
+                                  </div>
+
+                                  <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
+                                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Primary Hotline</span>
+                                    <p className="text-sm font-bold text-slate-900 dark:text-white font-mono flex items-center gap-1.5 truncate">
+                                      <Phone className="w-4 h-4 text-emerald-500 shrink-0" />
+                                      {branch.contact || 'No phone set'}
+                                    </p>
+                                    <p className="text-[11px] text-slate-500 mt-1">Receipt & communication hotline</p>
+                                  </div>
+                                </div>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>

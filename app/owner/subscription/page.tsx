@@ -580,56 +580,53 @@ export default function SubscriptionPage() {
                 description="No billing or payment records match your search or filter criteria."
               />
             ) : viewMode === 'list' ? (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead className="bg-slate-50 dark:bg-slate-900/50 sticky top-0 z-10">
-                    <tr>
-                      <th className="p-4 sm:px-6 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">Invoice ID</th>
-                      <th className="p-4 sm:px-6 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">Billing Date</th>
-                      <th className="p-4 sm:px-6 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">Plan / Type</th>
-                      <th className="p-4 sm:px-6 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">Amount</th>
-                      <th className="p-4 sm:px-6 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">Status</th>
-                      <th className="p-4 sm:px-6 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 dark:border-slate-800 text-right">Receipt</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
-                    {filteredBillingHistory.map((record) => (
-                      <tr key={record.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-                        <td className="p-4 sm:px-6">
-                          <span className="font-mono font-bold text-slate-900 dark:text-white text-sm">
-                            {record.payhereRef || `#INV-${record.id}`}
-                          </span>
-                        </td>
-                        <td className="p-4 sm:px-6 text-sm font-medium text-slate-600 dark:text-slate-300">
-                          {new Date(record.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
-                        </td>
-                        <td className="p-4 sm:px-6 text-sm font-bold text-slate-900 dark:text-white">
+              <div className="w-full flex flex-col min-w-0">
+                {/* Header */}
+                <div className="grid grid-cols-[minmax(200px,1.5fr)_minmax(140px,1fr)_minmax(140px,1fr)_minmax(120px,0.8fr)_minmax(130px,0.8fr)] gap-4 p-4 sm:px-6 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 sticky top-0 z-10">
+                  <div>Invoice & Plan</div>
+                  <div>Billing Date</div>
+                  <div>Amount</div>
+                  <div>Status</div>
+                  <div className="text-right">Receipt</div>
+                </div>
+                {/* Body */}
+                <div className="divide-y divide-slate-100 dark:divide-slate-800/50">
+                  {filteredBillingHistory.map((record) => (
+                    <div key={record.id} className="grid grid-cols-[minmax(200px,1.5fr)_minmax(140px,1fr)_minmax(140px,1fr)_minmax(120px,0.8fr)_minmax(130px,0.8fr)] gap-4 p-4 sm:px-6 items-center hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                      <div className="flex flex-col min-w-0">
+                        <span className="font-mono font-bold text-slate-900 dark:text-white text-sm truncate">
+                          {record.payhereRef || `#INV-${record.id}`}
+                        </span>
+                        <span className="text-xs text-slate-500 truncate mt-0.5">
                           Subscription Renewal
-                        </td>
-                        <td className="p-4 sm:px-6 text-sm font-black text-slate-900 dark:text-white">
-                          {formatLKR(record.amountLKR)}
-                        </td>
-                        <td className="p-4 sm:px-6">
-                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                            record.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/50' :
-                            record.status === 'PENDING' ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400 border border-amber-200 dark:border-amber-800/50' :
-                            'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400 border border-rose-200 dark:border-rose-800/50'
-                          }`}>
-                            {record.status}
-                          </span>
-                        </td>
-                        <td className="p-4 sm:px-6 text-right">
-                          <button 
-                            onClick={() => toast.success(`Receipt for ${record.payhereRef || `#INV-${record.id}`} downloaded.`)}
-                            className="text-blue-600 hover:text-blue-700 font-bold text-xs bg-blue-50 hover:bg-blue-100 dark:bg-blue-500/10 dark:hover:bg-blue-500/20 px-3 py-1.5 rounded-lg transition-colors inline-flex items-center gap-1.5 cursor-pointer"
-                          >
-                            <Download className="w-3.5 h-3.5" /> Download
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                        </span>
+                      </div>
+                      <div className="text-sm font-medium text-slate-600 dark:text-slate-300">
+                        {new Date(record.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+                      </div>
+                      <div className="text-sm font-black text-slate-900 dark:text-white">
+                        {formatLKR(record.amountLKR)}
+                      </div>
+                      <div>
+                        <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                          record.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/50' :
+                          record.status === 'PENDING' ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400 border border-amber-200 dark:border-amber-800/50' :
+                          'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400 border border-rose-200 dark:border-rose-800/50'
+                        }`}>
+                          {record.status}
+                        </span>
+                      </div>
+                      <div className="text-right">
+                        <button 
+                          onClick={() => toast.success(`Receipt for ${record.payhereRef || `#INV-${record.id}`} downloaded.`)}
+                          className="text-blue-600 hover:text-blue-700 font-bold text-xs bg-blue-50 hover:bg-blue-100 dark:bg-blue-500/10 dark:hover:bg-blue-500/20 px-3 py-1.5 rounded-lg transition-colors inline-flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <Download className="w-3.5 h-3.5" /> Download
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">

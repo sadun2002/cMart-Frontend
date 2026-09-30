@@ -2518,10 +2518,10 @@ export default function BackupPage() {
             : 'bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800'
         }`}>
           {viewMode === 'list' ? (
-            <div className="flex-1 overflow-x-auto">
-              <div className="min-w-max h-full flex flex-col">
+            <div className="flex-1 flex flex-col min-w-0 w-full overflow-hidden">
+              <div className="w-full h-full flex flex-col">
                 {/* Table Header (Matching Product Management Table Header Structure) */}
-                <div className={`grid grid-cols-[280px_200px_130px_160px_130px_140px] gap-4 h-16 px-5 items-center border-b ${
+                <div className={`grid grid-cols-[minmax(220px,1.5fr)_minmax(160px,1.1fr)_minmax(110px,0.8fr)_minmax(130px,0.9fr)_minmax(110px,0.8fr)_minmax(160px,1fr)] gap-4 h-14 px-5 items-center border-b ${
                   isFullscreen 
                     ? 'border-slate-200 dark:border-slate-800 bg-transparent' 
                     : 'border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/50'
@@ -2531,11 +2531,11 @@ export default function BackupPage() {
                   <div>Archive Size</div>
                   <div>Destination</div>
                   <div className="text-center">Integrity</div>
-                  <div className="text-center">Action</div>
+                  <div className="text-right">Actions</div>
                 </div>
 
                 {/* Table Body */}
-                <div className="flex-1 overflow-y-auto no-scrollbar">
+                <div className="flex-1 overflow-y-auto no-scrollbar divide-y divide-slate-100 dark:divide-slate-800/60">
                   {filteredBackups.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-64 text-slate-400 gap-4">
                       <Database className="w-12 h-12 opacity-20" />
@@ -2547,25 +2547,25 @@ export default function BackupPage() {
                       <React.Fragment key={item.id}>
                         <div 
                           onClick={() => setViewingSnapshot(viewingSnapshot?.id === item.id ? null : item)}
-                          className={`cursor-pointer grid grid-cols-[280px_200px_130px_160px_130px_140px] gap-4 p-5 items-center transition-colors group border-b ${
+                          className={`cursor-pointer grid grid-cols-[minmax(220px,1.5fr)_minmax(160px,1.1fr)_minmax(110px,0.8fr)_minmax(130px,0.9fr)_minmax(110px,0.8fr)_minmax(160px,1fr)] gap-4 p-4 sm:px-5 items-center transition-colors group ${
                             viewingSnapshot?.id === item.id 
-                              ? 'bg-blue-50/50 dark:bg-blue-900/10 border-b-0'
+                              ? 'bg-blue-50/50 dark:bg-blue-900/10' 
                               : isFullscreen 
-                                ? 'border-b border-slate-200/80 dark:border-slate-800/80 hover:bg-white/60 dark:hover:bg-slate-800/40' 
-                                : 'border-b border-slate-100 dark:border-slate-800/60 hover:bg-slate-50/50 dark:hover:bg-slate-800/30'
+                                ? 'hover:bg-white/60 dark:hover:bg-slate-800/40' 
+                                : 'hover:bg-slate-50/50 dark:hover:bg-slate-800/30'
                           }`}
                         >
                           {/* 1. Date & Time / ID */}
-                          <div className="flex items-center gap-4 min-w-0">
-                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 text-slate-400 overflow-hidden ${
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 overflow-hidden ${
                               item.type === 'Automatic' ? 'bg-blue-50 dark:bg-blue-500/10 text-blue-600' :
                               item.type === 'Safety Snapshot' ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600' :
                               'bg-purple-50 dark:bg-purple-500/10 text-purple-600'
                             }`}>
-                              {item.type === 'Automatic' ? <RefreshCw className="w-6 h-6" /> : item.type === 'Safety Snapshot' ? <ShieldCheck className="w-6 h-6" /> : <Download className="w-6 h-6" />}
+                              {item.type === 'Automatic' ? <RefreshCw className="w-5 h-5" /> : item.type === 'Safety Snapshot' ? <ShieldCheck className="w-5 h-5" /> : <Download className="w-5 h-5" />}
                             </div>
                             <div className="min-w-0">
-                              <h3 className="font-bold text-slate-900 dark:text-white text-base truncate" title={item.dateTime}>
+                              <h3 className="font-bold text-slate-900 dark:text-white text-sm truncate" title={item.dateTime}>
                                 {item.dateTime}
                               </h3>
                               <p className="text-xs text-slate-500 font-mono truncate mt-0.5">ID: {item.id}</p>
@@ -2594,8 +2594,8 @@ export default function BackupPage() {
 
                           {/* 4. Destination */}
                           <div className="min-w-0 flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 shrink-0">
-                              {item.location === 'Cloud' ? <Cloud className="w-4 h-4 text-blue-500" /> : <Laptop className="w-4 h-4 text-slate-500" />}
+                            <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 shrink-0">
+                              {item.location === 'Cloud' ? <Cloud className="w-3.5 h-3.5 text-blue-500" /> : <Laptop className="w-3.5 h-3.5 text-slate-500" />}
                             </div>
                             <span className="font-bold text-slate-700 dark:text-slate-300 text-xs truncate">{item.location}</span>
                           </div>
@@ -2603,12 +2603,12 @@ export default function BackupPage() {
                           {/* 5. Integrity / Status */}
                           <div className="flex justify-center">
                             {item.status === 'Success' ? (
-                              <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-3 py-1 rounded-full">
+                              <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-2.5 py-1 rounded-full">
                                 <CheckCircle2 className="w-3.5 h-3.5" />
                                 Success
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1.5 text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 px-3 py-1 rounded-full">
+                              <span className="inline-flex items-center gap-1.5 text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 px-2.5 py-1 rounded-full">
                                 <XCircle className="w-3.5 h-3.5" />
                                 Failed
                               </span>
@@ -2616,19 +2616,19 @@ export default function BackupPage() {
                           </div>
 
                           {/* 6. Action */}
-                          <div className="flex items-center justify-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
                             {item.status === 'Success' && (
                               <>
                                 <button 
                                   onClick={() => handleDownloadBackup(item)}
-                                  className="p-2 rounded-xl text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                                  className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors cursor-pointer"
                                   title="Download Backup Archive"
                                 >
                                   <Download className="w-4 h-4" />
                                 </button>
                                 <button 
                                   onClick={() => handleInitiateRestore(item)}
-                                  className="p-2 rounded-xl text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors"
+                                  className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors cursor-pointer"
                                   title="Restore from this backup"
                                 >
                                   <RotateCcw className="w-4 h-4" />
@@ -2637,10 +2637,21 @@ export default function BackupPage() {
                             )}
                             <button 
                               onClick={() => handleDeleteSnapshot(item.id)}
-                              className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors cursor-pointer"
                               title="Delete Backup"
                             >
                               <Trash2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setViewingSnapshot(viewingSnapshot?.id === item.id ? null : item);
+                              }}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors cursor-pointer"
+                              title="Toggle Details"
+                            >
+                              <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${viewingSnapshot?.id === item.id ? 'rotate-180 text-blue-600' : ''}`} />
                             </button>
                           </div>
                         </div>

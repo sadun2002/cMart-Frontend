@@ -7,7 +7,7 @@ import {
   ChevronDown, ChevronUp, Trash2, Eye, FileText, Check, ArrowRight,
   AlertTriangle, AlertCircle, Package, CreditCard, Banknote, RefreshCw,
   Copy, DollarSign, Tag, ExternalLink, Printer, Store, UserCircle, Send, Lock,
-  Circle, SearchX, Pencil, BarChart3, TrendingUp
+  Circle, SearchX, Pencil, BarChart3, TrendingUp, Edit2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -1593,146 +1593,132 @@ export default function PurchasesPage() {
           />
         </div>
       ) : viewMode === 'list' ? (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden flex flex-col min-h-[420px]">
-          <div className="flex-1 overflow-x-auto">
-            <div className="min-w-max h-full flex flex-col">
-              {/* Table Header */}
-              <div className="grid grid-cols-[180px_220px_130px_160px_140px_140px_120px] gap-4 h-16 px-5 items-center border-b border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/50 text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0">
-                <div>PO Number</div>
-                <div>Supplier</div>
-                <div className="text-center">Items</div>
-                <div className="text-right">Total (Rs.)</div>
-                <div className="text-center">Payment</div>
-                <div className="text-center">Status</div>
-                <div className="text-center">Actions</div>
-              </div>
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden flex flex-col min-h-[420px] w-full">
+          {/* Table Header */}
+          <div className="grid grid-cols-[minmax(180px,1.8fr)_minmax(180px,1.8fr)_minmax(140px,1.2fr)_minmax(140px,1.2fr)_110px] gap-4 h-14 px-5 items-center border-b border-slate-200 dark:border-slate-800 bg-slate-50/75 dark:bg-slate-900/60 text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0">
+            <div>PO Number & Date</div>
+            <div>Supplier & Reference</div>
+            <div className="text-right">Items & Total</div>
+            <div className="text-center">Status & Payment</div>
+            <div className="text-right pr-2">Actions</div>
+          </div>
 
-              {/* Table Content */}
-              <div className="flex-1 overflow-y-auto no-scrollbar">
-                {filteredPurchases.map(p => {
-                    const isExpanded = expandedRowId === p.id;
-                    const itemsCount = p.items?.length || 0;
+          {/* Table Content */}
+          <div className="flex-1 flex flex-col divide-y divide-slate-100 dark:divide-slate-800/60">
+            {filteredPurchases.map(p => {
+                const isExpanded = expandedRowId === p.id;
+                const itemsCount = p.items?.length || 0;
 
-                    return (
-                      <div
-                        key={p.id}
-                        id={`purchase-row-${p.id}`}
-                        className="border-b border-slate-100 dark:border-slate-800/60 flex flex-col group scroll-mt-20"
-                      >
-                        {/* Summary Row */}
-                        <div
-                          onClick={() => setExpandedRowId(prev => prev === p.id ? null : p.id)}
-                          className="grid grid-cols-[180px_220px_130px_160px_140px_140px_120px] gap-4 p-5 items-center hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors cursor-pointer"
-                        >
-                          {/* PO Number & Date */}
-                          <div className="flex flex-col">
-                            <span className="font-black text-sm text-blue-600 dark:text-blue-400 flex items-center gap-1.5">
-                              #{p.purchaseNumber}
-                            </span>
-                            <span className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
-                              <Calendar className="w-3 h-3" />
-                              {new Date(p.orderDate).toLocaleDateString()}
-                            </span>
-                          </div>
+                return (
+                  <div
+                    key={p.id}
+                    id={`purchase-row-${p.id}`}
+                    className="flex flex-col group scroll-mt-20"
+                  >
+                    {/* Summary Row */}
+                    <div
+                      onClick={() => setExpandedRowId(prev => prev === p.id ? null : p.id)}
+                      className={`grid grid-cols-[minmax(180px,1.8fr)_minmax(180px,1.8fr)_minmax(140px,1.2fr)_minmax(140px,1.2fr)_110px] gap-4 p-4 sm:px-5 items-center transition-colors cursor-pointer ${
+                        isExpanded
+                          ? 'bg-blue-50/60 dark:bg-blue-900/15'
+                          : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/40'
+                      }`}
+                    >
+                      {/* 1. PO Number & Date */}
+                      <div className="flex flex-col min-w-0">
+                        <span className="font-black text-sm text-blue-600 dark:text-blue-400 flex items-center gap-1.5 truncate">
+                          #{p.purchaseNumber}
+                        </span>
+                        <span className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-1">
+                          <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          {new Date(p.orderDate).toLocaleDateString()}
+                        </span>
+                      </div>
 
-                          {/* Supplier */}
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0">
-                              <Building2 className="w-4 h-4" />
-                            </div>
-                            <div className="truncate">
-                              <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{p.supplierName}</p>
-                              {p.referenceNo && (
-                                <p className="text-[11px] text-slate-400 truncate">Ref: {p.referenceNo}</p>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Items count */}
-                          <div className="text-center">
-                            <span className="inline-flex items-center gap-1 text-xs font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-lg">
-                              <Package className="w-3.5 h-3.5 text-slate-400" />
-                              {itemsCount} {itemsCount === 1 ? 'item' : 'items'}
-                            </span>
-                          </div>
-
-                          {/* Total Cost */}
-                          <div className="text-right">
-                            <span className="text-sm font-black text-slate-900 dark:text-white">
-                              Rs. {Number(p.total).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </span>
-                          </div>
-
-                          {/* Payment Status Pill */}
-                          <div className="flex justify-center">
-                            <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                              p.paymentStatus === 'PAID'
-                                ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40'
-                                : p.paymentStatus === 'PARTIAL'
-                                ? 'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400 border border-amber-200 dark:border-amber-800/40'
-                                : 'bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400 border border-rose-200 dark:border-rose-800/40'
-                            }`}>
-                              {p.paymentStatus}
-                            </span>
-                          </div>
-
-                          {/* Delivery Status Pill */}
-                          <div className="flex justify-center">
-                            <span className={`px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 ${
-                              p.status === 'RECEIVED'
-                                ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40'
-                                : p.status === 'ORDERED'
-                                ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400 border border-blue-200 dark:border-blue-800/40'
-                                : p.status === 'PENDING'
-                                ? 'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400 border border-amber-200 dark:border-amber-800/40'
-                                : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
-                            }`}>
-                              {p.status === 'RECEIVED' && <Check className="w-3 h-3" />}
-                              {p.status === 'ORDERED' && <Clock className="w-3 h-3" />}
-                              {p.status === 'PENDING' && <Truck className="w-3 h-3" />}
-                              {p.status}
-                            </span>
-                          </div>
-
-                          {/* Actions Column */}
-                          <div className="flex items-center justify-center gap-1.5">
-                            {/* Edit Button */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleStartEditPurchase(p);
-                              }}
-                              className="p-1.5 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors cursor-pointer"
-                              title="Edit Purchase & Payment"
-                            >
-                              <Pencil className="w-4 h-4" />
-                            </button>
-
-                            {/* Chevron Action */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setExpandedRowId(prev => prev === p.id ? null : p.id);
-                              }}
-                              className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                              title={isExpanded ? 'Collapse' : 'View Details'}
-                            >
-                              {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                            </button>
-
-                            {/* Delete Action */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setDeleteConfirm({ isOpen: true, id: p.id });
-                              }}
-                              className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors cursor-pointer"
-                              title="Delete Order"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
+                      {/* 2. Supplier & Reference */}
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                          <Building2 className="w-4 h-4" />
                         </div>
+                        <div className="truncate min-w-0">
+                          <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{p.supplierName}</p>
+                          {p.referenceNo ? (
+                            <p className="text-[11px] text-slate-400 truncate">Ref: {p.referenceNo}</p>
+                          ) : (
+                            <p className="text-[11px] text-slate-400 truncate">No reference</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* 3. Items & Total */}
+                      <div className="flex flex-col items-end gap-1 min-w-0">
+                        <span className="text-sm font-black text-slate-900 dark:text-white">
+                          Rs. {Number(p.total).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md">
+                          <Package className="w-3 h-3 text-slate-400" />
+                          {itemsCount} {itemsCount === 1 ? 'item' : 'items'}
+                        </span>
+                      </div>
+
+                      {/* 4. Status & Payment */}
+                      <div className="flex flex-col items-center gap-1 min-w-0">
+                        {/* Delivery Status Pill */}
+                        <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold flex items-center gap-1 ${
+                          p.status === 'RECEIVED'
+                            ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40'
+                            : p.status === 'ORDERED'
+                            ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400 border border-blue-200 dark:border-blue-800/40'
+                            : p.status === 'PENDING'
+                            ? 'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400 border border-amber-200 dark:border-amber-800/40'
+                            : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                        }`}>
+                          {p.status === 'RECEIVED' && <Check className="w-3 h-3" />}
+                          {p.status === 'ORDERED' && <Clock className="w-3 h-3" />}
+                          {p.status === 'PENDING' && <Truck className="w-3 h-3" />}
+                          {p.status}
+                        </span>
+                        {/* Payment Status Pill */}
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          p.paymentStatus === 'PAID'
+                            ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400'
+                            : p.paymentStatus === 'PARTIAL'
+                            ? 'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400'
+                            : 'bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400'
+                        }`}>
+                          {p.paymentStatus}
+                        </span>
+                      </div>
+
+                      {/* 5. Actions Column (Right-aligned, tailored for purchases) */}
+                      <div className="flex items-center justify-end gap-1 shrink-0">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleStartEditPurchase(p);
+                          }}
+                          className="p-2 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-colors cursor-pointer"
+                          title="Edit Purchase & Payment"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteConfirm({ isOpen: true, id: p.id });
+                          }}
+                          className="p-2 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl transition-colors cursor-pointer"
+                          title="Delete Order"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+
+                        <div className="p-1 text-slate-300 dark:text-slate-600 group-hover:text-slate-500 dark:group-hover:text-slate-400 transition-colors">
+                          <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180 text-blue-600 dark:text-blue-400' : ''}`} />
+                        </div>
+                      </div>
+                    </div>
 
                         {/* ──────────────── EXPANDED DETAILS ACCORDION ──────────────── */}
                         <AnimatePresence>
@@ -1832,7 +1818,7 @@ export default function PurchasesPage() {
                                     </button>
                                   </div>
 
-                                  <div className="overflow-x-auto">
+                                  <div className="w-full overflow-hidden">
                                     <table className="w-full text-left text-sm">
                                       <thead className="text-[11px] font-bold text-slate-400 uppercase bg-slate-50 dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800">
                                         <tr>
@@ -1926,8 +1912,6 @@ export default function PurchasesPage() {
                     );
                   })}
               </div>
-            </div>
-          </div>
         </div>
       ) : (
         /* ──────────────── GRID VIEW ──────────────── */

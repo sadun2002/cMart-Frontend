@@ -1009,90 +1009,74 @@ export default function PayrollManagementPage() {
           {viewingPayroll ? (
             <PayrollDetailsView payroll={viewingPayroll} onBack={() => setViewingPayroll(null)} />
           ) : viewMode === 'list' ? (
-            <div className="flex-1 overflow-x-auto">
-              <div className="min-w-max h-full flex flex-col">
-                {/* Table Header */}
-                <div className="grid grid-cols-[130px_200px_100px_120px_120px_120px_130px_120px_100px] gap-4 h-16 px-5 items-center border-b border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/50 text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0">
-                  <div>Ref ID</div>
-                  <div>Employee</div>
-                  <div>Month</div>
-                  <div className="text-right">Basic (Rs)</div>
-                  <div className="text-right">Earn. (Rs)</div>
-                  <div className="text-right">Ded. (Rs)</div>
-                  <div className="text-right text-blue-600 dark:text-blue-400">Net Salary</div>
-                  <div className="text-right">Status</div>
-                  <div className="text-center">Action</div>
-                </div>
+            <div className="flex-1 flex flex-col overflow-hidden w-full">
+              {/* Table Header */}
+              <div className="grid grid-cols-[minmax(200px,1.8fr)_minmax(120px,1fr)_minmax(180px,1.4fr)_minmax(140px,1.2fr)_120px] gap-4 h-14 px-5 items-center border-b border-slate-200 dark:border-slate-800 bg-slate-50/75 dark:bg-slate-900/60 text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0">
+                <div>Payroll Ref & Staff</div>
+                <div>Period</div>
+                <div className="text-right">Earnings & Deductions</div>
+                <div className="text-right">Net Salary</div>
+                <div className="text-right pr-2">Status & Actions</div>
+              </div>
 
-                {/* Table Body */}
-                <div className="flex-1 overflow-y-auto no-scrollbar">
-                  {filteredPayrolls.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-64 text-slate-400 gap-4">
-                      <Banknote className="w-12 h-12 opacity-20" />
-                      <p className="font-medium text-lg text-slate-500">No payroll records found.</p>
-                    </div>
-                  ) : (
-                    <>
-                    {filteredPayrolls.map((payroll) => {
-                      const extraEarnings = payroll.allowance + payroll.ot + payroll.bonus + payroll.commission;
-                      return (
-                        <div key={payroll.id} onClick={() => setViewingPayroll(payroll)} className="cursor-pointer grid grid-cols-[130px_200px_100px_120px_120px_120px_130px_120px_100px] gap-4 p-5 border-b border-slate-100 dark:border-slate-800/60 items-center hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group">
-                          
-                          <div className="text-sm font-bold text-slate-900 dark:text-white">{payroll.id}</div>
-
-                          <div className="flex items-center gap-4 min-w-0">
-                            <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0 text-slate-400">
-                              <UserIcon className="w-5 h-5" />
+              {/* Table Body */}
+              <div className="flex-1 overflow-y-auto no-scrollbar divide-y divide-slate-100 dark:divide-slate-800/60">
+                {filteredPayrolls.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-64 text-slate-400 gap-4">
+                    <Banknote className="w-12 h-12 opacity-20" />
+                    <p className="font-medium text-lg text-slate-500">No payroll records found.</p>
+                  </div>
+                ) : (
+                  filteredPayrolls.map((payroll) => {
+                    const extraEarnings = payroll.allowance + payroll.ot + payroll.bonus + payroll.commission;
+                    return (
+                      <div key={payroll.id} onClick={() => setViewingPayroll(payroll)} className="cursor-pointer grid grid-cols-[minmax(200px,1.8fr)_minmax(120px,1fr)_minmax(180px,1.4fr)_minmax(140px,1.2fr)_120px] gap-4 p-4 sm:px-5 items-center hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors group">
+                        
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 text-slate-400 border border-slate-200/50 dark:border-slate-700/50">
+                            <UserIcon className="w-5 h-5 text-blue-500" />
+                          </div>
+                          <div className="min-w-0">
+                            <h3 className="font-bold text-slate-900 dark:text-white text-sm truncate">{payroll.employee}</h3>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <span className="text-[10px] font-mono text-slate-400 truncate">{payroll.id}</span>
+                              <span className="text-[10px] font-bold text-blue-500 uppercase tracking-wider truncate">· {payroll.role}</span>
                             </div>
-                            <div className="min-w-0">
-                              <h3 className="font-bold text-slate-900 dark:text-white text-base truncate">{payroll.employee}</h3>
-                              <p className="text-xs font-medium text-slate-500 uppercase tracking-wider truncate mt-0.5">
-                                {payroll.role}
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                            {payroll.month}
-                          </div>
-
-                          <div className="text-sm font-semibold text-slate-700 dark:text-slate-300 text-right">
-                            {payroll.basicSalary.toLocaleString()}
-                          </div>
-                          
-                          <div className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 text-right">
-                            +{extraEarnings.toLocaleString()}
-                          </div>
-
-                          <div className="text-sm font-semibold text-red-600 dark:text-red-400 text-right">
-                            -{payroll.deduction.toLocaleString()}
-                          </div>
-
-                          <div className="text-base font-black text-blue-600 dark:text-blue-400 text-right">
-                            {payroll.netSalary.toLocaleString()}
-                          </div>
-
-                          <div className="flex justify-end">
-                            <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold ${
-                              payroll.status === 'Paid' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' :
-                              payroll.status === 'Overdue' ? 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400' :
-                              'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400'
-                            }`}>
-                              {payroll.status}
-                            </span>
-                          </div>
-
-                          <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button onClick={(e) => { e.stopPropagation(); handleDelete(payroll.id); }} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer" title="Delete Payroll">
-                              <Trash2 className="w-5 h-5" />
-                            </button>
                           </div>
                         </div>
-                      );
-                    })}
-                    </>
-                  )}
-                </div>
+
+                        <div className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                          {payroll.month}
+                        </div>
+
+                        <div className="text-right min-w-0 space-y-0.5">
+                          <div className="text-xs text-slate-600 dark:text-slate-400">Basic: Rs. {payroll.basicSalary.toLocaleString()}</div>
+                          <div className="text-[11px] font-medium text-emerald-600">+Rs. {extraEarnings.toLocaleString()}</div>
+                          {payroll.deduction > 0 && (
+                            <div className="text-[11px] font-medium text-rose-500">-Rs. {payroll.deduction.toLocaleString()}</div>
+                          )}
+                        </div>
+
+                        <div className="text-sm font-black text-blue-600 dark:text-blue-400 text-right">
+                          Rs. {payroll.netSalary.toLocaleString()}
+                        </div>
+
+                        <div className="flex items-center justify-end gap-2">
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                            payroll.status === 'Paid' ? 'bg-emerald-50 text-emerald-600 border border-emerald-200/60 dark:bg-emerald-500/10 dark:text-emerald-400' :
+                            payroll.status === 'Overdue' ? 'bg-rose-50 text-rose-600 border border-rose-200/60 dark:bg-rose-500/10 dark:text-rose-400' :
+                            'bg-amber-50 text-amber-600 border border-amber-200/60 dark:bg-amber-500/10 dark:text-amber-400'
+                          }`}>
+                            {payroll.status}
+                          </span>
+                          <button onClick={(e) => { e.stopPropagation(); handleDelete(payroll.id); }} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-xl transition-colors cursor-pointer" title="Delete Payroll">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </div>
           ) : (

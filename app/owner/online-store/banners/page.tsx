@@ -242,8 +242,8 @@ export default function BannersPage() {
         </div>
 
         {/* Table */}
-        <div className="flex-1 overflow-x-auto custom-scrollbar p-6">
-          <div className="flex flex-col gap-4 min-w-[800px]">
+        <div className="flex-1 overflow-y-auto no-scrollbar p-6">
+          <div className="flex flex-col gap-4 w-full">
             {filteredBanners.length === 0 ? (
               <TableEmptyState
                 icon={ImageIcon}

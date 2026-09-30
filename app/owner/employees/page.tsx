@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { 
-  Users, Search, Plus, Edit, Trash2, Mail, Phone, Calendar, Shield, MapPin, 
+  Users, Search, Plus, Edit2, Trash2, Mail, Phone, Calendar, Shield, MapPin, 
   Building2, UserCircle, Briefcase, ChevronDown, CheckCircle, XCircle, Filter, 
   X, List, LayoutGrid, Maximize, Minimize, KeyRound, Clock, UserPlus,
   BarChart3, CheckCircle2, UserCheck, ShieldAlert, Sparkles, TrendingUp, ArrowRight, Layers, UserX
@@ -442,6 +442,7 @@ export default function EmployeesPage() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
+  const [expandedEmployeeId, setExpandedEmployeeId] = useState<number | string | null>(null);
   
   // Side Panel state
   const [isPanelOpen, setIsPanelOpen] = useState(false);
@@ -694,62 +695,158 @@ export default function EmployeesPage() {
           ) : viewMode === 'list' ? (
             <>
               {/* Table Header */}
-              <div className="grid grid-cols-12 gap-4 h-16 px-5 items-center border-b border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/50 text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0">
-                <div className="col-span-4">Employee Name</div>
-                <div className="col-span-3">Contact Email</div>
-                <div className="col-span-3">Activity Info</div>
-                <div className="col-span-2 text-right">Status</div>
+              <div className="grid grid-cols-[minmax(240px,2fr)_minmax(180px,1.4fr)_minmax(180px,1.4fr)_minmax(120px,1fr)_100px] gap-4 h-14 px-5 items-center border-b border-slate-200 dark:border-slate-800 bg-slate-50/75 dark:bg-slate-900/60 text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0">
+                <div>Employee & Role</div>
+                <div>Contact Email</div>
+                <div>Activity Info</div>
+                <div>Status</div>
+                <div className="text-right pr-2">Actions</div>
               </div>
 
               {/* Table Body */}
-              <div className="overflow-y-auto flex-1 p-2 space-y-1 custom-scrollbar">
-                {filteredEmployees.map((e) => (
-                  <div 
-                    key={e.id}
-                    className="grid grid-cols-12 gap-4 p-3 items-center hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-2xl transition-colors group cursor-pointer border border-transparent hover:border-slate-100 dark:hover:border-slate-800"
-                  >
-                    <div className="col-span-4 flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-500/20 text-blue-600 flex items-center justify-center font-bold text-lg flex-shrink-0">
-                        {e.name?.charAt(0).toUpperCase() || 'U'}
-                      </div>
-                      <div>
-                        <p className="font-bold text-slate-900 dark:text-white truncate">{e.name}</p>
-                        <p className="text-xs font-bold text-blue-500 truncate flex items-center gap-1 mt-0.5 uppercase tracking-wider">
-                          <Shield className="w-3 h-3" /> {e.role || 'CASHIER'}
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <div className="col-span-3">
-                      <p className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2 truncate">
-                        <Mail className="w-3.5 h-3.5 text-slate-400" />
-                        {e.email || 'N/A'}
-                      </p>
-                    </div>
+              <div className="overflow-y-auto flex-1 divide-y divide-slate-100 dark:divide-slate-800/60 no-scrollbar">
+                {filteredEmployees.map((e) => {
+                  const isExpanded = expandedEmployeeId === e.id;
+                  return (
+                    <div key={e.id} className="flex flex-col">
+                      <div 
+                        onClick={() => setExpandedEmployeeId(prev => prev === e.id ? null : e.id)}
+                        className={`grid grid-cols-[minmax(240px,2fr)_minmax(180px,1.4fr)_minmax(180px,1.4fr)_minmax(120px,1fr)_100px] gap-4 p-4 sm:px-5 items-center transition-colors cursor-pointer group ${
+                          isExpanded ? 'bg-blue-50/60 dark:bg-blue-900/15' : 'hover:bg-slate-50/70 dark:hover:bg-slate-800/40'
+                        }`}
+                      >
+                        {/* Col 1: Employee & Role */}
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-500/20 text-blue-600 flex items-center justify-center font-bold text-base shrink-0 border border-blue-200/50 dark:border-blue-700/50">
+                            {e.name?.charAt(0).toUpperCase() || 'U'}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-bold text-slate-900 dark:text-white truncate text-sm">{e.name}</p>
+                            <p className="text-[11px] font-bold text-blue-600 dark:text-blue-400 truncate flex items-center gap-1 mt-0.5 uppercase tracking-wider">
+                              <Shield className="w-3 h-3 shrink-0" /> {e.role || 'CASHIER'}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        {/* Col 2: Contact */}
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium text-slate-700 dark:text-slate-300 flex items-center gap-1.5 truncate">
+                            <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            <span className="truncate">{e.email || 'N/A'}</span>
+                          </p>
+                        </div>
 
-                    <div className="col-span-3 space-y-1">
-                      <p className="text-sm font-medium text-slate-600 dark:text-slate-400 flex items-center gap-2">
-                        <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                        Joined: {formatDate(e.createdAt)}
-                      </p>
-                      <p className="text-xs text-slate-500 flex items-center gap-2">
-                        <Clock className="w-3.5 h-3.5 text-slate-400" />
-                        Last Login: {e.lastLogin ? formatDate(e.lastLogin) : 'Never'}
-                      </p>
-                    </div>
+                        {/* Col 3: Activity */}
+                        <div className="space-y-0.5 min-w-0">
+                          <p className="text-xs font-medium text-slate-600 dark:text-slate-400 flex items-center gap-1.5 truncate">
+                            <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            Joined: {formatDate(e.createdAt)}
+                          </p>
+                          <p className="text-[11px] text-slate-400 flex items-center gap-1.5 truncate">
+                            <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            Last Login: {e.lastLogin ? formatDate(e.lastLogin) : 'Never'}
+                          </p>
+                        </div>
 
-                    <div className="col-span-2 flex items-center justify-end">
-                      <div className={`px-2.5 py-1 rounded-lg text-xs font-bold border flex items-center gap-1.5 ${
-                        e.active !== false 
-                          ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 border-emerald-200 dark:border-emerald-500/20' 
-                          : 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-700'
-                      }`}>
-                        <div className={`w-1.5 h-1.5 rounded-full ${e.active !== false ? 'bg-emerald-500' : 'bg-slate-400'}`}></div>
-                        {e.active !== false ? 'Active' : 'Inactive'}
+                        {/* Col 4: Status */}
+                        <div>
+                          <div className={`px-2.5 py-1 rounded-full text-xs font-bold border inline-flex items-center gap-1.5 ${
+                            e.active !== false 
+                              ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 border-emerald-200 dark:border-emerald-500/20' 
+                              : 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-700'
+                          }`}>
+                            <div className={`w-1.5 h-1.5 rounded-full ${e.active !== false ? 'bg-emerald-500' : 'bg-slate-400'}`}></div>
+                            {e.active !== false ? 'Active' : 'Inactive'}
+                          </div>
+                        </div>
+
+                        {/* Col 5: Actions */}
+                        <div className="flex items-center justify-end">
+                          <button
+                            type="button"
+                            onClick={(e_btn) => {
+                              e_btn.stopPropagation();
+                              setExpandedEmployeeId(prev => prev === e.id ? null : e.id);
+                            }}
+                            className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
+                            title={isExpanded ? 'Collapse' : 'Expand Details'}
+                          >
+                            <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180 text-blue-600' : ''}`} />
+                          </button>
+                        </div>
                       </div>
+
+                      {/* Expandable Detail Drawer */}
+                      <AnimatePresence>
+                        {isExpanded && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.25, ease: 'easeInOut' }}
+                            className="overflow-hidden border-t border-slate-100 dark:border-slate-800/60 bg-slate-50/70 dark:bg-slate-800/30 p-6"
+                          >
+                            <div className="space-y-4">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                    <Shield className="w-4 h-4 text-blue-600" />
+                                    Staff Profile: {e.name}
+                                  </h4>
+                                  <p className="text-xs text-slate-500">Security permissions, system activity, and account status</p>
+                                </div>
+                                <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                                  e.active !== false ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-slate-200 text-slate-600'
+                                }`}>
+                                  {e.active !== false ? 'Account Active' : 'Account Disabled'}
+                                </span>
+                              </div>
+
+                              {/* 4 Summary Cards */}
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
+                                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Assigned Role</span>
+                                  <p className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2 uppercase tracking-wide">
+                                    <Shield className="w-4 h-4 text-blue-600" />
+                                    {e.role || 'CASHIER'}
+                                  </p>
+                                  <p className="text-[11px] text-slate-500 mt-1">POS & store permissions</p>
+                                </div>
+
+                                <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
+                                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Login Contact</span>
+                                  <p className="text-sm font-bold text-slate-900 dark:text-white truncate flex items-center gap-1.5">
+                                    <Mail className="w-4 h-4 text-blue-500 shrink-0" />
+                                    {e.email || 'N/A'}
+                                  </p>
+                                  <p className="text-[11px] text-slate-500 mt-1">Authorized SSO email</p>
+                                </div>
+
+                                <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
+                                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Onboarding Date</span>
+                                  <p className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                                    <Calendar className="w-4 h-4 text-emerald-500 shrink-0" />
+                                    {formatDate(e.createdAt)}
+                                  </p>
+                                  <p className="text-[11px] text-slate-500 mt-1">Account activation date</p>
+                                </div>
+
+                                <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
+                                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Recent Login</span>
+                                  <p className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                                    <Clock className="w-4 h-4 text-purple-500 shrink-0" />
+                                    {e.lastLogin ? formatDate(e.lastLogin) : 'Never'}
+                                  </p>
+                                  <p className="text-[11px] text-slate-500 mt-1">Last terminal session</p>
+                                </div>
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </>
           ) : (

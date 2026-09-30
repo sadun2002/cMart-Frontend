@@ -5,7 +5,7 @@ import { storeOwnerAPI } from '@/lib/api';
 import { 
   Search, Filter, CheckCircle, Clock, XCircle, AlertTriangle, 
   Maximize, Minimize, List, LayoutGrid, X, Download, User as UserIcon, 
-  Eye, FileText, Printer, ChevronDown, ShoppingBag, Globe, Truck, MapPin, CreditCard, CalendarDays, Edit, Package, Trash2, Ban, Mail, Phone, Users, Banknote, Copy,
+  Eye, FileText, Printer, ChevronDown, ShoppingBag, Globe, Truck, MapPin, CreditCard, CalendarDays, Edit2, Package, Trash2, Ban, Mail, Phone, Users, Banknote, Copy,
   BarChart3, PieChart, Activity, ShieldCheck, ArrowRight, TrendingUp
 } from 'lucide-react';
 import { 
@@ -841,106 +841,95 @@ export default function OnlineCustomersPage() {
               }
             />
           ) : viewMode === 'list' ? (
-            <div className="flex-1 overflow-x-auto custom-scrollbar">
-              <table className="w-full text-left whitespace-nowrap min-w-[1000px]">
-                <thead className="sticky top-0 bg-slate-50/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-100 dark:border-slate-800 text-xs font-bold text-slate-500 uppercase tracking-wider z-10 shadow-sm">
-                  <tr>
-                    <th className="px-5 py-4 font-bold text-slate-500">Customer ID</th>
-                    <th className="px-5 py-4 font-bold text-slate-500">Customer Info</th>
-                    <th className="px-5 py-4 font-bold text-slate-500">Contact & Address</th>
-                    <th className="px-5 py-4 font-bold text-slate-500">Registered / Last Login</th>
-                    <th className="px-5 py-4 font-bold text-slate-500 text-right">Lifetime Value</th>
-                    <th className="px-5 py-4 font-bold text-slate-500 text-center">Status</th>
-                    <th className="px-5 py-4 font-bold text-slate-500 text-center">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                  {filteredCustomers.map((customer) => (
-                    <tr 
-                      key={customer.id} 
-                      onClick={() => openCustomerDetails(customer)}
-                      className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer group"
-                    >
-                      <td className="px-5 py-4 font-bold text-slate-500 text-sm">{customer.id}</td>
-                      
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold shrink-0">
-                            {customer.name.charAt(0)}
+            <div className="flex-1 flex flex-col overflow-hidden w-full">
+              {/* Table Header */}
+              <div className="grid grid-cols-[minmax(200px,1.8fr)_minmax(220px,2fr)_minmax(150px,1.2fr)_minmax(140px,1.2fr)_130px] gap-4 h-14 px-5 items-center border-b border-slate-200 dark:border-slate-800 bg-slate-50/75 dark:bg-slate-900/60 text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0">
+                <div>Customer & ID</div>
+                <div>Contact & Address</div>
+                <div>Registered & Login</div>
+                <div className="text-right">Lifetime Value</div>
+                <div className="text-right pr-2">Actions</div>
+              </div>
+
+              {/* Table Body */}
+              <div className="flex-1 overflow-y-auto no-scrollbar divide-y divide-slate-100 dark:divide-slate-800/60">
+                {filteredCustomers.map((customer) => (
+                  <div 
+                    key={customer.id} 
+                    onClick={() => openCustomerDetails(customer)}
+                    className="grid grid-cols-[minmax(200px,1.8fr)_minmax(220px,2fr)_minmax(150px,1.2fr)_minmax(140px,1.2fr)_130px] gap-4 p-4 sm:px-5 items-center hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors cursor-pointer group"
+                  >
+                    {/* Col 1: Customer & ID */}
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold shrink-0 border border-blue-200/50 dark:border-blue-800/50">
+                        {customer.name.charAt(0)}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="font-bold text-slate-900 dark:text-white text-sm truncate">{customer.name}</div>
+                        <span className="text-[10px] text-slate-400 font-mono">ID: {customer.id}</span>
+                      </div>
+                    </div>
+                    
+                    {/* Col 2: Contact & Address */}
+                    <div className="flex flex-col gap-0.5 text-xs min-w-0">
+                      <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400 truncate">
+                        <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span className="truncate">{customer.email}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-slate-500 font-mono truncate">
+                        <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span className="truncate">{customer.phone}</span>
+                      </div>
+                      {customer.address && (
+                        <div className="flex items-center gap-1.5 text-slate-400 text-[11px] truncate">
+                          <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+                          <span className="truncate">{customer.address}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Col 3: Registered & Login */}
+                    <div className="flex flex-col gap-0.5 text-xs font-medium text-slate-500 min-w-0">
+                      <span className="truncate">Reg: {customer.registeredDate}</span>
+                      <span className="truncate">Login: {new Date(customer.lastLogin).toLocaleDateString()}</span>
+                    </div>
+
+                    {/* Col 4: Lifetime Value */}
+                    <div className="flex flex-col gap-0.5 text-right min-w-0">
+                      <span className="font-black text-blue-600 dark:text-blue-400 text-sm">Rs. {customer.totalSpent.toLocaleString()}</span>
+                      <span className="text-[11px] font-bold text-slate-500">{customer.totalOrders} Orders</span>
+                    </div>
+
+                    {/* Col 5: Status & Actions */}
+                    <div className="flex items-center justify-end gap-2">
+                      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] uppercase tracking-wider font-bold ${
+                        customer.status === 'Active' ? 'bg-emerald-50 text-emerald-600 border border-emerald-200/60 dark:bg-emerald-500/10 dark:text-emerald-400' :
+                        customer.status === 'Suspended' ? 'bg-rose-50 text-rose-600 border border-rose-200/60 dark:bg-rose-500/10 dark:text-rose-400' :
+                        'bg-amber-50 text-amber-600 border border-amber-200/60 dark:bg-amber-500/10 dark:text-amber-400'
+                      }`}>
+                        {customer.status}
+                      </span>
+                      {customer.status === 'Suspended' ? (
+                        <button onClick={(e) => { e.stopPropagation(); setBlockConfirmId(customer.id); handleToggleSuspendStatus(); }} className="p-1.5 rounded-xl transition-colors text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 cursor-pointer" title="Activate Account">
+                          <CheckCircle className="w-4 h-4" />
+                        </button>
+                      ) : (
+                        <div className="relative group/dropdown">
+                          <button onClick={(e) => { e.stopPropagation(); }} className="p-1.5 rounded-xl transition-colors text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 cursor-pointer" title="Suspend Account">
+                            <Ban className="w-4 h-4" />
+                          </button>
+                          <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 opacity-0 invisible group-hover/dropdown:opacity-100 group-hover/dropdown:visible transition-all z-50 overflow-hidden">
+                            <button onClick={(e) => { e.stopPropagation(); setBlockConfirmId(customer.id); setTimeout(() => handleToggleSuspendStatus('7 Days'), 0); }} className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 cursor-pointer">Suspend for 7 Days</button>
+                            <button onClick={(e) => { e.stopPropagation(); setBlockConfirmId(customer.id); setTimeout(() => handleToggleSuspendStatus('1 Month'), 0); }} className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 cursor-pointer">Suspend for 1 Month</button>
+                            <button onClick={(e) => { e.stopPropagation(); setBlockConfirmId(customer.id); setTimeout(() => handleToggleSuspendStatus('1 Year'), 0); }} className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 cursor-pointer">Suspend for 1 Year</button>
+                            <button onClick={(e) => { e.stopPropagation(); setBlockConfirmId(customer.id); setTimeout(() => handleToggleSuspendStatus('Lifetime'), 0); }} className="w-full text-left px-4 py-2 text-xs hover:bg-rose-50 dark:hover:bg-rose-900/20 text-rose-600 dark:text-rose-400 font-medium cursor-pointer">Lifetime Suspend</button>
                           </div>
-                          <div className="font-black text-slate-900 dark:text-white text-sm">{customer.name}</div>
                         </div>
-                      </td>
-
-                      <td className="px-5 py-4">
-                        <div className="flex flex-col gap-1 text-sm">
-                          <div className="flex items-center gap-2 group/copy">
-                            <span className="text-slate-600 dark:text-slate-400 flex items-center gap-1.5"><Mail className="w-3.5 h-3.5" /> {customer.email}</span>
-                            <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(customer.email); toast.success('Email copied'); }} className="opacity-0 group-hover/copy:opacity-100 text-slate-400 hover:text-blue-500 transition-all cursor-pointer">
-                              <Copy className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                          <div className="flex items-center gap-2 group/copy">
-                            <span className="text-slate-500 font-medium flex items-center gap-1.5"><Phone className="w-3.5 h-3.5" /> {customer.phone}</span>
-                            <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(customer.phone); toast.success('Phone copied'); }} className="opacity-0 group-hover/copy:opacity-100 text-slate-400 hover:text-blue-500 transition-all cursor-pointer">
-                              <Copy className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                          {customer.address && (
-                            <span className="text-slate-400 text-xs flex items-center gap-1.5 mt-0.5"><MapPin className="w-3.5 h-3.5" /> {customer.address}</span>
-                          )}
-                        </div>
-                      </td>
-
-                      <td className="px-5 py-4">
-                        <div className="flex flex-col gap-1 text-xs font-bold text-slate-500">
-                          <span>Reg: {customer.registeredDate}</span>
-                          <span>Login: {new Date(customer.lastLogin).toLocaleDateString()}</span>
-                        </div>
-                      </td>
-
-                      <td className="px-5 py-4 text-right">
-                        <div className="flex flex-col gap-1 text-sm">
-                          <span className="font-black text-blue-600 dark:text-blue-400">Rs. {customer.totalSpent.toLocaleString()}</span>
-                          <span className="text-xs font-bold text-slate-500">{customer.totalOrders} Orders</span>
-                        </div>
-                      </td>
-                      
-                      <td className="px-5 py-4 text-center">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] uppercase tracking-wider font-bold ${
-                          customer.status === 'Active' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' :
-                          customer.status === 'Suspended' ? 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400' :
-                          'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400'
-                        }`}>
-                          {customer.status}
-                        </span>
-                      </td>
-
-                      <td className="px-5 py-4 text-center">
-                        <div className="flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                          {customer.status === 'Suspended' ? (
-                            <button onClick={(e) => { e.stopPropagation(); setBlockConfirmId(customer.id); handleToggleSuspendStatus(); }} className={`p-2 rounded-lg transition-colors text-emerald-500 hover:bg-emerald-50 cursor-pointer`} title="Activate Account">
-                              <CheckCircle className="w-5 h-5" />
-                            </button>
-                          ) : (
-                            <div className="relative group/dropdown">
-                              <button onClick={(e) => { e.stopPropagation(); }} className="p-2 rounded-lg transition-colors text-red-500 hover:bg-red-50 cursor-pointer" title="Suspend Account">
-                                <Ban className="w-5 h-5" />
-                              </button>
-                              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 opacity-0 invisible group-hover/dropdown:opacity-100 group-hover/dropdown:visible transition-all z-50 overflow-hidden">
-                                <button onClick={(e) => { e.stopPropagation(); setBlockConfirmId(customer.id); setTimeout(() => handleToggleSuspendStatus('7 Days'), 0); }} className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 cursor-pointer">Suspend for 7 Days</button>
-                                <button onClick={(e) => { e.stopPropagation(); setBlockConfirmId(customer.id); setTimeout(() => handleToggleSuspendStatus('1 Month'), 0); }} className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 cursor-pointer">Suspend for 1 Month</button>
-                                <button onClick={(e) => { e.stopPropagation(); setBlockConfirmId(customer.id); setTimeout(() => handleToggleSuspendStatus('1 Year'), 0); }} className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 cursor-pointer">Suspend for 1 Year</button>
-                                <button onClick={(e) => { e.stopPropagation(); setBlockConfirmId(customer.id); setTimeout(() => handleToggleSuspendStatus('Lifetime'), 0); }} className="w-full text-left px-4 py-2 text-sm hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 font-medium cursor-pointer">Lifetime Suspend</button>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
 
           ) : (

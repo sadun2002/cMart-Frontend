@@ -5,7 +5,7 @@ import { storeOwnerAPI } from '@/lib/api';
 import { 
   Search, Filter, CheckCircle, Clock, XCircle, AlertTriangle, 
   Maximize, Minimize, List, LayoutGrid, X, Download, User as UserIcon, 
-  Eye, FileText, Printer, ChevronDown, ShoppingBag, Globe, Truck, MapPin, CreditCard, CalendarDays, Edit, Package, Trash2, Copy,
+  Eye, FileText, Printer, ChevronDown, ShoppingBag, Globe, Truck, MapPin, CreditCard, CalendarDays, Edit2, Package, Trash2, Copy,
   BarChart3, PieChart, Activity, ShieldCheck, ArrowRight, TrendingUp, DollarSign
 } from 'lucide-react';
 import { 
@@ -954,22 +954,21 @@ export default function OnlineOrdersPage() {
               description="You haven't received any customer online orders yet, or none match your search filters."
             />
           ) : viewMode === 'list' ? (
-            <div className="flex-1 overflow-x-auto">
-              <div className="min-w-max h-full flex flex-col">
-                {/* Table Header */}
-                <div className="grid grid-cols-[140px_1fr_120px_150px_150px_160px] gap-4 h-16 px-5 items-center border-b border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/50 text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0">
-                  <div>Order ID</div>
-                  <div>Customer</div>
-                  <div>Date</div>
-                  <div className="text-right">Total Amount</div>
-                  <div className="text-center">Payment</div>
-                  <div className="text-center">Status</div>
-                </div>
+            <div className="flex-1 flex flex-col overflow-hidden w-full">
+              {/* Table Header */}
+              <div className="grid grid-cols-[minmax(130px,1.1fr)_minmax(180px,1.8fr)_minmax(120px,1fr)_minmax(120px,1fr)_minmax(100px,0.9fr)_minmax(120px,1fr)] gap-4 h-16 px-5 items-center border-b border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/50 text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0">
+                <div>Order ID</div>
+                <div>Customer</div>
+                <div>Date</div>
+                <div className="text-right">Total Amount</div>
+                <div className="text-center">Payment</div>
+                <div className="text-center">Status</div>
+              </div>
 
-                {/* Table Body */}
-                <div className="flex-1 overflow-y-auto no-scrollbar">
-                  {filteredOrders.map((order) => (
-                      <div key={order.id} onClick={() => openOrderDetails(order)} className="cursor-pointer grid grid-cols-[140px_1fr_120px_150px_150px_160px] gap-4 p-5 border-b border-slate-100 dark:border-slate-800/60 items-center hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group">
+              {/* Table Body */}
+              <div className="flex-1 overflow-y-auto no-scrollbar">
+                {filteredOrders.map((order) => (
+                    <div key={order.id} onClick={() => openOrderDetails(order)} className="cursor-pointer grid grid-cols-[minmax(130px,1.1fr)_minmax(180px,1.8fr)_minmax(120px,1fr)_minmax(120px,1fr)_minmax(100px,0.9fr)_minmax(120px,1fr)] gap-4 p-5 border-b border-slate-100 dark:border-slate-800/60 items-center hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group">
                         
                         <div className="flex items-center gap-1.5 text-sm font-bold text-slate-900 dark:text-white">
                           {order.id}
@@ -1053,7 +1052,6 @@ export default function OnlineOrdersPage() {
                     ))}
                 </div>
               </div>
-            </div>
           ) : (
             <div className="flex-1 overflow-y-auto no-scrollbar p-6 bg-slate-50/50 dark:bg-slate-900/50">
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -1293,7 +1291,7 @@ export default function OnlineOrdersPage() {
                 {/* Status Update Form */}
                 <form id="updateStatusForm" onSubmit={handleUpdateStatus} className="space-y-5">
                   <h4 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
-                    <Edit className="w-4 h-4 text-blue-500" /> Update Order Status
+                    <Edit2 className="w-4 h-4 text-blue-500" /> Update Order Status
                   </h4>
                   
                   <div className="grid grid-cols-2 gap-4">

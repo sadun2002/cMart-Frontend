@@ -9,7 +9,7 @@ import {
   CalendarDays, Building2, Check, AlertTriangle, Info, Clock, 
   CheckCircle2, ArrowRight, Truck, ShieldAlert, FileText, Sparkles, UserCircle, Lock,
   Barcode, Tag, CircleDollarSign, Copy, Calendar, Users, Plus, Circle,
-  TrendingDown, TrendingUp, Star, BarChart3, Edit2, Trash2
+  TrendingDown, TrendingUp, Star, BarChart3, Trash2
 } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -347,14 +347,14 @@ function InventoryProductDetailView({
           </h4>
           <span className="text-xs font-semibold text-slate-400">{logs.length} movement records</span>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+        <div className="w-full">
+          <table className="w-full text-left border-collapse table-fixed">
             <thead>
               <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-900/30 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                <th className="py-3 px-5">Date & Time</th>
-                <th className="py-3 px-5">Action</th>
-                <th className="py-3 px-5">Description</th>
-                <th className="py-3 px-5">Performed By</th>
+                <th className="py-3 px-5 w-[22%]">Date & Time</th>
+                <th className="py-3 px-5 w-[18%]">Action</th>
+                <th className="py-3 px-5 w-[40%]">Description</th>
+                <th className="py-3 px-5 w-[20%]">Performed By</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -2159,22 +2159,10 @@ export default function InventoryPage() {
                           <button 
                             type="button"
                             onClick={(e) => { e.stopPropagation(); handleOpenPanel('Stock In', p); }} 
-                            className="p-2 text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-xl transition-colors cursor-pointer" 
+                            className="p-2 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-colors cursor-pointer" 
                             title="Manage Stock"
                           >
                             <SlidersHorizontal className="w-4 h-4" />
-                          </button>
-                          <button 
-                            type="button"
-                            onClick={(e) => { 
-                              e.stopPropagation(); 
-                              setEditingProduct(p);
-                              setIsAddProductPanelOpen(true);
-                            }} 
-                            className="p-2 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-colors cursor-pointer" 
-                            title="Edit Product"
-                          >
-                            <Edit2 className="w-4 h-4" />
                           </button>
                           <div className="p-1 text-slate-300 dark:text-slate-600 group-hover:text-slate-500 dark:group-hover:text-slate-400 transition-colors">
                             <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180 text-blue-600 dark:text-blue-400' : ''}`} />
@@ -2239,28 +2227,17 @@ export default function InventoryPage() {
                             <Package className="w-8 h-8 opacity-40 text-slate-400" />
                           )}
                           
-                          {/* Hover overlay with Manage Stock & Edit */}
+                          {/* Hover overlay with Manage Stock */}
                           <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 backdrop-blur-[2px]">
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleOpenPanel('Stock In', p);
                               }}
-                              className="p-2.5 bg-white text-slate-900 rounded-full hover:bg-emerald-50 hover:text-emerald-600 transition-colors shadow-lg translate-y-2 group-hover:translate-y-0 duration-300 flex items-center cursor-pointer"
+                              className="px-4 py-2 bg-white text-slate-900 rounded-full hover:bg-blue-600 hover:text-white font-bold text-xs transition-colors shadow-lg translate-y-2 group-hover:translate-y-0 duration-300 flex items-center gap-2 cursor-pointer"
                               title="Manage Stock"
                             >
-                              <SlidersHorizontal className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setEditingProduct(p);
-                                setIsAddProductPanelOpen(true);
-                              }}
-                              className="p-2.5 bg-white text-slate-900 rounded-full hover:bg-blue-50 hover:text-blue-600 transition-colors shadow-lg translate-y-2 group-hover:translate-y-0 duration-300 flex items-center cursor-pointer delay-75"
-                              title="Edit Product"
-                            >
-                              <Edit2 className="w-4 h-4" />
+                              <SlidersHorizontal className="w-4 h-4" /> Manage Stock
                             </button>
                           </div>
 

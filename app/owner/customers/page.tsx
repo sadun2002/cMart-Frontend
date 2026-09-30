@@ -3,7 +3,7 @@ import { Suspense } from 'react';
 
 import { useEffect, useState, useMemo } from 'react';
 import { 
-  Users, Search, Plus, Edit, Trash2, 
+  Users, Search, Plus, Edit2, Trash2, 
   MapPin, Phone, Mail, FileText, CheckCircle, XCircle, UserCircle,
   Filter, List, LayoutGrid, Maximize, Minimize, X, Gift, ShoppingBag, Banknote, ChevronDown, ChevronUp, Copy,
   BarChart3, User, CreditCard, SlidersHorizontal, CheckCircle2
@@ -56,40 +56,48 @@ function CustomerHistoryView({ customer, onBack, formatCurrency }: { customer: a
           <p className="text-sm font-medium text-slate-500">View all past purchases, points earned, and payment details.</p>
         </div>
       </div>
-      <div className="flex-1 overflow-x-auto bg-white dark:bg-slate-900">
-        <div className="min-w-max h-full flex flex-col">
-          <div className="grid grid-cols-[150px_120px_250px_120px_120px_120px_120px_150px_120px_120px] gap-4 p-5 border-b border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/50 text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0">
-            <div>Date</div>
-            <div>Order ID</div>
-            <div>Items Summary</div>
-            <div className="text-right">Total (Rs)</div>
-            <div className="text-right">Discount (Rs)</div>
-            <div className="text-right">Net Total (Rs)</div>
-            <div className="text-center">Points Earned</div>
-            <div className="text-center">Pay Method</div>
-            <div className="text-center">Status</div>
-            <div>Cashier</div>
-          </div>
-          <div className="flex-1 overflow-y-auto no-scrollbar">
-            {orders.map((o, i) => (
-              <div key={i} className="grid grid-cols-[150px_120px_250px_120px_120px_120px_120px_150px_120px_120px] gap-4 p-5 border-b border-slate-100 dark:border-slate-800/60 items-center hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-                <div className="text-sm font-bold text-slate-700 dark:text-slate-300">{new Date(o.date).toLocaleDateString()} {new Date(o.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
-                <div className="text-sm font-medium text-slate-600 dark:text-slate-400">{o.id}</div>
-                <div className="text-sm font-medium text-slate-700 dark:text-slate-300 truncate">{o.items}</div>
-                <div className="text-sm font-bold text-slate-600 text-right">{o.total > 0 ? o.total.toLocaleString(undefined, {minimumFractionDigits: 2}) : '-'}</div>
-                <div className="text-sm font-bold text-red-600 text-right">{o.discount > 0 ? o.discount.toLocaleString(undefined, {minimumFractionDigits: 2}) : '-'}</div>
-                <div className="text-sm font-black text-emerald-600 dark:text-emerald-400 text-right">{o.netTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
-                <div className="text-center text-sm font-bold text-amber-500">+{o.pointsEarned}</div>
-                <div className="text-center">
-                  <span className="inline-flex px-2 py-1 rounded-md text-[10px] uppercase font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">{o.payMethod.replace('_', ' ')}</span>
-                </div>
-                <div className="text-center">
-                  <span className={`inline-flex px-2 py-1 rounded-md text-[10px] uppercase font-bold ${o.status === 'COMPLETED' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400'}`}>{o.status}</span>
-                </div>
-                <div className="text-sm font-medium text-slate-500">{o.cashier}</div>
+      <div className="flex-1 overflow-hidden flex flex-col bg-white dark:bg-slate-900 w-full">
+        {/* Table Header */}
+        <div className="grid grid-cols-[minmax(180px,1.5fr)_minmax(220px,2fr)_minmax(160px,1.3fr)_minmax(150px,1.2fr)_120px] gap-4 h-14 px-5 items-center border-b border-slate-200 dark:border-slate-800 bg-slate-50/75 dark:bg-slate-900/60 text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0">
+          <div>Order ID & Date</div>
+          <div>Items Summary</div>
+          <div className="text-right">Total & Discount</div>
+          <div>Points & Payment</div>
+          <div className="text-center">Status</div>
+        </div>
+        {/* Table Body */}
+        <div className="flex-1 overflow-y-auto no-scrollbar divide-y divide-slate-100 dark:divide-slate-800/60">
+          {orders.map((o, i) => (
+            <div key={i} className="grid grid-cols-[minmax(180px,1.5fr)_minmax(220px,2fr)_minmax(160px,1.3fr)_minmax(150px,1.2fr)_120px] gap-4 p-4 sm:px-5 items-center hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
+              <div className="min-w-0">
+                <span className="font-bold text-slate-900 dark:text-white text-sm block truncate">{o.id}</span>
+                <span className="text-xs text-slate-500 block truncate">{new Date(o.date).toLocaleDateString()} {new Date(o.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                {o.cashier && <span className="text-[10px] text-slate-400 block truncate">Cashier: {o.cashier}</span>}
               </div>
-            ))}
-          </div>
+              <div className="min-w-0">
+                <span className="text-xs font-medium text-slate-700 dark:text-slate-300 line-clamp-2">{o.items}</span>
+              </div>
+              <div className="text-right min-w-0">
+                <span className="text-sm font-black text-emerald-600 dark:text-emerald-400 block truncate">Rs. {o.netTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                {o.discount > 0 && (
+                  <span className="text-[11px] text-rose-500 block font-medium">Disc: -Rs. {o.discount.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                )}
+              </div>
+              <div className="min-w-0 space-y-1">
+                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-600 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-full border border-amber-200/60">
+                  +{o.pointsEarned} pts
+                </span>
+                <div className="text-[11px] font-mono text-slate-500 uppercase">
+                  {o.payMethod.replace('_', ' ')}
+                </div>
+              </div>
+              <div className="text-center">
+                <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] uppercase font-bold tracking-wider ${o.status === 'COMPLETED' ? 'bg-emerald-50 text-emerald-600 border border-emerald-200/60 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-amber-50 text-amber-600 border border-amber-200/60 dark:bg-amber-500/10 dark:text-amber-400'}`}>
+                  {o.status}
+                </span>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>
@@ -557,9 +565,10 @@ function CustomersPageContent() {
   const [termsFilter, setTermsFilter] = useState('all');
   const [sortBy, setSortBy] = useState('name-asc'); 
   
-  // History Panel state
+  // History Panel & Inline Accordion state
   const [isHistoryPanelOpen, setIsHistoryPanelOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
+  const [expandedCustomerId, setExpandedCustomerId] = useState<number | null>(null);
   
   // Side Panel state
   const [isPanelOpen, setIsPanelOpen] = useState(false);
@@ -1037,159 +1046,232 @@ function CustomersPageContent() {
             onAction={openAddPanel}
           />
         ) : viewMode === 'list' ? (
-          <>
-            {/* Table wrapper for horizontal scroll */}
-            <div className="overflow-x-auto flex-1 custom-scrollbar">
-              <table className="w-full text-left whitespace-nowrap min-w-[1500px]">
-                <thead className="sticky top-0 bg-slate-50/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-100 dark:border-slate-800 text-xs font-bold text-slate-500 uppercase tracking-wider z-10 shadow-sm">
-                  <tr>
-                    <th className="px-5 py-4 font-bold text-slate-500">Customer Name</th>
-                    <th className="px-5 py-4 font-bold text-slate-500">Contact</th>
-                    <th className="px-5 py-4 font-bold text-slate-500">Location</th>
-                    <th className="px-5 py-4 font-bold text-slate-500">Group</th>
-                    <th className="px-5 py-4 font-bold text-slate-500">Gender & DOB</th>
-                    <th className="px-5 py-4 font-bold text-slate-500 text-right">Balance</th>
-                    <th className="px-5 py-4 font-bold text-slate-500 text-right">Credit Limit</th>
-                    <th className="px-5 py-4 font-bold text-slate-500 text-center">Terms</th>
-                    <th className="px-5 py-4 font-bold text-slate-500 text-right">Loyalty Pts</th>
-                    <th className="px-5 py-4 font-bold text-slate-500 text-right">Total Spent</th>
-                    <th className="px-5 py-4 font-bold text-slate-500 text-center">Orders</th>
-                    <th className="px-5 py-4 font-bold text-slate-500 text-center">Status</th>
-                    <th className="px-5 py-4 font-bold text-slate-500 text-center">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                  {filteredCustomers.map((c) => (
-                      <tr 
-                        key={c.id}
-                        onClick={() => openHistory(c)}
-                        className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group cursor-pointer"
+            <>
+              {/* Table Header */}
+              <div className="grid grid-cols-[minmax(220px,2fr)_minmax(180px,1.5fr)_minmax(140px,1.2fr)_minmax(140px,1.2fr)_110px] gap-4 h-14 px-5 items-center border-b border-slate-200 dark:border-slate-800 bg-slate-50/75 dark:bg-slate-900/60 text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0">
+                <div>Customer & Group</div>
+                <div>Contact & Location</div>
+                <div className="text-right">Balance & Credit</div>
+                <div className="text-right">Orders & Loyalty</div>
+                <div className="text-right pr-2">Actions</div>
+              </div>
+
+              {/* Table Body */}
+              <div className="flex-1 flex flex-col divide-y divide-slate-100 dark:divide-slate-800/60">
+                {filteredCustomers.map((c) => {
+                  const isExpanded = expandedCustomerId === c.id;
+
+                  return (
+                    <div key={c.id} className="flex flex-col group scroll-mt-20">
+                      {/* Summary Row */}
+                      <div 
+                        onClick={() => setExpandedCustomerId(prev => prev === c.id ? null : c.id)}
+                        className={`grid grid-cols-[minmax(220px,2fr)_minmax(180px,1.5fr)_minmax(140px,1.2fr)_minmax(140px,1.2fr)_110px] gap-4 p-4 sm:px-5 items-center transition-colors cursor-pointer ${
+                          isExpanded 
+                            ? 'bg-blue-50/60 dark:bg-blue-900/15' 
+                            : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/40'
+                        }`}
                       >
-                        <td className="px-5 py-4">
-                          <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-500/20 text-blue-600 flex items-center justify-center font-bold text-lg flex-shrink-0">
-                              {c.name.charAt(0).toUpperCase()}
-                            </div>
-                            <p className="font-bold text-slate-900 dark:text-white truncate max-w-[200px]">{c.name}</p>
+                        {/* 1. Customer & Group */}
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-10 h-10 rounded-2xl bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-sm shrink-0">
+                            {c.name.charAt(0).toUpperCase()}
                           </div>
-                        </td>
-                        <td className="px-5 py-4">
-                          <div className="space-y-1">
-                            <div className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2 group/copy">
-                              <Phone className="w-3.5 h-3.5 text-slate-400" /> 
-                              <span className="truncate">{c.phone || 'N/A'}</span>
-                              {c.phone && (
-                                <button 
-                                  onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(c.phone); toast.success('Phone copied!'); }}
-                                  className="opacity-0 group-hover/copy:opacity-100 hover:text-blue-500 transition-colors p-1 rounded"
-                                  title="Copy Phone"
-                                >
-                                  <Copy className="w-3 h-3" />
-                                </button>
-                              )}
-                            </div>
-                            <div className="text-xs text-slate-500 flex items-center gap-2 group/copy">
-                              <Mail className="w-3.5 h-3.5 text-slate-400" /> 
-                              <span className="truncate">{c.email || 'N/A'}</span>
-                              {c.email && (
-                                <button 
-                                  onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(c.email); toast.success('Email copied!'); }}
-                                  className="opacity-0 group-hover/copy:opacity-100 hover:text-blue-500 transition-colors p-1 rounded"
-                                  title="Copy Email"
-                                >
-                                  <Copy className="w-3 h-3" />
-                                </button>
-                              )}
+                          <div className="min-w-0">
+                            <p className="font-bold text-slate-900 dark:text-white text-sm truncate">{c.name}</p>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                                c.customerGroup === 'VIP' ? 'bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-400' :
+                                c.customerGroup === 'WHOLESALE' ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400' :
+                                'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                              }`}>
+                                {c.customerGroup || 'REGULAR'}
+                              </span>
+                              <span className="text-slate-300 dark:text-slate-600">•</span>
+                              <span className={`inline-flex items-center gap-1 text-[10px] font-semibold ${
+                                c.active !== false ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'
+                              }`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${c.active !== false ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                                {c.active !== false ? 'Active' : 'Inactive'}
+                              </span>
                             </div>
                           </div>
-                        </td>
-                        <td className="px-5 py-4">
-                          <div className="space-y-1">
-                            <p className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                              <MapPin className="w-3.5 h-3.5 text-slate-400" /> {c.city || 'No city'}
-                            </p>
-                            {c.province && <p className="text-xs text-slate-500 ml-5.5">{c.province}</p>}
+                        </div>
+
+                        {/* 2. Contact & Location */}
+                        <div className="flex flex-col justify-center min-w-0 text-xs">
+                          <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300 font-medium truncate group/copy">
+                            <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            <span className="truncate">{c.phone || 'N/A'}</span>
+                            {c.phone && (
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(c.phone); toast.success('Phone copied!'); }}
+                                className="opacity-0 group-hover/copy:opacity-100 text-slate-400 hover:text-blue-500 transition-opacity p-0.5"
+                                title="Copy Phone"
+                              >
+                                <Copy className="w-3 h-3" />
+                              </button>
+                            )}
                           </div>
-                        </td>
-                        <td className="px-5 py-4">
-                          <span className={`px-2 py-1 rounded text-xs font-bold ${
-                            c.customerGroup === 'VIP' ? 'bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-400' :
-                            c.customerGroup === 'WHOLESALE' ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400' :
-                            'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
-                          }`}>
-                            {c.customerGroup || 'REGULAR'}
-                          </span>
-                        </td>
-                        <td className="px-5 py-4">
-                          <div className="space-y-1">
-                            <p className="text-sm text-slate-700 dark:text-slate-300 capitalize">{c.gender?.toLowerCase() || 'Other'}</p>
-                            <p className="text-xs text-slate-500">{c.dateOfBirth || 'No DOB'}</p>
+                          <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 text-[11px] truncate mt-0.5">
+                            <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            <span className="truncate">{c.city ? `${c.city}${c.province ? `, ${c.province}` : ''}` : 'No location'}</span>
                           </div>
-                        </td>
-                        <td className="px-5 py-4 text-right">
-                          <p className={`text-sm font-bold ${Number(c.openingBalance) < 0 ? 'text-red-500' : 'text-slate-900 dark:text-white'}`}>
+                        </div>
+
+                        {/* 3. Balance & Credit */}
+                        <div className="flex flex-col items-end justify-center min-w-0 text-xs">
+                          <p className={`font-bold ${Number(c.openingBalance) < 0 ? 'text-rose-500' : 'text-slate-900 dark:text-white'}`}>
                             Rs. {formatCurrency(c.openingBalance || 0)}
                           </p>
-                        </td>
-                        <td className="px-5 py-4 text-right">
-                          <p className="text-sm font-bold text-slate-900 dark:text-white">
-                            Rs. {formatCurrency(c.creditLimit || 0)}
-                          </p>
-                        </td>
-                        <td className="px-5 py-4 text-center">
-                          <span className="text-xs font-medium px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded text-slate-600 dark:text-slate-400">
-                            {c.paymentTerms?.replace('NET_', '')?.concat(' Days')?.replace('CASH Days', 'CASH') || 'CASH'}
-                          </span>
-                        </td>
-                        <td className="px-5 py-4 text-right">
-                          <p className="text-sm font-bold text-amber-500">
-                            {c.points || 0}
-                          </p>
-                        </td>
-                        <td className="px-5 py-4 text-right">
-                          <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400 flex justify-end items-center gap-1.5">
-                            <Banknote className="w-3.5 h-3.5" /> Rs. {formatCurrency(c.totalSpent)}
-                          </p>
-                        </td>
-                        <td className="px-5 py-4 text-center">
-                          <p className="text-sm font-bold text-slate-900 dark:text-white flex justify-center items-center gap-1.5">
-                            <ShoppingBag className="w-3.5 h-3.5 text-blue-500" /> {c.totalOrders || 0}
-                          </p>
-                        </td>
-                        <td className="px-5 py-4 text-center">
-                          <div className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-bold border items-center justify-center gap-1.5 ${
-                            c.active !== false 
-                              ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 border-emerald-200 dark:border-emerald-500/20' 
-                              : 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-700'
-                          }`}>
-                            <div className={`w-1.5 h-1.5 rounded-full ${c.active !== false ? 'bg-emerald-500' : 'bg-slate-400'}`}></div>
-                            {c.active !== false ? 'Active' : 'Inactive'}
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <span className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+                              Limit: Rs. {formatCurrency(c.creditLimit || 0)}
+                            </span>
+                            <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.2 rounded">
+                              {c.paymentTerms?.replace('NET_', '')?.concat('D')?.replace('CASHD', 'CASH') || 'CASH'}
+                            </span>
                           </div>
-                        </td>
-                        <td className="px-5 py-4 text-center">
-                          <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button 
-                              onClick={(e) => handleEdit(c, e)}
-                              className="p-2 text-slate-400 hover:text-blue-600 bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm transition-all"
-                              title="Edit Customer"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </button>
-                            <button 
-                              onClick={(e) => handleDelete(c.id, e)}
-                              className="p-2 text-slate-400 hover:text-red-600 bg-white dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm transition-all"
-                              title="Delete Customer"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                        </div>
+
+                        {/* 4. Orders & Loyalty */}
+                        <div className="flex flex-col items-end justify-center min-w-0 text-xs">
+                          <p className="font-bold text-emerald-600 dark:text-emerald-400">
+                            Rs. {formatCurrency(c.totalSpent || 0)}
+                          </p>
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <span className="text-[11px] text-slate-600 dark:text-slate-400 font-medium">
+                              {c.totalOrders || 0} orders
+                            </span>
+                            <span className="text-slate-300 dark:text-slate-600">•</span>
+                            <span className="text-[10px] font-bold text-amber-500 bg-amber-50 dark:bg-amber-500/10 px-1.5 py-0.2 rounded">
+                              ★ {c.points || 0} pts
+                            </span>
                           </div>
-                        </td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
-            </div>
-          </>
+                        </div>
+
+                        {/* 5. Actions Column (Right-aligned, tailored for customers) */}
+                        <div className="flex items-center justify-end gap-1 shrink-0">
+                          <button 
+                            type="button"
+                            onClick={(e) => handleEdit(c, e)}
+                            className="p-2 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-colors cursor-pointer"
+                            title="Edit Customer"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button 
+                            type="button"
+                            onClick={(e) => handleDelete(c.id, e)}
+                            className="p-2 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl transition-colors cursor-pointer"
+                            title="Delete Customer"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                          <div className="p-1 text-slate-300 dark:text-slate-600 group-hover:text-slate-500 dark:group-hover:text-slate-400 transition-colors">
+                            <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180 text-blue-600 dark:text-blue-400' : ''}`} />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* ──────────────── INLINE DETAILS EXPANSION ──────────────── */}
+                      <AnimatePresence>
+                        {isExpanded && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.25, ease: 'easeInOut' }}
+                            className="overflow-hidden border-t border-slate-100 dark:border-slate-800/60 bg-slate-50/70 dark:bg-slate-800/30 p-6"
+                          >
+                            <div className="space-y-6">
+                              {/* 4 Info Cards Grid */}
+                              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                {/* Card 1: Contact & Personal */}
+                                <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-2">
+                                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                                    <User className="w-3.5 h-3.5 text-blue-500" /> Personal & Contact
+                                  </p>
+                                  <div className="space-y-1 text-xs">
+                                    <p className="text-slate-600 dark:text-slate-300">
+                                      <span className="font-semibold text-slate-800 dark:text-white">Email:</span> {c.email || 'N/A'}
+                                    </p>
+                                    <p className="text-slate-600 dark:text-slate-300">
+                                      <span className="font-semibold text-slate-800 dark:text-white">Address:</span> {c.address || 'N/A'}
+                                    </p>
+                                    <p className="text-slate-600 dark:text-slate-300">
+                                      <span className="font-semibold text-slate-800 dark:text-white">Gender / DOB:</span> {c.gender || 'Other'} {c.dateOfBirth ? `(${c.dateOfBirth})` : ''}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                {/* Card 2: Financial Terms */}
+                                <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-2">
+                                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                                    <CreditCard className="w-3.5 h-3.5 text-emerald-500" /> Financial & Credit
+                                  </p>
+                                  <div className="space-y-1 text-xs">
+                                    <p className="text-slate-600 dark:text-slate-300">
+                                      <span className="font-semibold text-slate-800 dark:text-white">Opening Bal:</span> Rs. {formatCurrency(c.openingBalance || 0)}
+                                    </p>
+                                    <p className="text-slate-600 dark:text-slate-300">
+                                      <span className="font-semibold text-slate-800 dark:text-white">Credit Limit:</span> Rs. {formatCurrency(c.creditLimit || 0)}
+                                    </p>
+                                    <p className="text-slate-600 dark:text-slate-300">
+                                      <span className="font-semibold text-slate-800 dark:text-white">Terms:</span> {c.paymentTerms?.replace('NET_', '')?.concat(' Days')?.replace('CASH Days', 'CASH') || 'CASH'}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                {/* Card 3: Loyalty & Activity */}
+                                <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-2">
+                                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                                    <Gift className="w-3.5 h-3.5 text-amber-500" /> Loyalty & Stats
+                                  </p>
+                                  <div className="space-y-1 text-xs">
+                                    <p className="text-slate-600 dark:text-slate-300">
+                                      <span className="font-semibold text-slate-800 dark:text-white">Total Spent:</span> Rs. {formatCurrency(c.totalSpent || 0)}
+                                    </p>
+                                    <p className="text-slate-600 dark:text-slate-300">
+                                      <span className="font-semibold text-slate-800 dark:text-white">Total Orders:</span> {c.totalOrders || 0}
+                                    </p>
+                                    <p className="text-slate-600 dark:text-slate-300">
+                                      <span className="font-semibold text-slate-800 dark:text-white">Loyalty Pts:</span> {c.points || 0} pts
+                                    </p>
+                                  </div>
+                                </div>
+
+                                {/* Card 4: Quick Actions */}
+                                <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col justify-center gap-2">
+                                  <button
+                                    onClick={() => handleEdit(c)}
+                                    className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 dark:bg-blue-500/10 dark:hover:bg-blue-500/20 dark:text-blue-400 rounded-xl font-bold text-xs transition-colors cursor-pointer"
+                                  >
+                                    <Edit2 className="w-3.5 h-3.5" /> Edit Profile
+                                  </button>
+                                  <button
+                                    onClick={() => openHistory(c)}
+                                    className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 rounded-xl font-bold text-xs transition-colors cursor-pointer"
+                                  >
+                                    <FileText className="w-3.5 h-3.5" /> View Order History
+                                  </button>
+                                </div>
+                              </div>
+
+                              {c.notes && (
+                                <div className="p-3 bg-amber-50/80 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/40 rounded-xl text-xs text-amber-800 dark:text-amber-300">
+                                  <span className="font-bold">Customer Notes:</span> {c.notes}
+                                </div>
+                              )}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
         ) : (
           /* Grid View */
           <div className="overflow-y-auto flex-1 p-6 custom-scrollbar">
@@ -1273,7 +1355,7 @@ function CustomersPageContent() {
                         className="p-1.5 text-slate-400 hover:text-blue-600 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm hover:bg-blue-50 dark:hover:bg-blue-500/20 rounded-lg border border-slate-200/50 dark:border-slate-700/50 shadow-sm transition-all"
                         title="Edit Customer"
                       >
-                        <Edit className="w-3.5 h-3.5" />
+                        <Edit2 className="w-3.5 h-3.5" />
                       </button>
                       <button 
                         onClick={(e) => handleDelete(c.id, e)}
