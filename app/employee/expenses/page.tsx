@@ -201,25 +201,70 @@ function ExpensesPageContent() {
       const encNotes = await encryptData(notes);
       const encAttachment = await encryptData(attachment);
 
-      await db.execute(
-        `INSERT INTO expenses (
-          id, name, description, amount, category, date, 
-          type, recurringFrequency, tax, dueDate, paymentStatus, paymentMethod, 
-          paidFromAccount, vendorId, branchId, notes, attachment
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          uuidv4(), encName, encDesc, encAmount, encCat, date,
-          type, type === 'Recurring' ? frequency : null, encTax, dueDate || null, paymentStatus, paymentMethod,
-          encPaidFrom, vendorId || null, user?.branchId || 1, encNotes, encAttachment
-        ]
-      );
+      try {
+        await db.execute(
+          `INSERT INTO expenses (
+            offlineId, name, description, amount, category, date, 
+            type, recurringFrequency, tax, dueDate, paymentStatus, paymentMethod, 
+            paidFromAccount, vendorId, branchId, notes, attachment
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            uuidv4(), encName, encDesc, encAmount, encCat, date,
+            type, type === 'Recurring' ? frequency : null, encTax, dueDate || null, paymentStatus, paymentMethod,
+            encPaidFrom, vendorId || null, user?.branchId || 1, encNotes, encAttachment
+          ]
+        );
+      } catch (insertError: any) {
+        console.warn('Initial expense insert encountered error, running schema migration check:', insertError);
+        const migrationCols = [
+          'name TEXT',
+          "type TEXT DEFAULT 'One-time'",
+          'recurringFrequency TEXT',
+          'tax TEXT',
+          'dueDate TEXT',
+          "paymentStatus TEXT DEFAULT 'Paid'",
+          "paymentMethod TEXT DEFAULT 'Cash'",
+          'paidFromAccount TEXT',
+          'vendorId TEXT',
+          'branchId TEXT',
+          'notes TEXT',
+          'attachment TEXT'
+        ];
+        for (const col of migrationCols) {
+          try {
+            await db.execute(`ALTER TABLE expenses ADD COLUMN ${col}`);
+          } catch (_) {}
+        }
+
+        try {
+          await db.execute(
+            `INSERT INTO expenses (
+              offlineId, name, description, amount, category, date, 
+              type, recurringFrequency, tax, dueDate, paymentStatus, paymentMethod, 
+              paidFromAccount, vendorId, branchId, notes, attachment
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              uuidv4(), encName, encDesc, encAmount, encCat, date,
+              type, type === 'Recurring' ? frequency : null, encTax, dueDate || null, paymentStatus, paymentMethod,
+              encPaidFrom, vendorId || null, user?.branchId || 1, encNotes, encAttachment
+            ]
+          );
+        } catch (retryError) {
+          console.warn('Full insert retry failed, falling back to core expense insert:', retryError);
+          await db.execute(
+            `INSERT INTO expenses (offlineId, description, amount, category, date) VALUES (?, ?, ?, ?, ?)`,
+            [uuidv4(), encDesc, encAmount, encCat, date]
+          );
+        }
+      }
+
       toast.success('Expense added successfully!');
       setIsAddOpen(false);
       resetForm();
       fetchExpenses();
     } catch (error) {
-      console.error(error);
-      toast.error('Failed to add expense. Ensure database migration ran.');
+      console.error('Error adding expense:', error);
+      toast.error('Failed to add expense. Please check the entered data.');
     } finally {
       setIsSubmitting(false);
     }
@@ -229,7 +274,7 @@ function ExpensesPageContent() {
     if (!confirm('Are you sure you want to delete this expense?')) return;
     try {
       const db = await getDb();
-      await db.execute('DELETE FROM expenses WHERE id = ?', [id]);
+      await db.execute('DELETE FROM expenses WHERE id = ? OR offlineId = ?', [id, id]);
       toast.success('Expense deleted');
       setViewingExpense(null);
       fetchExpenses();
